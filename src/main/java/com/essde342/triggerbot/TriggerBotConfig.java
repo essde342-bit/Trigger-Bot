@@ -7,7 +7,7 @@ public class TriggerBotConfig {
 
     // Custom mobile optimizer.
     public boolean optimization = true;
-    public int optimizationLevel = 1; // 0=Balanced, 1=Performance, 2=Extreme
-    public boolean adaptiveOptimization = true;
+    public int optimizationLevel = 2; // 0=Balanced, 1=Performance, 2=Extreme
+    public boolean adaptiveOptimization = false;
     public int targetFps = 45;
 }
