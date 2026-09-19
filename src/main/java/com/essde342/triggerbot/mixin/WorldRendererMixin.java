@@ -9,20 +9,18 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 @Mixin(WorldRenderer.class)
 public class WorldRendererMixin {
     @ModifyVariable(
-            method = "render",
+            method = "updateChunks",
             at = @At("HEAD"),
             argsOnly = true,
-            index = 2
+            ordinal = 0
     )
     private long triggerBot$limitChunkUpdateBudget(long limitTime) {
         if (!TriggerBotOptimizer.isRendererOptimizationActive()) {
             return limitTime;
         }
 
-        long now = System.nanoTime();
         long budget = TriggerBotOptimizer.getChunkUpdateBudgetNanos();
-        long hardLimit = now + budget;
-
+        long hardLimit = System.nanoTime() + budget;
         return Math.min(limitTime, hardLimit);
     }
 }
