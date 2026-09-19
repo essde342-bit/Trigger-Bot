@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "triggerbot",
   "version": "${version}",
-  "name": "Trigger Bot",
-  "description": "Client-side trigger bot for Minecraft 1.16.5 Fabric.",
+  "name": "Trigger Bot + Mobile Optimization",
+  "description": "Client-side TriggerBot with bundled Sodium 0.2.0 optimization for Minecraft 1.16.5.",
   "authors": ["essde342-bit"],
   "environment": "client",
   "entrypoints": {
@@ -12,6 +12,7 @@
   "depends": {
     "fabricloader": ">=0.14.0",
     "fabric": "*",
-    "minecraft": "1.16.5"
+    "minecraft": "1.16.5",
+    "sodium": ">=0.2.0"
   }
 }
