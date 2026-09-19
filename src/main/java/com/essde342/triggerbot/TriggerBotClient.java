@@ -107,7 +107,7 @@ public class TriggerBotClient implements ClientModInitializer {
     private static boolean canCriticalHit(PlayerEntity player) {
         return !player.isOnGround()
                 && player.fallDistance > 0.0F
-                && !player.isOnLadder()
+                && !player.isClimbing()
                 && !player.isTouchingWater()
                 && !player.hasVehicle()
                 && !player.hasStatusEffect(StatusEffects.BLINDNESS)
