@@ -19,8 +19,8 @@ public class TriggerBotScreen extends Screen {
 
     @Override
     protected void init() {
-        panelWidth = Math.min(330, Math.max(285, this.width - 12));
-        panelHeight = Math.min(250, Math.max(210, this.height - 18));
+        panelWidth = Math.min(330, Math.max(230, this.width - 12));
+        panelHeight = Math.min(250, Math.max(205, this.height - 18));
         panelLeft = (this.width - panelWidth) / 2;
         panelTop = (this.height - panelHeight) / 2;
     }
