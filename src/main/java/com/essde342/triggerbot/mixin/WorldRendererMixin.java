@@ -1,6 +1,7 @@
 package com.essde342.triggerbot.mixin;
 
 import com.essde342.triggerbot.TriggerBotOptimizer;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.WorldRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -16,6 +17,12 @@ public class WorldRendererMixin {
     )
     private long triggerBot$limitChunkUpdateBudget(long limitTime) {
         if (!TriggerBotOptimizer.isRendererOptimizationActive()) {
+            return limitTime;
+        }
+
+        // Never throttle the initial title screen / world startup.
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null || client.player == null) {
             return limitTime;
         }
 
