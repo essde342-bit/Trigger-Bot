@@ -6,7 +6,8 @@
   "client": [
     "WorldRendererMixin",
     "EntityRenderDispatcherMixin",
-    "BlockEntityRenderDispatcherMixin"
+    "BlockEntityRenderDispatcherMixin",
+    "GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
