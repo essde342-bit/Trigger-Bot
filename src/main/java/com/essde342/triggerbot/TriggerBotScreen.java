@@ -36,7 +36,7 @@ public class TriggerBotScreen extends Screen {
 
         // Header.
         this.textRenderer.draw(matrices, new LiteralText("TRIGGER BOT"), panelLeft + 14, panelTop + 11, 0xFFFFFFFF);
-        drawString(matrices, this.textRenderer,
+        this.textRenderer.draw(matrices,
                 new LiteralText("Fabric 1.16.5 • Mobile Edition"),
                 panelLeft + 14, panelTop + 22, 0xFF8D96A6);
 
@@ -74,8 +74,8 @@ public class TriggerBotScreen extends Screen {
     }
 
     private void renderCombat(MatrixStack matrices, int mouseX, int mouseY, int x, int y, int width) {
-        drawString(matrices, this.textRenderer, new LiteralText("Combat"), x + 12, y + 10, 0xFFFFFFFF);
-        drawString(matrices, this.textRenderer,
+        this.textRenderer.draw(matrices, new LiteralText("Combat"), x + 12, y + 10, 0xFFFFFFFF);
+        this.textRenderer.draw(matrices,
                 new LiteralText("Trigger automatically when a player is under your crosshair."),
                 x + 12, y + 25, 0xFF8D96A6);
 
@@ -90,8 +90,8 @@ public class TriggerBotScreen extends Screen {
     }
 
     private void renderOptimize(MatrixStack matrices, int mouseX, int mouseY, int x, int y, int width) {
-        drawString(matrices, this.textRenderer, new LiteralText("Mobile optimization"), x + 12, y + 10, 0xFFFFFFFF);
-        drawString(matrices, this.textRenderer,
+        this.textRenderer.draw(matrices, new LiteralText("Mobile optimization"), x + 12, y + 10, 0xFFFFFFFF);
+        this.textRenderer.draw(matrices,
                 new LiteralText("Custom Pojav-friendly optimizer. No Sodium."),
                 x + 12, y + 25, 0xFF8D96A6);
 
@@ -105,7 +105,7 @@ public class TriggerBotScreen extends Screen {
                 "Adaptive FPS", TriggerBotClient.CONFIG.adaptiveOptimization);
 
         int targetY = y + 155;
-        drawString(matrices, this.textRenderer, new LiteralText("Target FPS"),
+        this.textRenderer.draw(matrices, new LiteralText("Target FPS"),
                 x + 12, targetY + 8, 0xFFD9DEE7);
 
         drawAction(matrices, mouseX, mouseY, x + width - 92, targetY, 28, 30, "-");
@@ -117,13 +117,13 @@ public class TriggerBotScreen extends Screen {
         MinecraftClient client = MinecraftClient.getInstance();
         int liveFps = readFps(client);
         String fps = liveFps > 0 ? liveFps + " FPS" : "-- FPS";
-        drawString(matrices, this.textRenderer, new LiteralText("Live: " + fps),
+        this.textRenderer.draw(matrices, new LiteralText("Live: " + fps),
                 x + 12, targetY + 38, 0xFF57A6FF);
 
         String status = TriggerBotClient.CONFIG.optimization
                 ? "Optimizer active"
                 : "Optimizer disabled";
-        drawString(matrices, this.textRenderer, new LiteralText(status),
+        this.textRenderer.draw(matrices, new LiteralText(status),
                 x + 12, targetY + 53, TriggerBotClient.CONFIG.optimization ? 0xFF62D98B : 0xFF8D96A6);
     }
 
@@ -146,7 +146,7 @@ public class TriggerBotScreen extends Screen {
         boolean hover = inside(mouseX, mouseY, x, y, width, height);
         fill(matrices, x, y, x + width, y + height, hover ? 0xFF202631 : 0xFF1A1F27);
 
-        drawString(matrices, this.textRenderer, new LiteralText(label),
+        this.textRenderer.draw(matrices, new LiteralText(label),
                 x + 10, y + 9, 0xFFE9EDF3);
 
         int switchX = x + width - 42;
