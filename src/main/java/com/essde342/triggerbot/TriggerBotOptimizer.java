@@ -126,6 +126,7 @@ public final class TriggerBotOptimizer {
         options.particles = currentLevel == 2 ? ParticlesMode.MINIMAL : ParticlesMode.DECREASED;
         options.entityShadows = false;
         options.biomeBlendRadius = 0;
+        client.chunkCullingEnabled = true;
         options.write();
     }
 
