@@ -15,7 +15,7 @@ public class TriggerBotScreen extends Screen {
         int buttonWidth = Math.min(190, Math.max(150, this.width - 20));
         int buttonHeight = 22;
         int spacing = 25;
-        int totalHeight = spacing * 4 - 3;
+        int totalHeight = spacing * 5 - 3;
         int left = (this.width - buttonWidth) / 2;
         int top = Math.max(18, (this.height - totalHeight) / 2);
 
@@ -51,6 +51,16 @@ public class TriggerBotScreen extends Screen {
 
         this.addButton(new ButtonWidget(
                 left, top + spacing * 3, buttonWidth, buttonHeight,
+                getOptimizationText(),
+                button -> {
+                    TriggerBotClient.CONFIG.optimization = !TriggerBotClient.CONFIG.optimization;
+                    TriggerBotClient.saveConfig();
+                    button.setMessage(getOptimizationText());
+                }
+        ));
+
+        this.addButton(new ButtonWidget(
+                left, top + spacing * 4, buttonWidth, buttonHeight,
                 new LiteralText("Close"),
                 button -> this.onClose()
         ));
@@ -68,11 +78,15 @@ public class TriggerBotScreen extends Screen {
         return new LiteralText("Only weapon: " + (TriggerBotClient.CONFIG.onlyWeapon ? "ON" : "OFF"));
     }
 
+    private LiteralText getOptimizationText() {
+        return new LiteralText("Optimization: " + (TriggerBotClient.CONFIG.optimization ? "ON" : "OFF"));
+    }
+
     @Override
     public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
         this.renderBackground(matrices);
 
-        int contentHeight = 25 * 4 - 3;
+        int contentHeight = 25 * 5 - 3;
         int titleY = Math.max(7, (this.height - contentHeight) / 2 - 20);
 
         drawCenteredText(
