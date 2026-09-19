@@ -3,7 +3,9 @@
   "minVersion": "0.8",
   "package": "com.essde342.triggerbot.mixin",
   "compatibilityLevel": "JAVA_8",
-  "client": [],
+  "client": [
+    "TitleScreenMixin"
+  ],
   "injectors": {
     "defaultRequire": 0
   }
