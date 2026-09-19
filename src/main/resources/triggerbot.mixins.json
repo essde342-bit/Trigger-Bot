@@ -4,7 +4,9 @@
   "package": "com.essde342.triggerbot.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
-    "TitleScreenMixin"
+    "TitleScreenMixin",
+    "MinecraftClientAccessor",
+    "SessionAccessor"
   ],
   "injectors": {
     "defaultRequire": 0
