@@ -42,7 +42,9 @@ public class TriggerBotClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
-                client.openScreen(new TriggerBotScreen());
+                if (client.currentScreen == null) {
+                    client.openScreen(new TriggerBotScreen());
+                }
             }
 
             TriggerBotOptimizer.tick(client);
