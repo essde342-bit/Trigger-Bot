@@ -16,7 +16,8 @@
   "depends": {
     "fabricloader": ">=0.14.0",
     "fabric": "*",
-    "minecraft": "1.16.5"
+    "minecraft": "1.16.5",
+    "cloth-config": ">=4.17.101"
   },
   "mixins": [
     "triggerbot.mixins.json"
