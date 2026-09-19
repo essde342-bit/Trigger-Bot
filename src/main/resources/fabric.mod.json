@@ -17,8 +17,5 @@
     "fabricloader": ">=0.14.0",
     "fabric": "*",
     "minecraft": "1.16.5"
-  },
-  "mixins": [
-    "triggerbot.mixins.json"
-  ]
+  }
 }
