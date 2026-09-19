@@ -130,7 +130,8 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("{\n");
             writer.write("  \"enabled\": " + CONFIG.enabled + ",\n");
             writer.write("  \"onlyCrits\": " + CONFIG.onlyCrits + ",\n");
-            writer.write("  \"onlyWeapon\": " + CONFIG.onlyWeapon + "\n");
+            writer.write("  \"onlyWeapon\": " + CONFIG.onlyWeapon + ",\n");
+            writer.write("  \"optimization\": " + CONFIG.optimization + "\n");
             writer.write("}\n");
         } catch (IOException ignored) {
             // A broken config file must never crash the client.
