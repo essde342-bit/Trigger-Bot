@@ -173,7 +173,7 @@ public class TriggerBotScreen extends Screen {
         for (int i = 0; i < client.fpsDebugString.length(); i++) {
             char ch = client.fpsDebugString.charAt(i);
             if (Character.isDigit(ch)) {
-                value = value * 10 + (ch - \'0\');
+                value = value * 10 + (ch - '0');
             } else if (value > 0) {
                 break;
             }
