@@ -7,19 +7,13 @@ targetCompatibility = JavaVersion.VERSION_1_8
 archivesBaseName = project.archives_base_name
 version = project.mod_version
 group = project.maven_group
-repositories {
-    maven { url "https://api.modrinth.com/maven" }
-}
+repositories {}
 dependencies {
     minecraft "com.mojang:minecraft:" + project.minecraft_version
     mappings "net.fabricmc:yarn:" + project.yarn_mappings + ":v2"
     modImplementation "net.fabricmc:fabric-loader:" + project.loader_version
     modImplementation "net.fabricmc.fabric-api:fabric-api:" + project.fabric_version
 
-    // Sodium 0.2.0 for Minecraft 1.16.5.
-    // It is both available to the dev environment and bundled into the final Trigger-Bot JAR.
-    modImplementation "maven.modrinth:" + project.sodium_project + ":" + project.sodium_version
-    include "maven.modrinth:" + project.sodium_project + ":" + project.sodium_version
 }
 processResources {
     inputs.property "version", project.version
