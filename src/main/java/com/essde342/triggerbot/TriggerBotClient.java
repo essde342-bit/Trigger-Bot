@@ -26,6 +26,7 @@ import java.io.IOException;
 public class TriggerBotClient implements ClientModInitializer {
     public static final TriggerBotConfig CONFIG = new TriggerBotConfig();
     private static KeyBinding openMenuKey;
+    private static int optimizationTick = 0;
 
     @Override
     public void onInitializeClient() {
@@ -44,7 +45,9 @@ public class TriggerBotClient implements ClientModInitializer {
             }
 
             if (client.player != null && client.world != null && CONFIG.enabled) {
-                tickTriggerBot(client);
+                if (!CONFIG.optimization || (++optimizationTick & 1) == 0) {
+                    tickTriggerBot(client);
+                }
             }
         });
     }
@@ -155,6 +158,7 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.enabled = readBoolean(text, "enabled", CONFIG.enabled);
             CONFIG.onlyCrits = readBoolean(text, "onlyCrits", CONFIG.onlyCrits);
             CONFIG.onlyWeapon = readBoolean(text, "onlyWeapon", CONFIG.onlyWeapon);
+            CONFIG.optimization = readBoolean(text, "optimization", CONFIG.optimization);
         } catch (IOException ignored) {
             // Keep safe in-memory defaults if the config cannot be read.
         }
