@@ -63,18 +63,16 @@ public class TriggerBotClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) {
-                    client.openScreen(TriggerBotConfigScreen.create(client.currentScreen));
+                    client.openScreen(TriggerBotConfigScreen.create(null));
                 }
             }
 
             while (fullbrightKey.wasPressed()) {
-                setFullbright(client, !CONFIG.fullbright);
-                saveConfig();
+                toggleFullbright(client);
             }
 
             while (noHurtCamKey.wasPressed()) {
-                CONFIG.noHurtCam = !CONFIG.noHurtCam;
-                saveConfig();
+                toggleNoHurtCam();
             }
 
             applyVisualFeatures(client);
@@ -151,6 +149,21 @@ public class TriggerBotClient implements ClientModInitializer {
                 && player.getAttackCooldownProgress(0.0F) >= 0.9F;
     }
 
+    /*
+     * CUSTOM FULLBRIGHT
+     *
+     * Uses Minecraft's own gamma option. No Gamma Utils, no night-vision
+     * dependency and no external rendering library are used.
+     *
+     * The original gamma is captured once and restored when Fullbright
+     * is disabled. This also prevents us from permanently changing the
+     * user's normal brightness setting.
+     */
+    public static void toggleFullbright(MinecraftClient client) {
+        setFullbright(client, !CONFIG.fullbright);
+        saveConfig();
+    }
+
     public static void setFullbright(MinecraftClient client, boolean enabled) {
         CONFIG.fullbright = enabled;
 
@@ -164,11 +177,38 @@ public class TriggerBotClient implements ClientModInitializer {
                 fullbrightSnapshotTaken = true;
             }
 
-            client.options.gamma = CONFIG.fullbrightGamma;
-        } else if (fullbrightSnapshotTaken) {
+            client.options.gamma = clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D);
+        } else {
+            restoreOriginalGamma(client);
+        }
+    }
+
+    private static void restoreOriginalGamma(MinecraftClient client) {
+        if (client == null || client.options == null) {
+            return;
+        }
+
+        if (fullbrightSnapshotTaken) {
             client.options.gamma = savedGamma;
             fullbrightSnapshotTaken = false;
         }
+    }
+
+    /*
+     * CUSTOM NO HURT CAM
+     *
+     * The actual camera shake is vanilla GameRenderer#bobViewWhenHurt.
+     * A tiny mixin bridge calls isNoHurtCamEnabled() from this class.
+     * All feature state and behavior therefore lives here; there is no
+     * NoHurtCam mod/library involved.
+     */
+    public static void toggleNoHurtCam() {
+        CONFIG.noHurtCam = !CONFIG.noHurtCam;
+        saveConfig();
+    }
+
+    public static boolean isNoHurtCamEnabled() {
+        return CONFIG.noHurtCam;
     }
 
     private static void applyVisualFeatures(MinecraftClient client) {
@@ -182,7 +222,7 @@ public class TriggerBotClient implements ClientModInitializer {
                 fullbrightSnapshotTaken = true;
             }
 
-            client.options.gamma = CONFIG.fullbrightGamma;
+            client.options.gamma = clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D);
         }
     }
 
