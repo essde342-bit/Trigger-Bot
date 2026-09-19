@@ -260,7 +260,6 @@ public class TriggerBotClient implements ClientModInitializer {
         } catch (IOException ignored) {
         }
 
-        AltManager.save();
     }
 
     public static void loadConfig() {
