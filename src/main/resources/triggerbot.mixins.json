@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.essde342.triggerbot.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "WorldRendererMixin",
+    "EntityRenderDispatcherMixin",
+    "BlockEntityRenderDispatcherMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
