@@ -39,7 +39,7 @@ public class EntityRenderDispatcherMixin {
 
         double limit;
         if (entity instanceof PlayerEntity) {
-            limit = TriggerBotOptimizer.getEntityRenderDistance(null) + 16.0D;
+            limit = TriggerBotOptimizer.getEntityRenderDistance() + 16.0D;
         } else if (entity instanceof LivingEntity) {
             limit = TriggerBotOptimizer.getEntityRenderDistance(null);
         } else {
