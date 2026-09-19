@@ -1,6 +1,7 @@
 package com.essde342.triggerbot;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.util.Session;
 
 import java.io.File;
 import java.io.FileReader;
@@ -9,24 +10,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 import java.util.regex.Pattern;
 
 public final class AltManager {
     private static final List<String> ALTS = new ArrayList<String>();
-    private static final Random RANDOM = new Random();
     private static final Pattern VALID_NAME = Pattern.compile("[A-Za-z0-9_]{3,16}");
     private static boolean loaded = false;
-
-    private static final String[] NAME_PREFIXES = {
-            "Nova", "Shadow", "Frost", "Night", "Sky", "Dark", "Pixel",
-            "Ghost", "Rapid", "Silent", "Storm", "Lunar", "Blaze", "Vibe"
-    };
-
-    private static final String[] NAME_SUFFIXES = {
-            "Fox", "Wolf", "PvP", "Ace", "Rush", "King", "Byte",
-            "X", "Pro", "Craft", "Fire", "Max", "Zed", "Play"
-    };
 
     private AltManager() {
     }
@@ -79,6 +68,8 @@ public final class AltManager {
     }
 
     public static void save() {
+        load();
+
         File file = getFile();
         File parent = file.getParentFile();
 
@@ -145,30 +136,41 @@ public final class AltManager {
         return Collections.unmodifiableList(new ArrayList<String>(ALTS));
     }
 
-    public static String randomNickname() {
-        load();
+    public static boolean apply(String name) {
+        String normalized = name == null ? "" : name.trim();
 
-        for (int attempt = 0; attempt < 50; attempt++) {
-            String prefix = NAME_PREFIXES[RANDOM.nextInt(NAME_PREFIXES.length)];
-            String suffix = NAME_SUFFIXES[RANDOM.nextInt(NAME_SUFFIXES.length)];
-            String candidate;
-
-            if (RANDOM.nextBoolean()) {
-                candidate = prefix + suffix + (10 + RANDOM.nextInt(90));
-            } else {
-                candidate = prefix + "_" + suffix + RANDOM.nextInt(1000);
-            }
-
-            if (candidate.length() > 16) {
-                candidate = candidate.substring(0, 16);
-            }
-
-            if (isValidName(candidate) && !containsIgnoreCase(candidate)) {
-                return candidate;
-            }
+        if (!isValidName(normalized)) {
+            return false;
         }
 
-        return "Player" + (100 + RANDOM.nextInt(900));
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getSession() == null) {
+            return false;
+        }
+
+        Session current = client.getSession();
+        String accountType = ((SessionAccessor) (Object) current)
+                .triggerBot$getAccountType()
+                .name()
+                .toLowerCase(java.util.Locale.ROOT);
+
+        Session replacement = new Session(
+                normalized,
+                current.getUuid(),
+                current.getAccessToken(),
+                accountType
+        );
+
+        ((MinecraftClientAccessor) (Object) client).triggerBot$setSession(replacement);
+        return normalized.equals(client.getSession().getUsername());
+    }
+
+    public static String currentNickname() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getSession() == null) {
+            return "";
+        }
+        return client.getSession().getUsername();
     }
 
     public static boolean isValidName(String name) {
