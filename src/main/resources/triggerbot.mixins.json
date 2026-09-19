@@ -4,9 +4,6 @@
   "package": "com.essde342.triggerbot.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
-    "WorldRendererMixin",
-    "EntityRenderDispatcherMixin",
-    "BlockEntityRenderDispatcherMixin",
     "GameRendererMixin"
   ],
   "injectors": {
