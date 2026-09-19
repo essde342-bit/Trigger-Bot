@@ -31,6 +31,7 @@ public class TriggerBotClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         loadConfig();
+        optimizationTick = 0;
 
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.triggerbot.open_menu",
@@ -43,6 +44,8 @@ public class TriggerBotClient implements ClientModInitializer {
             while (openMenuKey.wasPressed()) {
                 client.openScreen(new TriggerBotScreen());
             }
+
+            TriggerBotOptimizer.tick(client);
 
             if (client.player != null && client.world != null && CONFIG.enabled) {
                 if (!CONFIG.optimization || (++optimizationTick & 1) == 0) {
@@ -131,7 +134,10 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("  \"enabled\": " + CONFIG.enabled + ",\n");
             writer.write("  \"onlyCrits\": " + CONFIG.onlyCrits + ",\n");
             writer.write("  \"onlyWeapon\": " + CONFIG.onlyWeapon + ",\n");
-            writer.write("  \"optimization\": " + CONFIG.optimization + "\n");
+            writer.write("  \"optimization\": " + CONFIG.optimization + ",\n");
+            writer.write("  \"optimizationLevel\": " + CONFIG.optimizationLevel + ",\n");
+            writer.write("  \"adaptiveOptimization\": " + CONFIG.adaptiveOptimization + ",\n");
+            writer.write("  \"targetFps\": " + CONFIG.targetFps + "\n");
             writer.write("}\n");
         } catch (IOException ignored) {
             // A broken config file must never crash the client.
@@ -160,9 +166,47 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.onlyCrits = readBoolean(text, "onlyCrits", CONFIG.onlyCrits);
             CONFIG.onlyWeapon = readBoolean(text, "onlyWeapon", CONFIG.onlyWeapon);
             CONFIG.optimization = readBoolean(text, "optimization", CONFIG.optimization);
+            CONFIG.optimizationLevel = clampInt(readInt(text, "optimizationLevel", CONFIG.optimizationLevel), 0, 2);
+            CONFIG.adaptiveOptimization = readBoolean(text, "adaptiveOptimization", CONFIG.adaptiveOptimization);
+            CONFIG.targetFps = clampInt(readInt(text, "targetFps", CONFIG.targetFps), 30, 60);
         } catch (IOException ignored) {
             // Keep safe in-memory defaults if the config cannot be read.
         }
+    }
+
+    private static int readInt(String json, String key, int fallback) {
+        String needle = "\"" + key + "\"";
+        int start = json.indexOf(needle);
+
+        if (start < 0) {
+            return fallback;
+        }
+
+        int colon = json.indexOf(':', start + needle.length());
+
+        if (colon < 0) {
+            return fallback;
+        }
+
+        int end = colon + 1;
+        while (end < json.length() && Character.isWhitespace(json.charAt(end))) {
+            end++;
+        }
+
+        int stop = end;
+        while (stop < json.length() && (Character.isDigit(json.charAt(stop)) || json.charAt(stop) == '-')) {
+            stop++;
+        }
+
+        try {
+            return Integer.parseInt(json.substring(end, stop));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private static int clampInt(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private static boolean readBoolean(String json, String key, boolean fallback) {
