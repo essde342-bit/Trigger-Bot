@@ -162,6 +162,35 @@ public final class AltManagerScreen extends Screen {
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int center = this.width / 2;
+        int listWidth = Math.min(260, this.width - 60);
+        int listX = center - listWidth / 2;
+        int rowY = 100;
+
+        List<String> alts = AltManager.getAll();
+        int end = Math.min(alts.size(), scrollOffset + MAX_VISIBLE);
+
+        for (int index = scrollOffset; index < end; index++) {
+            if (mouseX >= listX
+                    && mouseX <= listX + listWidth - 62
+                    && mouseY >= rowY
+                    && mouseY <= rowY + 20) {
+                String name = alts.get(index);
+                nicknameField.setText(name);
+                nicknameField.setCursorToEnd();
+                nicknameField.setTextFieldFocused(true);
+                status = "Selected: " + name;
+                return true;
+            }
+
+            rowY += ROW_HEIGHT;
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         List<String> alts = AltManager.getAll();
         int maxOffset = Math.max(0, alts.size() - MAX_VISIBLE);
