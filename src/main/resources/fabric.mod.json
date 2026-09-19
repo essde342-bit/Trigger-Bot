@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "triggerbot",
+  "version": "${version}",
+  "name": "Trigger Bot",
+  "description": "Client-side trigger bot for Minecraft 1.16.5 Fabric.",
+  "authors": ["essde342-bit"],
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.essde342.triggerbot.TriggerBotClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.14.0",
+    "fabric": "*",
+    "minecraft": "1.16.5"
+  }
+}
