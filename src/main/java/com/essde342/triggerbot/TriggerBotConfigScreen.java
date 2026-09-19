@@ -5,27 +5,9 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.LiteralText;
-import net.minecraft.text.Text;
 
-/**
- * Dependency-free configuration screen.
- *
- * This intentionally uses only vanilla 1.16.5 GUI classes so PojavLauncher
- * does not have to load an external configuration UI library during startup.
- */
 public final class TriggerBotConfigScreen extends Screen {
     private final Screen parent;
-
-    private ButtonWidget triggerBotButton;
-    private ButtonWidget onlyCritsButton;
-    private ButtonWidget onlyWeaponButton;
-    private ButtonWidget fullbrightButton;
-    private ButtonWidget noHurtCamButton;
-    private ButtonWidget optimizationButton;
-    private ButtonWidget profileButton;
-    private ButtonWidget adaptiveButton;
-    private ButtonWidget targetFpsButton;
-    private ButtonWidget gammaButton;
 
     private TriggerBotConfigScreen(Screen parent) {
         super(new LiteralText("Trigger Bot Settings"));
@@ -40,46 +22,51 @@ public final class TriggerBotConfigScreen extends Screen {
     protected void init() {
         int left = this.width / 2 - 154;
         int right = this.width / 2 + 4;
-        int y = 42;
+        int y = 38;
 
-        triggerBotButton = addToggle(left, y, "TriggerBot", TriggerBotClient.CONFIG.enabled,
+        addToggle(left, y, "TriggerBot", TriggerBotClient.CONFIG.enabled,
                 value -> {
                     TriggerBotClient.CONFIG.enabled = value;
                     save();
                 });
-        onlyCritsButton = addToggle(right, y, "Only crits", TriggerBotClient.CONFIG.onlyCrits,
+        addToggle(right, y, "Only crits", TriggerBotClient.CONFIG.onlyCrits,
                 value -> {
                     TriggerBotClient.CONFIG.onlyCrits = value;
                     save();
                 });
 
         y += 26;
-        onlyWeaponButton = addToggle(left, y, "Only weapon", TriggerBotClient.CONFIG.onlyWeapon,
+        addToggle(left, y, "Smart crits", TriggerBotClient.CONFIG.smartCrits,
+                value -> {
+                    TriggerBotClient.CONFIG.smartCrits = value;
+                    save();
+                });
+        addToggle(right, y, "Only weapon", TriggerBotClient.CONFIG.onlyWeapon,
                 value -> {
                     TriggerBotClient.CONFIG.onlyWeapon = value;
                     save();
                 });
-        fullbrightButton = addToggle(right, y, "Fullbright", TriggerBotClient.CONFIG.fullbright,
+
+        y += 26;
+        addToggle(left, y, "Fullbright", TriggerBotClient.CONFIG.fullbright,
                 value -> {
                     TriggerBotClient.setFullbright(MinecraftClient.getInstance(), value);
                     save();
                 });
-
-        y += 26;
-        noHurtCamButton = addToggle(left, y, "No Hurt Cam", TriggerBotClient.CONFIG.noHurtCam,
+        addToggle(right, y, "No Hurt Cam", TriggerBotClient.CONFIG.noHurtCam,
                 value -> {
                     TriggerBotClient.CONFIG.noHurtCam = value;
                     save();
                 });
-        optimizationButton = addToggle(right, y, "Optimization", TriggerBotClient.CONFIG.optimization,
+
+        y += 26;
+        addToggle(left, y, "Optimization", TriggerBotClient.CONFIG.optimization,
                 value -> {
                     TriggerBotOptimizer.setOptimization(MinecraftClient.getInstance(), value);
                     save();
                 });
-
-        y += 26;
-        profileButton = this.addButton(new ButtonWidget(
-                left, y, 150, 20,
+        addButton(new ButtonWidget(
+                right, y, 150, 20,
                 new LiteralText(profileText()),
                 button -> {
                     TriggerBotClient.CONFIG.optimizationLevel =
@@ -91,8 +78,9 @@ public final class TriggerBotConfigScreen extends Screen {
                     save();
                 }));
 
-        adaptiveButton = this.addButton(new ButtonWidget(
-                right, y, 150, 20,
+        y += 26;
+        addButton(new ButtonWidget(
+                left, y, 150, 20,
                 new LiteralText(adaptiveText()),
                 button -> {
                     TriggerBotClient.CONFIG.adaptiveOptimization =
@@ -100,10 +88,8 @@ public final class TriggerBotConfigScreen extends Screen {
                     button.setMessage(new LiteralText(adaptiveText()));
                     save();
                 }));
-
-        y += 26;
-        targetFpsButton = this.addButton(new ButtonWidget(
-                left, y, 150, 20,
+        addButton(new ButtonWidget(
+                right, y, 150, 20,
                 new LiteralText(targetFpsText()),
                 button -> {
                     int fps = TriggerBotClient.CONFIG.targetFps;
@@ -112,8 +98,9 @@ public final class TriggerBotConfigScreen extends Screen {
                     save();
                 }));
 
-        gammaButton = this.addButton(new ButtonWidget(
-                right, y, 150, 20,
+        y += 26;
+        addButton(new ButtonWidget(
+                left, y, 150, 20,
                 new LiteralText(gammaText()),
                 button -> {
                     double gamma = TriggerBotClient.CONFIG.fullbrightGamma;
@@ -125,10 +112,14 @@ public final class TriggerBotConfigScreen extends Screen {
                     button.setMessage(new LiteralText(gammaText()));
                     save();
                 }));
+        addButton(new ButtonWidget(
+                right, y, 150, 20,
+                new LiteralText("Alt Manager"),
+                button -> MinecraftClient.getInstance().openScreen(AltManagerScreen.create(this))));
 
-        this.addButton(new ButtonWidget(
+        addButton(new ButtonWidget(
                 this.width / 2 - 75,
-                this.height - 30,
+                this.height - 28,
                 150,
                 20,
                 new LiteralText("Done"),
@@ -162,6 +153,9 @@ public final class TriggerBotConfigScreen extends Screen {
         if ("Only crits".equals(label)) {
             return TriggerBotClient.CONFIG.onlyCrits;
         }
+        if ("Smart crits".equals(label)) {
+            return TriggerBotClient.CONFIG.smartCrits;
+        }
         if ("Only weapon".equals(label)) {
             return TriggerBotClient.CONFIG.onlyWeapon;
         }
@@ -179,19 +173,14 @@ public final class TriggerBotConfigScreen extends Screen {
     }
 
     private static String profileText() {
-        String profile;
         switch (Math.max(0, Math.min(2, TriggerBotClient.CONFIG.optimizationLevel))) {
             case 2:
-                profile = "Extreme";
-                break;
+                return "Profile: Extreme";
             case 1:
-                profile = "Performance";
-                break;
+                return "Profile: Performance";
             default:
-                profile = "Balanced";
-                break;
+                return "Profile: Balanced";
         }
-        return "Profile: " + profile;
     }
 
     private static String adaptiveText() {
@@ -219,7 +208,7 @@ public final class TriggerBotConfigScreen extends Screen {
                 this.textRenderer,
                 new LiteralText("Trigger Bot Settings"),
                 this.width / 2,
-                14,
+                10,
                 0xFFFFFF
         );
 
@@ -228,7 +217,7 @@ public final class TriggerBotConfigScreen extends Screen {
                 this.textRenderer,
                 new LiteralText("Combat / Visual / Mobile optimization"),
                 this.width / 2,
-                28,
+                23,
                 0xAAAAAA
         );
 
