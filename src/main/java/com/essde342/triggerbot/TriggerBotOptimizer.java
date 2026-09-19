@@ -47,7 +47,7 @@ public final class TriggerBotOptimizer {
         timer = 0;
 
         if (TriggerBotClient.CONFIG.adaptiveOptimization) {
-            int fps = client.getCurrentFps();
+            int fps = readFps(client);
             int target = TriggerBotClient.CONFIG.targetFps;
 
             if (fps > 0 && fps < target - 5 && currentLevel < 2) {
@@ -149,6 +149,23 @@ public final class TriggerBotOptimizer {
         active = false;
         snapshotTaken = false;
         timer = 0;
+    }
+
+    private static int readFps(MinecraftClient client) {
+        if (client.fpsDebugString == null) {
+            return 0;
+        }
+
+        int value = 0;
+        for (int i = 0; i < client.fpsDebugString.length(); i++) {
+            char ch = client.fpsDebugString.charAt(i);
+            if (Character.isDigit(ch)) {
+                value = value * 10 + (ch - \'0\');
+            } else if (value > 0) {
+                break;
+            }
+        }
+        return value;
     }
 
     private static int clamp(int value, int min, int max) {
