@@ -115,7 +115,8 @@ public class TriggerBotScreen extends Screen {
         drawAction(matrices, mouseX, mouseY, x + width - 42, targetY, 28, 30, "+");
 
         MinecraftClient client = MinecraftClient.getInstance();
-        String fps = client.getCurrentFps() > 0 ? client.getCurrentFps() + " FPS" : "-- FPS";
+        int liveFps = readFps(client);
+        String fps = liveFps > 0 ? liveFps + " FPS" : "-- FPS";
         drawString(matrices, this.textRenderer, new LiteralText("Live: " + fps),
                 x + 12, targetY + 38, 0xFF57A6FF);
 
@@ -161,6 +162,23 @@ public class TriggerBotScreen extends Screen {
         fill(matrices, x, y, x + width, y + height, hover ? 0xFF2B3542 : 0xFF202631);
         drawCenteredText(matrices, this.textRenderer, new LiteralText(text),
                 x + width / 2, y + 9, 0xFFFFFFFF);
+    }
+
+    private int readFps(MinecraftClient client) {
+        if (client.fpsDebugString == null) {
+            return 0;
+        }
+
+        int value = 0;
+        for (int i = 0; i < client.fpsDebugString.length(); i++) {
+            char ch = client.fpsDebugString.charAt(i);
+            if (Character.isDigit(ch)) {
+                value = value * 10 + (ch - \'0\');
+            } else if (value > 0) {
+                break;
+            }
+        }
+        return value;
     }
 
     private String profileName() {
