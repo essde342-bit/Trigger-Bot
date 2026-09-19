@@ -35,7 +35,7 @@ public class TriggerBotScreen extends Screen {
         fill(matrices, panelLeft, panelTop, panelLeft + panelWidth, panelTop + 3, 0xFF57A6FF);
 
         // Header.
-        drawString(matrices, this.textRenderer, new LiteralText("TRIGGER BOT"), panelLeft + 14, panelTop + 11, 0xFFFFFFFF);
+        this.textRenderer.draw(matrices, new LiteralText("TRIGGER BOT"), panelLeft + 14, panelTop + 11, 0xFFFFFFFF);
         drawString(matrices, this.textRenderer,
                 new LiteralText("Fabric 1.16.5 • Mobile Edition"),
                 panelLeft + 14, panelTop + 22, 0xFF8D96A6);
