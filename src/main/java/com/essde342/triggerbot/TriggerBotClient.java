@@ -76,7 +76,9 @@ public class TriggerBotClient implements ClientModInitializer {
             }
 
             applyVisualFeatures(client);
-            if (client.player != null && client.world != null) {\n                TriggerBotOptimizer.tick(client);\n            }
+            if (client.player != null && client.world != null) {
+                TriggerBotOptimizer.tick(client);
+            }
 
             if (client.player != null && client.world != null && CONFIG.enabled) {
                 if (!CONFIG.optimization || (++optimizationTick & 1) == 0) {
