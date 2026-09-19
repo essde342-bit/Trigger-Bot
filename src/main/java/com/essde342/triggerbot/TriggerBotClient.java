@@ -25,8 +25,14 @@ import java.io.IOException;
 
 public class TriggerBotClient implements ClientModInitializer {
     public static final TriggerBotConfig CONFIG = new TriggerBotConfig();
+
     private static KeyBinding openMenuKey;
+    private static KeyBinding fullbrightKey;
+    private static KeyBinding noHurtCamKey;
     private static int optimizationTick = 0;
+
+    private static boolean fullbrightSnapshotTaken = false;
+    private static double savedGamma = 1.0D;
 
     @Override
     public void onInitializeClient() {
@@ -40,13 +46,38 @@ public class TriggerBotClient implements ClientModInitializer {
                 "category.triggerbot"
         ));
 
+        fullbrightKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.triggerbot.fullbright",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_G,
+                "category.triggerbot"
+        ));
+
+        noHurtCamKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.triggerbot.no_hurt_cam",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_H,
+                "category.triggerbot"
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) {
-                    client.openScreen(new TriggerBotScreen());
+                    client.openScreen(TriggerBotConfigScreen.create(client.currentScreen));
                 }
             }
 
+            while (fullbrightKey.wasPressed()) {
+                setFullbright(client, !CONFIG.fullbright);
+                saveConfig();
+            }
+
+            while (noHurtCamKey.wasPressed()) {
+                CONFIG.noHurtCam = !CONFIG.noHurtCam;
+                saveConfig();
+            }
+
+            applyVisualFeatures(client);
             TriggerBotOptimizer.tick(client);
 
             if (client.player != null && client.world != null && CONFIG.enabled) {
@@ -64,7 +95,6 @@ public class TriggerBotClient implements ClientModInitializer {
             return;
         }
 
-        // Do not attack while eating or drinking.
         if (player.isUsingItem()) {
             ItemStack active = player.getActiveItem();
             if (active != null) {
@@ -92,7 +122,6 @@ public class TriggerBotClient implements ClientModInitializer {
             return;
         }
 
-        // Let vanilla attack timing control the click rate.
         if (player.getAttackCooldownProgress(0.0F) < 1.0F) {
             return;
         }
@@ -111,7 +140,6 @@ public class TriggerBotClient implements ClientModInitializer {
                 || stack.getItem() instanceof TridentItem;
     }
 
-    // Matches the normal 1.16.5 critical-hit conditions used by PlayerEntity.
     private static boolean canCriticalHit(PlayerEntity player) {
         return !player.isOnGround()
                 && player.fallDistance > 0.0F
@@ -121,6 +149,41 @@ public class TriggerBotClient implements ClientModInitializer {
                 && !player.hasStatusEffect(StatusEffects.BLINDNESS)
                 && !player.isSprinting()
                 && player.getAttackCooldownProgress(0.0F) >= 0.9F;
+    }
+
+    public static void setFullbright(MinecraftClient client, boolean enabled) {
+        CONFIG.fullbright = enabled;
+
+        if (client == null || client.options == null) {
+            return;
+        }
+
+        if (enabled) {
+            if (!fullbrightSnapshotTaken) {
+                savedGamma = client.options.gamma;
+                fullbrightSnapshotTaken = true;
+            }
+
+            client.options.gamma = CONFIG.fullbrightGamma;
+        } else if (fullbrightSnapshotTaken) {
+            client.options.gamma = savedGamma;
+            fullbrightSnapshotTaken = false;
+        }
+    }
+
+    private static void applyVisualFeatures(MinecraftClient client) {
+        if (client == null || client.options == null) {
+            return;
+        }
+
+        if (CONFIG.fullbright) {
+            if (!fullbrightSnapshotTaken) {
+                savedGamma = client.options.gamma;
+                fullbrightSnapshotTaken = true;
+            }
+
+            client.options.gamma = CONFIG.fullbrightGamma;
+        }
     }
 
     public static void saveConfig() {
@@ -139,10 +202,12 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("  \"optimization\": " + CONFIG.optimization + ",\n");
             writer.write("  \"optimizationLevel\": " + CONFIG.optimizationLevel + ",\n");
             writer.write("  \"adaptiveOptimization\": " + CONFIG.adaptiveOptimization + ",\n");
-            writer.write("  \"targetFps\": " + CONFIG.targetFps + "\n");
+            writer.write("  \"targetFps\": " + CONFIG.targetFps + ",\n");
+            writer.write("  \"fullbright\": " + CONFIG.fullbright + ",\n");
+            writer.write("  \"noHurtCam\": " + CONFIG.noHurtCam + ",\n");
+            writer.write("  \"fullbrightGamma\": " + CONFIG.fullbrightGamma + "\n");
             writer.write("}\n");
         } catch (IOException ignored) {
-            // A broken config file must never crash the client.
         }
     }
 
@@ -171,8 +236,14 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.optimizationLevel = clampInt(readInt(text, "optimizationLevel", CONFIG.optimizationLevel), 0, 2);
             CONFIG.adaptiveOptimization = readBoolean(text, "adaptiveOptimization", CONFIG.adaptiveOptimization);
             CONFIG.targetFps = clampInt(readInt(text, "targetFps", CONFIG.targetFps), 30, 60);
+            CONFIG.fullbright = readBoolean(text, "fullbright", CONFIG.fullbright);
+            CONFIG.noHurtCam = readBoolean(text, "noHurtCam", CONFIG.noHurtCam);
+            CONFIG.fullbrightGamma = clampDouble(
+                    readDouble(text, "fullbrightGamma", CONFIG.fullbrightGamma),
+                    1.0D,
+                    20.0D
+            );
         } catch (IOException ignored) {
-            // Keep safe in-memory defaults if the config cannot be read.
         }
     }
 
@@ -196,7 +267,8 @@ public class TriggerBotClient implements ClientModInitializer {
         }
 
         int stop = end;
-        while (stop < json.length() && (Character.isDigit(json.charAt(stop)) || json.charAt(stop) == '-')) {
+        while (stop < json.length()
+                && (Character.isDigit(json.charAt(stop)) || json.charAt(stop) == '-')) {
             stop++;
         }
 
@@ -207,7 +279,43 @@ public class TriggerBotClient implements ClientModInitializer {
         }
     }
 
+    private static double readDouble(String json, String key, double fallback) {
+        String needle = "\"" + key + "\"";
+        int start = json.indexOf(needle);
+
+        if (start < 0) {
+            return fallback;
+        }
+
+        int colon = json.indexOf(':', start + needle.length());
+
+        if (colon < 0) {
+            return fallback;
+        }
+
+        int end = colon + 1;
+        while (end < json.length() && Character.isWhitespace(json.charAt(end))) {
+            end++;
+        }
+
+        int stop = end;
+        while (stop < json.length()
+                && "0123456789.-".indexOf(json.charAt(stop)) >= 0) {
+            stop++;
+        }
+
+        try {
+            return Double.parseDouble(json.substring(end, stop));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
     private static int clampInt(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static double clampDouble(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
     }
 
