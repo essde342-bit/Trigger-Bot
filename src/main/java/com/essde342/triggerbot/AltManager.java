@@ -2,6 +2,8 @@ package com.essde342.triggerbot;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Session;
+import com.essde342.triggerbot.mixin.MinecraftClientAccessor;
+import com.essde342.triggerbot.mixin.SessionAccessor;
 
 import java.io.File;
 import java.io.FileReader;
