@@ -10,24 +10,21 @@ import net.minecraft.text.LiteralText;
 import java.util.List;
 
 public final class AltManagerScreen extends Screen {
-    private static final int PAGE_SIZE = 8;
+    private static final int ROW_HEIGHT = 24;
+    private static final int MAX_VISIBLE = 8;
 
     private final Screen parent;
-    private int page;
     private TextFieldWidget nicknameField;
+    private int scrollOffset;
+    private String status = "";
 
-    private AltManagerScreen(Screen parent, int page) {
+    private AltManagerScreen(Screen parent) {
         super(new LiteralText("Alt Manager"));
         this.parent = parent;
-        this.page = Math.max(0, page);
     }
 
     public static Screen create(Screen parent) {
-        return new AltManagerScreen(parent, 0);
-    }
-
-    private static Screen create(Screen parent, int page) {
-        return new AltManagerScreen(parent, page);
+        return new AltManagerScreen(parent);
     }
 
     @Override
@@ -46,142 +43,141 @@ public final class AltManagerScreen extends Screen {
         nicknameField = this.addButton(new TextFieldWidget(
                 this.textRenderer,
                 inputX,
-                44,
+                40,
                 inputWidth,
                 20,
-                new LiteralText("Minecraft nickname")
+                new LiteralText("Nickname")
         ));
         nicknameField.setMaxLength(16);
-        nicknameField.setSuggestion("Nickname 3-16 chars");
+        nicknameField.setSuggestion("3-16 chars");
         nicknameField.setFocusUnlocked(true);
+        nicknameField.setText(AltManager.currentNickname());
 
-        int buttonY = 70;
-        int buttonWidth = 82;
+        int buttonY = 66;
+        int smallWidth = 78;
         int gap = 4;
-        int startX = center - (buttonWidth * 3 + gap * 2) / 2;
 
         this.addButton(new ButtonWidget(
-                startX,
+                center - smallWidth - gap / 2,
                 buttonY,
-                buttonWidth,
+                smallWidth,
                 20,
-                new LiteralText("Add"),
-                button -> addFromField()
+                new LiteralText("Apply"),
+                button -> applyFromField()
         ));
 
         this.addButton(new ButtonWidget(
-                startX + buttonWidth + gap,
+                center + gap / 2,
                 buttonY,
-                buttonWidth,
-                20,
-                new LiteralText("Random"),
-                button -> nicknameField.setText(AltManager.randomNickname())
-        ));
-
-        this.addButton(new ButtonWidget(
-                startX + (buttonWidth + gap) * 2,
-                buttonY,
-                buttonWidth,
+                smallWidth,
                 20,
                 new LiteralText("Save"),
-                button -> AltManager.save()
+                button -> saveFromField()
         ));
 
         List<String> alts = AltManager.getAll();
-        int totalPages = Math.max(1, (alts.size() + PAGE_SIZE - 1) / PAGE_SIZE);
-        page = Math.min(page, totalPages - 1);
-
-        int start = page * PAGE_SIZE;
-        int end = Math.min(alts.size(), start + PAGE_SIZE);
+        int maxOffset = Math.max(0, alts.size() - MAX_VISIBLE);
+        scrollOffset = Math.max(0, Math.min(scrollOffset, maxOffset));
 
         int rowY = 100;
-        for (int index = start; index < end; index++) {
+        int listWidth = Math.min(260, this.width - 60);
+        int deleteWidth = 58;
+        int fieldWidth = listWidth - deleteWidth - 4;
+        int listX = center - listWidth / 2;
+
+        int end = Math.min(alts.size(), scrollOffset + MAX_VISIBLE);
+        for (int index = scrollOffset; index < end; index++) {
             final int altIndex = index;
-            String name = alts.get(index);
-
-            this.addButton(new ButtonWidget(
-                    center - 154,
+            TextFieldWidget altField = this.addButton(new TextFieldWidget(
+                    this.textRenderer,
+                    listX,
                     rowY,
-                    124,
+                    fieldWidth,
                     20,
-                    new LiteralText(name),
-                    button -> {
-                        nicknameField.setText(AltManager.get(altIndex));
-                        nicknameField.setCursorToEnd();
-                        nicknameField.setTextFieldFocused(true);
-                    }
+                    new LiteralText("Saved alt")
             ));
+            altField.setMaxLength(16);
+            altField.setText(alts.get(index));
+            altField.setEditable(false);
+            altField.setFocusUnlocked(false);
+            altField.setDrawsBackground(true);
 
             this.addButton(new ButtonWidget(
-                    center - 26,
+                    listX + fieldWidth + 4,
                     rowY,
-                    52,
+                    deleteWidth,
                     20,
-                    new LiteralText("DELETE"),
+                    new LiteralText("Delete"),
                     button -> {
                         AltManager.remove(altIndex);
+                        status = "";
                         rebuildWidgets();
                     }
             ));
 
-            rowY += 24;
+            rowY += ROW_HEIGHT;
         }
-
-        if (alts.isEmpty()) {
-            this.addButton(new ButtonWidget(
-                    center - 90,
-                    122,
-                    180,
-                    20,
-                    new LiteralText("No saved alts"),
-                    button -> { }
-            )).active = false;
-        }
-
-        this.addButton(new ButtonWidget(
-                center - 154,
-                this.height - 32,
-                74,
-                20,
-                new LiteralText("Prev"),
-                button -> {
-                    if (page > 0) {
-                        MinecraftClient.getInstance().openScreen(create(parent, page - 1));
-                    }
-                }
-        ));
 
         this.addButton(new ButtonWidget(
                 center - 75,
-                this.height - 32,
+                this.height - 28,
                 150,
                 20,
-                new LiteralText("Back"),
+                new LiteralText("Close"),
                 button -> onClose()
-        ));
-
-        this.addButton(new ButtonWidget(
-                center + 80,
-                this.height - 32,
-                74,
-                20,
-                new LiteralText("Next"),
-                button -> {
-                    if (page + 1 < totalPages) {
-                        MinecraftClient.getInstance().openScreen(create(parent, page + 1));
-                    }
-                }
         ));
     }
 
-    private void addFromField() {
+    private void applyFromField() {
         String name = nicknameField.getText().trim();
 
-        if (AltManager.add(name)) {
-            nicknameField.setText("");
-            page = Math.max(0, (AltManager.size() - 1) / PAGE_SIZE);
-            rebuildWidgets();
+        if (!AltManager.isValidName(name)) {
+            status = "Invalid nickname";
+            return;
         }
+
+        if (AltManager.apply(name)) {
+            status = "Applied: " + name;
+            nicknameField.setText(name);
+            nicknameField.setCursorToEnd();
+        } else {
+            status = "Apply failed";
+        }
+    }
+
+    private void saveFromField() {
+        String name = nicknameField.getText().trim();
+
+        if (!AltManager.isValidName(name)) {
+            status = "Invalid nickname";
+            return;
+        }
+
+        if (AltManager.add(name)) {
+            status = "Saved: " + name;
+            rebuildWidgets();
+        } else {
+            status = "Already saved";
+        }
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        List<String> alts = AltManager.getAll();
+        int maxOffset = Math.max(0, alts.size() - MAX_VISIBLE);
+
+        if (maxOffset > 0 && mouseY >= 94 && mouseY <= this.height - 42) {
+            if (amount < 0) {
+                scrollOffset = Math.min(maxOffset, scrollOffset + 1);
+            } else if (amount > 0) {
+                scrollOffset = Math.max(0, scrollOffset - 1);
+            }
+
+            rebuildWidgets();
+            return true;
+        }
+
+        return super.mouseScrolled(mouseX, mouseY, amount);
     }
 
     @Override
@@ -197,25 +193,35 @@ public final class AltManagerScreen extends Screen {
 
         int center = this.width / 2;
         List<String> alts = AltManager.getAll();
-        int totalPages = Math.max(1, (alts.size() + PAGE_SIZE - 1) / PAGE_SIZE);
 
         drawCenteredText(
                 matrices,
                 this.textRenderer,
                 new LiteralText("Alt Manager"),
                 center,
-                14,
+                12,
                 0xFFFFFF
         );
 
         drawCenteredText(
                 matrices,
                 this.textRenderer,
-                new LiteralText("Saved: " + alts.size() + "   Page: " + (page + 1) + "/" + totalPages),
+                new LiteralText("Saved: " + alts.size()),
                 center,
-                29,
+                28,
                 0xAAAAAA
         );
+
+        if (!status.isEmpty()) {
+            drawCenteredText(
+                    matrices,
+                    this.textRenderer,
+                    new LiteralText(status),
+                    center,
+                    this.height - 44,
+                    0xFFFFFF
+            );
+        }
 
         super.render(matrices, mouseX, mouseY, delta);
     }
