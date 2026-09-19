@@ -37,6 +37,7 @@ public class TriggerBotClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         loadConfig();
+        AltManager.load();
         optimizationTick = 0;
 
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -76,14 +77,15 @@ public class TriggerBotClient implements ClientModInitializer {
             }
 
             applyVisualFeatures(client);
+
             if (client.player != null && client.world != null) {
                 TriggerBotOptimizer.tick(client);
             }
 
+            // Never throttle TriggerBot because of the mobile optimizer.
+            // Vanilla attack cooldown remains the only attack-rate limiter.
             if (client.player != null && client.world != null && CONFIG.enabled) {
-                if (!CONFIG.optimization || (++optimizationTick & 1) == 0) {
-                    tickTriggerBot(client);
-                }
+                tickTriggerBot(client);
             }
         });
     }
@@ -122,11 +124,12 @@ public class TriggerBotClient implements ClientModInitializer {
             return;
         }
 
+        // No artificial delay: attack on the first tick where vanilla cooldown is ready.
         if (player.getAttackCooldownProgress(0.0F) < 1.0F) {
             return;
         }
 
-        if (CONFIG.onlyCrits && !canCriticalHit(player)) {
+        if (CONFIG.onlyCrits && !canCriticalHit(player, CONFIG.smartCrits)) {
             return;
         }
 
@@ -140,26 +143,38 @@ public class TriggerBotClient implements ClientModInitializer {
                 || stack.getItem() instanceof TridentItem;
     }
 
-    private static boolean canCriticalHit(PlayerEntity player) {
-        return !player.isOnGround()
-                && player.fallDistance > 0.0F
-                && !player.isClimbing()
-                && !player.isTouchingWater()
-                && !player.hasVehicle()
-                && !player.hasStatusEffect(StatusEffects.BLINDNESS)
-                && !player.isSprinting()
-                && player.getAttackCooldownProgress(0.0F) >= 0.9F;
+    /**
+     * Smart critical detection.
+     *
+     * It deliberately waits for the falling part of the jump instead of
+     * attacking on the way up. With Smart Crits enabled there is no mod-side
+     * cooldown: every subsequent vanilla-ready attack during a real crit
+     * window may be sent.
+     */
+    private static boolean canCriticalHit(PlayerEntity player, boolean smart) {
+        if (player.isOnGround()
+                || player.fallDistance <= 0.0F
+                || player.isClimbing()
+                || player.isTouchingWater()
+                || player.hasVehicle()
+                || player.hasStatusEffect(StatusEffects.BLINDNESS)
+                || player.isSprinting()) {
+            return false;
+        }
+
+        if (player.getAttackCooldownProgress(0.0F) < 0.9F) {
+            return false;
+        }
+
+        if (smart && player.getVelocity().y > 0.0D) {
+            return false;
+        }
+
+        return true;
     }
 
     /*
      * CUSTOM FULLBRIGHT
-     *
-     * Uses Minecraft's own gamma option. No Gamma Utils, no night-vision
-     * dependency and no external rendering library are used.
-     *
-     * The original gamma is captured once and restored when Fullbright
-     * is disabled. This also prevents us from permanently changing the
-     * user's normal brightness setting.
      */
     public static void toggleFullbright(MinecraftClient client) {
         setFullbright(client, !CONFIG.fullbright);
@@ -196,14 +211,6 @@ public class TriggerBotClient implements ClientModInitializer {
         }
     }
 
-    /*
-     * CUSTOM NO HURT CAM
-     *
-     * The actual camera shake is vanilla GameRenderer#bobViewWhenHurt.
-     * A tiny mixin bridge calls isNoHurtCamEnabled() from this class.
-     * All feature state and behavior therefore lives here; there is no
-     * NoHurtCam mod/library involved.
-     */
     public static void toggleNoHurtCam() {
         CONFIG.noHurtCam = !CONFIG.noHurtCam;
         saveConfig();
@@ -240,6 +247,7 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("{\n");
             writer.write("  \"enabled\": " + CONFIG.enabled + ",\n");
             writer.write("  \"onlyCrits\": " + CONFIG.onlyCrits + ",\n");
+            writer.write("  \"smartCrits\": " + CONFIG.smartCrits + ",\n");
             writer.write("  \"onlyWeapon\": " + CONFIG.onlyWeapon + ",\n");
             writer.write("  \"optimization\": " + CONFIG.optimization + ",\n");
             writer.write("  \"optimizationLevel\": " + CONFIG.optimizationLevel + ",\n");
@@ -251,6 +259,8 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("}\n");
         } catch (IOException ignored) {
         }
+
+        AltManager.save();
     }
 
     public static void loadConfig() {
@@ -273,6 +283,7 @@ public class TriggerBotClient implements ClientModInitializer {
             String text = json.toString();
             CONFIG.enabled = readBoolean(text, "enabled", CONFIG.enabled);
             CONFIG.onlyCrits = readBoolean(text, "onlyCrits", CONFIG.onlyCrits);
+            CONFIG.smartCrits = readBoolean(text, "smartCrits", CONFIG.smartCrits);
             CONFIG.onlyWeapon = readBoolean(text, "onlyWeapon", CONFIG.onlyWeapon);
             CONFIG.optimization = readBoolean(text, "optimization", CONFIG.optimization);
             CONFIG.optimizationLevel = clampInt(readInt(text, "optimizationLevel", CONFIG.optimizationLevel), 0, 2);
@@ -292,13 +303,11 @@ public class TriggerBotClient implements ClientModInitializer {
     private static int readInt(String json, String key, int fallback) {
         String needle = "\"" + key + "\"";
         int start = json.indexOf(needle);
-
         if (start < 0) {
             return fallback;
         }
 
         int colon = json.indexOf(':', start + needle.length());
-
         if (colon < 0) {
             return fallback;
         }
@@ -324,13 +333,11 @@ public class TriggerBotClient implements ClientModInitializer {
     private static double readDouble(String json, String key, double fallback) {
         String needle = "\"" + key + "\"";
         int start = json.indexOf(needle);
-
         if (start < 0) {
             return fallback;
         }
 
         int colon = json.indexOf(':', start + needle.length());
-
         if (colon < 0) {
             return fallback;
         }
