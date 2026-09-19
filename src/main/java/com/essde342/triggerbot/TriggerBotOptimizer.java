@@ -101,7 +101,7 @@ public final class TriggerBotOptimizer {
         }
     }
 
-    public static double getEntityRenderDistance(Object unused) {
+    public static double getEntityRenderDistance() {
         switch (clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2)) {
             case 2:
                 return 28.0D;
