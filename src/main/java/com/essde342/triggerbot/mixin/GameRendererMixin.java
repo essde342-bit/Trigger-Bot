@@ -8,8 +8,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Minimal Mixin bridge for the custom No Hurt Cam feature.
+ *
+ * The feature itself lives in TriggerBotClient; this bridge only cancels
+ * vanilla GameRenderer#bobViewWhenHurt when the setting is enabled.
+ */
 @Mixin(GameRenderer.class)
-public class GameRendererMixin {
+public abstract class GameRendererMixin {
     @Inject(
             method = "bobViewWhenHurt(Lnet/minecraft/client/util/math/MatrixStack;F)V",
             at = @At("HEAD"),
@@ -20,7 +26,7 @@ public class GameRendererMixin {
             float tickDelta,
             CallbackInfo info
     ) {
-        if (TriggerBotClient.CONFIG.noHurtCam) {
+        if (TriggerBotClient.isNoHurtCamEnabled()) {
             info.cancel();
         }
     }
