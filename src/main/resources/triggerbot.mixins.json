@@ -1,12 +1,10 @@
 {
-  "required": true,
+  "required": false,
   "minVersion": "0.8",
   "package": "com.essde342.triggerbot.mixin",
   "compatibilityLevel": "JAVA_8",
-  "client": [
-    "GameRendererMixin"
-  ],
+  "client": [],
   "injectors": {
-    "defaultRequire": 1
+    "defaultRequire": 0
   }
 }
