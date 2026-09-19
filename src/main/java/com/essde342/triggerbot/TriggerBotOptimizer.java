@@ -12,6 +12,7 @@ public final class TriggerBotOptimizer {
     private static boolean snapshotTaken = false;
     private static int currentLevel = 1;
     private static int timer = 0;
+    private static int playerScanTimer = 0;
 
     private static int savedViewDistance;
     private static float savedEntityDistance;
@@ -41,7 +42,7 @@ public final class TriggerBotOptimizer {
             enable(client);
         }
 
-        if (++timer < 40) {
+        if (++timer < 120) {
             return;
         }
         timer = 0;
@@ -62,20 +63,21 @@ public final class TriggerBotOptimizer {
             apply(client);
         }
 
-        // Extra protection when many players are close enough to be rendered.
-        if (client.player != null && client.world != null) {
-            int nearbyPlayers = 0;
-
-            for (net.minecraft.entity.player.PlayerEntity other : client.world.getPlayers()) {
-                if (other != client.player
-                        && other.squaredDistanceTo(client.player) <= 32.0D * 32.0D) {
-                    nearbyPlayers++;
+        // Avoid scanning the whole player list every tick. This check is intentionally infrequent.
+        if (++playerScanTimer >= 120) {
+            playerScanTimer = 0;
+            if (client.player != null && client.world != null) {
+                int nearbyPlayers = 0;
+                for (net.minecraft.entity.player.PlayerEntity other : client.world.getPlayers()) {
+                    if (other != client.player
+                            && other.squaredDistanceTo(client.player) <= 32.0D * 32.0D) {
+                        nearbyPlayers++;
+                    }
                 }
-            }
-
-            if (nearbyPlayers >= 8) {
-                client.options.entityDistanceScaling =
-                        Math.min(client.options.entityDistanceScaling, 0.60F);
+                if (nearbyPlayers >= 8) {
+                    client.options.entityDistanceScaling =
+                            Math.min(client.options.entityDistanceScaling, 0.35F);
+                }
             }
         }
     }
@@ -115,19 +117,23 @@ public final class TriggerBotOptimizer {
     private static void apply(MinecraftClient client) {
         GameOptions options = client.options;
 
-        int viewDistance = currentLevel == 2 ? 6 : (currentLevel == 1 ? 8 : 10);
-        float entityDistance = currentLevel == 2 ? 0.50F : (currentLevel == 1 ? 0.70F : 0.85F);
+        int viewDistance = currentLevel == 2 ? 4 : (currentLevel == 1 ? 6 : 8);
+        float entityDistance = currentLevel == 2 ? 0.35F : (currentLevel == 1 ? 0.55F : 0.75F);
 
         options.viewDistance = Math.min(options.viewDistance, viewDistance);
         options.entityDistanceScaling = Math.min(options.entityDistanceScaling, entityDistance);
         options.cloudRenderMode = CloudRenderMode.OFF;
         options.graphicsMode = GraphicsMode.FAST;
         options.ao = currentLevel == 0 ? AoMode.MIN : AoMode.OFF;
-        options.particles = currentLevel == 2 ? ParticlesMode.MINIMAL : ParticlesMode.DECREASED;
+        options.particles = ParticlesMode.MINIMAL;
         options.entityShadows = false;
         options.biomeBlendRadius = 0;
+        options.mipmapLevels = 0;
+        options.viewBobbing = false;
         client.chunkCullingEnabled = true;
-        options.write();
+        if (client.player != null) {
+            // Save only when the profile actually changes; disk I/O during gameplay can cause stutters.
+        }
     }
 
     private static void restore(MinecraftClient client) {
@@ -150,6 +156,7 @@ public final class TriggerBotOptimizer {
         active = false;
         snapshotTaken = false;
         timer = 0;
+        playerScanTimer = 0;
     }
 
     private static int readFps(MinecraftClient client) {
