@@ -8,9 +8,9 @@ import net.minecraft.client.option.GraphicsMode;
 import net.minecraft.client.option.ParticlesMode;
 
 public final class TriggerBotOptimizer {
-    private static final long BALANCED_CHUNK_BUDGET = 3_000_000L;
-    private static final long PERFORMANCE_CHUNK_BUDGET = 2_000_000L;
-    private static final long EXTREME_CHUNK_BUDGET = 1_250_000L;
+    private static final long BALANCED_CHUNK_BUDGET = 6_000_000L;
+    private static final long PERFORMANCE_CHUNK_BUDGET = 4_500_000L;
+    private static final long EXTREME_CHUNK_BUDGET = 3_500_000L;
     private static boolean active = false;
     private static boolean snapshotTaken = false;
     private static int currentLevel = 1;
