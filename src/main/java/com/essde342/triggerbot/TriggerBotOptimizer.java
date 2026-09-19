@@ -22,6 +22,8 @@ public final class TriggerBotOptimizer {
     private static ParticlesMode savedParticles;
     private static boolean savedEntityShadows;
     private static int savedBiomeBlend;
+    private static int savedMipmapLevels;
+    private static boolean savedViewBobbing;
 
     private TriggerBotOptimizer() {
     }
@@ -111,6 +113,8 @@ public final class TriggerBotOptimizer {
         savedParticles = options.particles;
         savedEntityShadows = options.entityShadows;
         savedBiomeBlend = options.biomeBlendRadius;
+        savedMipmapLevels = options.mipmapLevels;
+        savedViewBobbing = options.viewBobbing;
         snapshotTaken = true;
     }
 
@@ -131,9 +135,7 @@ public final class TriggerBotOptimizer {
         options.mipmapLevels = 0;
         options.viewBobbing = false;
         client.chunkCullingEnabled = true;
-        if (client.player != null) {
-            // Save only when the profile actually changes; disk I/O during gameplay can cause stutters.
-        }
+        // Intentionally do not call options.write() here. Disk I/O during gameplay can cause stutters.
     }
 
     private static void restore(MinecraftClient client) {
@@ -151,6 +153,8 @@ public final class TriggerBotOptimizer {
         options.particles = savedParticles;
         options.entityShadows = savedEntityShadows;
         options.biomeBlendRadius = savedBiomeBlend;
+        options.mipmapLevels = savedMipmapLevels;
+        options.viewBobbing = savedViewBobbing;
         options.write();
 
         active = false;
