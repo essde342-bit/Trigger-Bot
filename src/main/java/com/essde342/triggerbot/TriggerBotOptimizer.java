@@ -6,7 +6,6 @@ import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.GraphicsMode;
 import net.minecraft.client.option.ParticlesMode;
-import net.minecraft.entity.player.PlayerEntity;
 
 public final class TriggerBotOptimizer {
     private static final long BALANCED_CHUNK_BUDGET = 3_000_000L;
@@ -27,7 +26,6 @@ public final class TriggerBotOptimizer {
     private static boolean savedEntityShadows;
     private static int savedBiomeBlend;
     private static int savedMipmapLevels;
-    private static boolean savedViewBobbing;
 
     private TriggerBotOptimizer() {
     }
@@ -155,7 +153,6 @@ public final class TriggerBotOptimizer {
         savedEntityShadows = options.entityShadows;
         savedBiomeBlend = options.biomeBlendRadius;
         savedMipmapLevels = options.mipmapLevels;
-        savedViewBobbing = options.viewBobbing;
         snapshotTaken = true;
     }
 
@@ -174,7 +171,6 @@ public final class TriggerBotOptimizer {
         options.entityShadows = false;
         options.biomeBlendRadius = 0;
         options.mipmapLevels = 0;
-        options.viewBobbing = false;
         client.chunkCullingEnabled = true;
         // Intentionally do not call options.write() here. Disk I/O during gameplay can cause stutters.
     }
@@ -195,7 +191,6 @@ public final class TriggerBotOptimizer {
         options.entityShadows = savedEntityShadows;
         options.biomeBlendRadius = savedBiomeBlend;
         options.mipmapLevels = savedMipmapLevels;
-        options.viewBobbing = savedViewBobbing;
         options.write();
 
         active = false;
