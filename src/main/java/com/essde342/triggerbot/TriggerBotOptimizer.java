@@ -6,8 +6,12 @@ import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.GraphicsMode;
 import net.minecraft.client.option.ParticlesMode;
+import net.minecraft.entity.player.PlayerEntity;
 
 public final class TriggerBotOptimizer {
+    private static final long BALANCED_CHUNK_BUDGET = 3_000_000L;
+    private static final long PERFORMANCE_CHUNK_BUDGET = 2_000_000L;
+    private static final long EXTREME_CHUNK_BUDGET = 1_250_000L;
     private static boolean active = false;
     private static boolean snapshotTaken = false;
     private static int currentLevel = 1;
@@ -81,6 +85,43 @@ public final class TriggerBotOptimizer {
                             Math.min(client.options.entityDistanceScaling, 0.35F);
                 }
             }
+        }
+    }
+
+    public static boolean isRendererOptimizationActive() {
+        return TriggerBotClient.CONFIG.optimization;
+    }
+
+    public static long getChunkUpdateBudgetNanos() {
+        switch (clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2)) {
+            case 2:
+                return EXTREME_CHUNK_BUDGET;
+            case 1:
+                return PERFORMANCE_CHUNK_BUDGET;
+            default:
+                return BALANCED_CHUNK_BUDGET;
+        }
+    }
+
+    public static double getEntityRenderDistance(PlayerEntity dummy) {
+        switch (clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2)) {
+            case 2:
+                return 28.0D;
+            case 1:
+                return 36.0D;
+            default:
+                return 48.0D;
+        }
+    }
+
+    public static double getBlockEntityRenderDistance() {
+        switch (clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2)) {
+            case 2:
+                return 20.0D;
+            case 1:
+                return 28.0D;
+            default:
+                return 40.0D;
         }
     }
 
