@@ -3,7 +3,7 @@
   "id": "triggerbot",
   "version": "${version}",
   "name": "Trigger Bot + Mobile Optimization",
-  "description": "Client-side TriggerBot with custom mobile optimization for Minecraft 1.16.5 Fabric.",
+  "description": "Client-side TriggerBot with smart criticals, Alt Manager and custom mobile optimization for Minecraft 1.16.5 Fabric.",
   "authors": [
     "essde342-bit"
   ],
@@ -13,6 +13,9 @@
       "com.essde342.triggerbot.TriggerBotClient"
     ]
   },
+  "mixins": [
+    "triggerbot.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.14.0",
     "fabric": "*",
