@@ -5,17 +5,22 @@ public class TriggerBotConfig {
     public boolean onlyCrits = false;
     public boolean smartCrits = true;
     public boolean onlyWeapon = false;
+    public int triggerDelayMs = 0;
+    public double triggerRange = 6.0D;
+
     public boolean aimAssist = false;
+    public int aimAssistDurationMs = 300;
+    public double aimAssistRange = 6.0D;
+
     public boolean lightningEsp = false;
+    public boolean targetEsp = false;
     public double aspectRatio = 1.7777778D;
 
-    // Custom mobile optimizer.
     public boolean optimization = true;
-    public int optimizationLevel = 2; // 0=Balanced, 1=Performance, 2=Extreme
+    public int optimizationLevel = 2;
     public boolean adaptiveOptimization = false;
     public int targetFps = 45;
 
-    // Visual modules.
     public boolean fullbright = false;
     public boolean noHurtCam = true;
     public double fullbrightGamma = 15.0D;
