@@ -10,7 +10,6 @@ import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.Vec3d;
 import org.lwjgl.opengl.GL11;
 
@@ -27,48 +26,19 @@ public final class TargetESP {
     }
 
     public static void tick(MinecraftClient client) {
+        target = null;
+
         if (!TriggerBotClient.CONFIG.targetEsp
-                || client == null || client.player == null || client.world == null) {
-            target = null;
+                || client == null
+                || client.player == null
+                || client.world == null) {
             return;
         }
 
         PlayerEntity combatTarget = TriggerBotClient.getCurrentCombatTarget();
         if (valid(client, combatTarget)) {
             target = combatTarget;
-            return;
         }
-
-        target = findFallbackTarget(client);
-    }
-
-    private static PlayerEntity findFallbackTarget(MinecraftClient client) {
-        if (client.crosshairTarget instanceof EntityHitResult) {
-            Entity entity = ((EntityHitResult) client.crosshairTarget).getEntity();
-            if (entity instanceof PlayerEntity && entity != client.player) {
-                PlayerEntity p = (PlayerEntity) entity;
-                if (valid(client, p)) {
-                    return p;
-                }
-            }
-        }
-
-        PlayerEntity nearest = null;
-        double best = 36.0D;
-
-        for (PlayerEntity p : client.world.getPlayers()) {
-            if (!valid(client, p)) {
-                continue;
-            }
-
-            double distance = client.player.squaredDistanceTo(p);
-            if (distance < best) {
-                best = distance;
-                nearest = p;
-            }
-        }
-
-        return nearest;
     }
 
     private static boolean valid(MinecraftClient client, PlayerEntity player) {
@@ -89,22 +59,24 @@ public final class TargetESP {
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.gameRenderer == null) {
+        if (client == null || client.gameRenderer == null
+                || client.player == null || client.world == null
+                || !valid(client, target)) {
+            target = null;
             return;
         }
 
         Vec3d targetPos = interpolate(target, context.tickDelta());
-        Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
 
+        // WorldRenderEvents.LAST already renders with the active camera transform.
+        // Do not translate by -cameraPos here or world-space particles are displaced.
         context.matrixStack().push();
-        context.matrixStack().translate(
-                -cameraPos.x,
-                -cameraPos.y,
-                -cameraPos.z
+        renderParticles(
+                context,
+                targetPos,
+                target.getWidth(),
+                target.getHeight()
         );
-
-        renderParticles(context, targetPos, target.getWidth(), target.getHeight());
-
         context.matrixStack().pop();
     }
 
@@ -132,40 +104,41 @@ public final class TargetESP {
 
         BufferBuilder buffer = Tessellator.getInstance().getBuffer();
 
-        // Wide violet glow.
-        RenderSystem.enableBlend();
-        RenderSystem.lineWidth(1.0F);
         GL11.glPointSize(11.0F);
         buffer.begin(GL11.GL_POINTS, VertexFormats.POSITION_COLOR);
         for (int i = 0; i < PARTICLE_COUNT; i++) {
             Vec3d p = particlePosition(base, radius, height, rotation, i, false);
             buffer.vertex(
                     context.matrixStack().peek().getModel(),
-                    (float) p.x, (float) p.y, (float) p.z
+                    (float) p.x,
+                    (float) p.y,
+                    (float) p.z
             ).color(155, 95, 255, 70).next();
         }
         Tessellator.getInstance().draw();
 
-        // Mid glow.
         GL11.glPointSize(6.0F);
         buffer.begin(GL11.GL_POINTS, VertexFormats.POSITION_COLOR);
         for (int i = 0; i < PARTICLE_COUNT; i++) {
             Vec3d p = particlePosition(base, radius, height, rotation, i, true);
             buffer.vertex(
                     context.matrixStack().peek().getModel(),
-                    (float) p.x, (float) p.y, (float) p.z
+                    (float) p.x,
+                    (float) p.y,
+                    (float) p.z
             ).color(200, 150, 255, 140).next();
         }
         Tessellator.getInstance().draw();
 
-        // White hot core.
         GL11.glPointSize(2.8F);
         buffer.begin(GL11.GL_POINTS, VertexFormats.POSITION_COLOR);
         for (int i = 0; i < PARTICLE_COUNT; i++) {
             Vec3d p = particlePosition(base, radius, height, rotation, i, true);
             buffer.vertex(
                     context.matrixStack().peek().getModel(),
-                    (float) p.x, (float) p.y, (float) p.z
+                    (float) p.x,
+                    (float) p.y,
+                    (float) p.z
             ).color(245, 235, 255, 255).next();
         }
         Tessellator.getInstance().draw();
