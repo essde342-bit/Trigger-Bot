@@ -55,6 +55,8 @@ public class TriggerBotClient implements ClientModInitializer {
                 "category.triggerbot"
         ));
 
+        LightningESP.register();
+
         noHurtCamKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.triggerbot.no_hurt_cam",
                 InputUtil.Type.KEYSYM,
@@ -82,6 +84,8 @@ public class TriggerBotClient implements ClientModInitializer {
             if (client.player != null && client.world != null) {
                 TriggerBotOptimizer.tick(client);
             }
+
+            LightningESP.tick(client);
 
             // Never throttle TriggerBot because of the mobile optimizer.
             // Vanilla attack cooldown remains the only attack-rate limiter.
@@ -301,6 +305,7 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("  \"smartCrits\": " + CONFIG.smartCrits + ",\n");
             writer.write("  \"onlyWeapon\": " + CONFIG.onlyWeapon + ",\n");
             writer.write("  \"aimAssist\": " + CONFIG.aimAssist + ",\n");
+            writer.write("  \"lightningEsp\": " + CONFIG.lightningEsp + ",\n");
             writer.write("  \"aspectRatio\": " + CONFIG.aspectRatio + ",\n");
             writer.write("  \"optimization\": " + CONFIG.optimization + ",\n");
             writer.write("  \"optimizationLevel\": " + CONFIG.optimizationLevel + ",\n");
@@ -338,6 +343,7 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.smartCrits = readBoolean(text, "smartCrits", CONFIG.smartCrits);
             CONFIG.onlyWeapon = readBoolean(text, "onlyWeapon", CONFIG.onlyWeapon);
             CONFIG.aimAssist = readBoolean(text, "aimAssist", CONFIG.aimAssist);
+            CONFIG.lightningEsp = readBoolean(text, "lightningEsp", CONFIG.lightningEsp);
             CONFIG.aspectRatio = clampDouble(readDouble(text, "aspectRatio", CONFIG.aspectRatio), 0.50D, 3.00D);
             CONFIG.optimization = readBoolean(text, "optimization", CONFIG.optimization);
             CONFIG.optimizationLevel = clampInt(readInt(text, "optimizationLevel", CONFIG.optimizationLevel), 0, 2);
