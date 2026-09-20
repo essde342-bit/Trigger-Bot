@@ -5,7 +5,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.text.LiteralText;
+import net.minecraft.text.LiteralText;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;

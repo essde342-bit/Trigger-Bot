@@ -9,7 +9,7 @@ import net.minecraft.client.render.VertexFormats;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.math.Vector3d;
+import net.minecraft.util.math.Vec3d;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import org.lwjgl.opengl.GL11;
@@ -28,6 +28,12 @@ public final class LightningESP {
     private static final int PATH_DEPTH = 3;
     private static final long MIN_LIFETIME_MS = 170L;
     private static final long MAX_LIFETIME_MS = 340L;
+
+    private static final class LightningBolt {
+        private List<Vec3d> points;
+        private long spawnTime;
+        private long lifetimeMs;
+    }
 
     private static final List<LightningBolt> BOLTS = new ArrayList<LightningBolt>();
     private static PlayerEntity lastTarget;
