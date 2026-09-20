@@ -1,0 +1,1 @@
+package com.essde342.triggerbot.ui; public interface ISetting{String getName();default Object getValue(){return null;}default void fromString(String v){}}

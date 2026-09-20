@@ -1,5 +1,7 @@
 package com.essde342.triggerbot;
 
+import com.essde342.triggerbot.ui.ClickGuiMain;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -67,7 +69,7 @@ public class TriggerBotClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) {
-                    client.openScreen(TriggerBotConfigScreen.create(null));
+                    client.openScreen(new ClickGuiMain());
                 }
             }
 

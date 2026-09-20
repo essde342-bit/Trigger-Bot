@@ -1,0 +1,1 @@
+package com.essde342.triggerbot.ui.modules; public enum Category{COMBAT,MOVEMENT,RENDER,PLAYER,WORLD}
