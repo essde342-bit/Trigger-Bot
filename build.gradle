@@ -2,39 +2,11 @@ plugins {
     id 'fabric-loom' version '0.7-SNAPSHOT'
     id 'maven-publish'
 }
-
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
-
 archivesBaseName = project.archives_base_name
 version = project.mod_version
 group = project.maven_group
-
-def uiFontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf"
-def generatedUiFontRoot = file("$buildDir/generated/ui-font")
-def generatedUiFont = file("$generatedUiFontRoot/assets/triggerbot/font/ui.ttf")
-
-task downloadUiFont {
-    outputs.file(generatedUiFont)
-    doLast {
-        if (!generatedUiFont.parentFile.exists() && !generatedUiFont.parentFile.mkdirs()) {
-            throw new GradleException("Cannot create UI font directory")
-        }
-
-        if (!generatedUiFont.exists() || generatedUiFont.length() == 0) {
-            new URL(uiFontUrl).withInputStream { input ->
-                generatedUiFont.withOutputStream { output ->
-                    byte[] buffer = new byte[8192]
-                    int read
-
-                    while ((read = input.read(buffer)) != -1) {
-                        output.write(buffer, 0, read)
-                    }
-                }
-            }
-        }
-    }
-}
 
 dependencies {
     minecraft "com.mojang:minecraft:" + project.minecraft_version
@@ -44,8 +16,6 @@ dependencies {
 }
 
 processResources {
-    dependsOn downloadUiFont
-    from(generatedUiFontRoot)
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") {
         expand "version": project.version
