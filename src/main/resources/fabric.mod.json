@@ -10,7 +10,8 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "com.essde342.triggerbot.TriggerBotClient"
+      "com.essde342.triggerbot.TriggerBotClient",
+      "com.essde342.triggerbot.JumpCircleClient"
     ]
   },
   "mixins": [
