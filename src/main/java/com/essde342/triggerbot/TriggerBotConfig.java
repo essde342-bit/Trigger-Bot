@@ -14,6 +14,8 @@ public class TriggerBotConfig {
 
     public boolean lightningEsp = false;
     public boolean targetEsp = false;
+
+    public boolean aspectRatioEnabled = true;
     public double aspectRatio = 1.7777778D;
 
     public boolean optimization = true;
