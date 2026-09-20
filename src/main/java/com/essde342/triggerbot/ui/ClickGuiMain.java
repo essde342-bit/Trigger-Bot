@@ -7,7 +7,6 @@ import com.essde342.triggerbot.ui.imple.NumberSetting;
 import com.essde342.triggerbot.ui.modules.Category;
 import com.essde342.triggerbot.ui.modules.Module;
 import com.essde342.triggerbot.ui.modules.ModuleManager;
-
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.gui.screen.Screen;
@@ -20,7 +19,7 @@ import java.util.Locale;
 
 public final class ClickGuiMain extends Screen {
     private static final int UI_W = 440;
-    private static final int UI_H = 270;
+    private static final int UI_H = 282;
 
     private static final int BACKDROP = 0xFF08090A;
     private static final int PANEL = 0xFF111316;
@@ -42,16 +41,22 @@ public final class ClickGuiMain extends Screen {
 
     private NumberSetting draggingSlider;
     private BooleanSetting pendingBoolean;
+    private Module pendingModule;
+
     private boolean scrollingSettings;
     private boolean scrollingModules;
+    private boolean draggingSettingsScrollBar;
+    private boolean draggingModuleScrollBar;
     private boolean movedDuringPress;
+
+    private double pressX;
     private double pressY;
+    private double settingsScrollStart;
+    private double moduleScrollStart;
+    private double scrollGrabOffset;
 
     private double settingsScroll;
-    private double settingsScrollStart;
-
     private double moduleScroll;
-    private double moduleScrollStart;
 
     private float scale = 1.0F;
     private int originX;
@@ -71,24 +76,13 @@ public final class ClickGuiMain extends Screen {
     public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
         recalculateScale();
 
-        // Hard reset the most important render states before drawing the opaque UI.
-        DrawableHelper.fill(
-                matrices,
-                0,
-                0,
-                width,
-                height,
-                BACKDROP
-        );
+        DrawableHelper.fill(matrices, 0, 0, width, height, BACKDROP);
 
         matrices.push();
         matrices.translate(originX, originY, 0.0D);
         matrices.scale(scale, scale, 1.0F);
 
-        int mx = localX(mouseX);
-        int my = localY(mouseY);
-
-        drawMain(matrices, mx, my);
+        drawMain(matrices, localX(mouseX), localY(mouseY));
 
         matrices.pop();
     }
@@ -100,8 +94,8 @@ public final class ClickGuiMain extends Screen {
         );
 
         scale = Math.min(1.0F, fit);
-        if (scale < 0.45F) {
-            scale = 0.45F;
+        if (scale < 0.50F) {
+            scale = 0.50F;
         }
 
         originX = (int) ((width - UI_W * scale) * 0.5F);
@@ -124,14 +118,7 @@ public final class ClickGuiMain extends Screen {
         drawText(matrices, "CLIENT 1.0.0", 52, 13, MUTED);
         drawText(matrices, "RSHIFT", UI_W - 51, 13, MUTED);
 
-        DrawableHelper.fill(
-                matrices,
-                0,
-                37,
-                UI_W,
-                38,
-                BORDER
-        );
+        DrawableHelper.fill(matrices, 0, 37, UI_W, 38, BORDER);
 
         if (settingsModule == null) {
             drawModuleView(matrices, mx, my);
@@ -151,98 +138,78 @@ public final class ClickGuiMain extends Screen {
         box(matrices, listX, listY, listW, listH, BACKDROP);
         outline(matrices, listX, listY, listW, listH, BORDER);
 
-        drawText(matrices, pretty(category), listX + 10, listY + 9, TEXT);
+        drawText(matrices, category.getDisplayName(), listX + 10, listY + 9, TEXT);
 
         List<Module> modules = ModuleManager.getByCategory(category);
 
         int rowTop = listY + 28;
-        int rowBottom = listY + listH - 4;
+        int rowBottom = listY + listH - 5;
         int rowY = rowTop - (int) moduleScroll;
 
         for (Module module : modules) {
-            if (rowY >= rowTop && rowY + 33 <= rowBottom) {
+            if (rowY + 33 >= rowTop && rowY <= rowBottom) {
+                boolean hover = inside(mx, my, listX + 7, rowY, listW - 14, 33);
+                boolean enabled = module.isEnabled();
 
-            boolean hover = inside(
-                    mx,
-                    my,
-                    listX + 7,
-                    rowY,
-                    listW - 14,
-                    33
-            );
-
-            boolean enabled = module.isEnabled();
-
-            box(
-                    matrices,
-                    listX + 7,
-                    rowY,
-                    listW - 14,
-                    33,
-                    hover ? HOVER : CARD
-            );
-
-            if (enabled) {
-                DrawableHelper.fill(
+                box(
                         matrices,
                         listX + 7,
                         rowY,
-                        listX + 10,
-                        rowY + 33,
-                        ACCENT
+                        listW - 14,
+                        33,
+                        hover ? HOVER : CARD
+                );
+
+                if (enabled) {
+                    DrawableHelper.fill(
+                            matrices,
+                            listX + 7,
+                            rowY,
+                            listX + 10,
+                            rowY + 33,
+                            ACCENT
+                    );
+                }
+
+                drawText(
+                        matrices,
+                        fit(module.getName(), 150),
+                        listX + 16,
+                        rowY + 5,
+                        TEXT
+                );
+
+                drawText(
+                        matrices,
+                        fit(module.getDesc(), 185),
+                        listX + 16,
+                        rowY + 19,
+                        MUTED
+                );
+
+                drawSwitch(
+                        matrices,
+                        listX + listW - 74,
+                        rowY + 7,
+                        enabled
+                );
+
+                drawDots(
+                        matrices,
+                        listX + listW - 20,
+                        rowY + 8,
+                        settingsModule == module
                 );
             }
 
-            drawText(
-                    matrices,
-                    fit(module.getName(), 126),
-                    listX + 16,
-                    rowY + 5,
-                    TEXT
-            );
-
-            drawText(
-                    matrices,
-                    fit(module.getDesc(), 185),
-                    listX + 16,
-                    rowY + 19,
-                    MUTED
-            );
-
-            int toggleX = listX + listW - 74;
-            drawSwitch(matrices, toggleX, rowY + 7, enabled);
-
-            int dotX = listX + listW - 20;
-            drawDots(matrices, dotX, rowY + 8, settingsModule == module);
-
             rowY += 38;
-            }
         }
 
-        if (getMaxModuleScroll(modules) > 0.0D) {
-            int viewport = rowBottom - rowTop;
-            int total = modules.size() * 38;
-            int barHeight = Math.max(
-                    18,
-                    (int) ((viewport / (double) total) * viewport)
-            );
-            double progress = moduleScroll / getMaxModuleScroll(modules);
-            int barY = rowTop
-                    + (int) ((viewport - barHeight) * progress);
-
-            box(
-                    matrices,
-                    listX + listW - 5,
-                    barY,
-                    3,
-                    barHeight,
-                    ACCENT_DARK
-            );
-        }
+        drawModuleScrollbar(matrices, listX, listY, listW, rowTop, rowBottom, modules);
 
         drawText(
                 matrices,
-                "Tap module = ON/OFF   ••• = settings",
+                "Drag anywhere in the list • swipe on sliders to scroll",
                 14,
                 UI_H - 16,
                 MUTED
@@ -253,27 +220,25 @@ public final class ClickGuiMain extends Screen {
         int x = 10;
         int y = 46;
         int gap = 5;
-
         int count = Category.values().length;
         int w = (UI_W - 20 - gap * (count - 1)) / count;
-        int h = 27;
 
         for (Category current : Category.values()) {
             boolean selected = current == category;
-            boolean hover = inside(mx, my, x, y, w, h);
+            boolean hover = inside(mx, my, x, y, w, 27);
 
             box(
                     matrices,
                     x,
                     y,
                     w,
-                    h,
+                    27,
                     selected ? ACCENT_DARK : (hover ? HOVER : PANEL_2)
             );
 
             drawCentered(
                     matrices,
-                    pretty(current),
+                    current.getDisplayName(),
                     x + w / 2,
                     y + 9,
                     selected ? TEXT : MUTED
@@ -281,6 +246,41 @@ public final class ClickGuiMain extends Screen {
 
             x += w + gap;
         }
+    }
+
+    private void drawModuleScrollbar(
+            MatrixStack matrices,
+            int listX,
+            int listY,
+            int listW,
+            int rowTop,
+            int rowBottom,
+            List<Module> modules
+    ) {
+        double max = getMaxModuleScroll(modules);
+        if (max <= 0.0D) {
+            return;
+        }
+
+        int viewport = rowBottom - rowTop;
+        int total = Math.max(1, modules.size() * 38);
+        int barX = listX + listW - 6;
+        int barTop = rowTop;
+        int barBottom = rowBottom;
+        int barHeight = Math.max(24, (int) ((viewport / (double) total) * viewport));
+
+        double progress = moduleScroll / max;
+        int barY = barTop + (int) ((viewport - barHeight) * progress);
+
+        box(matrices, barX, barTop, 4, viewport, PANEL_2);
+        box(
+                matrices,
+                barX,
+                barY,
+                4,
+                Math.min(barHeight, viewport),
+                draggingModuleScrollBar ? ACCENT : ACCENT_DARK
+        );
     }
 
     private void drawSettingsView(MatrixStack matrices, int mx, int my) {
@@ -292,38 +292,22 @@ public final class ClickGuiMain extends Screen {
         box(matrices, x, y, w, h, BACKDROP);
         outline(matrices, x, y, w, h, BORDER);
 
-        drawText(
-                matrices,
-                fit(settingsModule.getName(), w - 82),
-                x + 11,
-                y + 9,
-                TEXT
-        );
-
-        drawText(
-                matrices,
-                "SETTINGS",
-                x + 11,
-                y + 24,
-                MUTED
-        );
+        drawText(matrices, fit(settingsModule.getName(), w - 82), x + 11, y + 9, TEXT);
+        drawText(matrices, "SETTINGS", x + 11, y + 24, MUTED);
 
         box(matrices, x + w - 30, y + 7, 22, 22, CARD);
         drawCentered(matrices, "X", x + w - 19, y + 14, MUTED);
 
         int contentX = x + 9;
         int contentW = w - 18;
-
         int top = y + 40;
         int bottom = y + h - 32;
-
         int cursor = top - (int) settingsScroll;
 
         for (com.essde342.triggerbot.ui.ISetting setting : settingsModule.getSettings()) {
             if (setting instanceof BooleanSetting) {
-                int height = 31;
-
-                if (cursor + height >= top && cursor <= bottom) {
+                int itemH = 31;
+                if (cursor + itemH >= top && cursor <= bottom) {
                     drawBoolean(
                             matrices,
                             (BooleanSetting) setting,
@@ -334,12 +318,10 @@ public final class ClickGuiMain extends Screen {
                             my
                     );
                 }
-
-                cursor += height + 5;
+                cursor += 36;
             } else if (setting instanceof NumberSetting) {
-                int height = 53;
-
-                if (cursor + height >= top && cursor <= bottom) {
+                int itemH = 53;
+                if (cursor + itemH >= top && cursor <= bottom) {
                     drawNumber(
                             matrices,
                             (NumberSetting) setting,
@@ -350,55 +332,15 @@ public final class ClickGuiMain extends Screen {
                             my
                     );
                 }
-
-                cursor += height + 7;
+                cursor += 60;
             }
         }
 
-        int totalHeight = cursor - (top - (int) settingsScroll);
-        int viewportHeight = bottom - top;
-
-        if (totalHeight > viewportHeight) {
-            int barX = x + w - 5;
-            int barTop = top;
-            int barBottom = bottom;
-            int barHeight = Math.max(
-                    18,
-                    (int) ((viewportHeight / (double) totalHeight) * viewportHeight)
-            );
-
-            double scrollProgress = settingsScroll / getMaxSettingsScroll();
-            int barY = barTop + (int) (
-                    (barBottom - barTop - barHeight) * scrollProgress
-            );
-
-            box(
-                    matrices,
-                    barX,
-                    barY,
-                    3,
-                    barHeight,
-                    ACCENT_DARK
-            );
-        }
+        drawSettingsScrollbar(matrices, x, w, top, bottom);
 
         int bindY = y + h - 25;
-        box(
-                matrices,
-                contentX,
-                bindY,
-                contentW,
-                20,
-                PANEL_2
-        );
-
-        drawText(
-                matrices,
-                "BIND",
-                contentX + 7,
-                bindY + 6,
-                MUTED
-        );
+        box(matrices, contentX, bindY, contentW, 20, PANEL_2);
+        drawText(matrices, "BIND", contentX + 7, bindY + 6, MUTED);
 
         String bind = bindingModule == settingsModule
                 ? "PRESS KEY"
@@ -413,6 +355,37 @@ public final class ClickGuiMain extends Screen {
                 contentX + contentW - 7 - mc.textRenderer.getWidth(fittedBind),
                 bindY + 6,
                 TEXT
+        );
+    }
+
+    private void drawSettingsScrollbar(
+            MatrixStack matrices,
+            int panelX,
+            int panelW,
+            int top,
+            int bottom
+    ) {
+        double max = getMaxSettingsScroll();
+        if (max <= 0.0D) {
+            return;
+        }
+
+        int viewport = bottom - top;
+        int total = viewport + (int) max;
+        int barX = panelX + panelW - 6;
+        int barHeight = Math.max(24, (int) ((viewport / (double) total) * viewport));
+
+        double progress = settingsScroll / max;
+        int barY = top + (int) ((viewport - barHeight) * progress);
+
+        box(matrices, barX, top, 4, viewport, PANEL_2);
+        box(
+                matrices,
+                barX,
+                barY,
+                4,
+                Math.min(barHeight, viewport),
+                draggingSettingsScrollBar ? ACCENT : ACCENT_DARK
         );
     }
 
@@ -434,20 +407,8 @@ public final class ClickGuiMain extends Screen {
                 inside(mx, my, x, y, w, 31) ? HOVER : CARD
         );
 
-        drawText(
-                matrices,
-                fit(setting.getName(), w - 62),
-                x + 9,
-                y + 9,
-                TEXT
-        );
-
-        drawSwitch(
-                matrices,
-                x + w - 38,
-                y + 7,
-                setting.isEnabled()
-        );
+        drawText(matrices, fit(setting.getName(), w - 62), x + 9, y + 9, TEXT);
+        drawSwitch(matrices, x + w - 38, y + 7, setting.isEnabled());
     }
 
     private void drawNumber(
@@ -469,14 +430,7 @@ public final class ClickGuiMain extends Screen {
         );
 
         String value = format(setting);
-        drawText(
-                matrices,
-                fit(setting.getName(), w - 95),
-                x + 9,
-                y + 6,
-                TEXT
-        );
-
+        drawText(matrices, fit(setting.getName(), w - 95), x + 9, y + 6, TEXT);
         drawText(
                 matrices,
                 value,
@@ -504,7 +458,6 @@ public final class ClickGuiMain extends Screen {
                 0.000001D,
                 setting.getMax() - setting.getMin()
         );
-
         progress = Math.max(0.0D, Math.min(1.0D, progress));
 
         int fill = (int) Math.round(sliderW * progress);
@@ -530,20 +483,8 @@ public final class ClickGuiMain extends Screen {
         );
     }
 
-    private void drawSwitch(
-            MatrixStack matrices,
-            int x,
-            int y,
-            boolean enabled
-    ) {
-        box(
-                matrices,
-                x,
-                y,
-                30,
-                17,
-                enabled ? ACCENT_DARK : OFF
-        );
+    private void drawSwitch(MatrixStack matrices, int x, int y, boolean enabled) {
+        box(matrices, x, y, 30, 17, enabled ? ACCENT_DARK : OFF);
 
         DrawableHelper.fill(
                 matrices,
@@ -555,12 +496,7 @@ public final class ClickGuiMain extends Screen {
         );
     }
 
-    private void drawDots(
-            MatrixStack matrices,
-            int centerX,
-            int y,
-            boolean selected
-    ) {
+    private void drawDots(MatrixStack matrices, int centerX, int y, boolean selected) {
         box(
                 matrices,
                 centerX - 10,
@@ -570,46 +506,34 @@ public final class ClickGuiMain extends Screen {
                 selected ? ACCENT_DARK : PANEL_2
         );
 
-        DrawableHelper.fill(
-                matrices,
-                centerX - 1,
-                y + 1,
-                centerX + 2,
-                y + 4,
-                TEXT
-        );
-
-        DrawableHelper.fill(
-                matrices,
-                centerX - 1,
-                y + 8,
-                centerX + 2,
-                y + 11,
-                TEXT
-        );
-
-        DrawableHelper.fill(
-                matrices,
-                centerX - 1,
-                y + 15,
-                centerX + 2,
-                y + 18,
-                TEXT
-        );
+        for (int offset : new int[]{1, 8, 15}) {
+            DrawableHelper.fill(
+                    matrices,
+                    centerX - 1,
+                    y + offset,
+                    centerX + 2,
+                    y + offset + 3,
+                    TEXT
+            );
+        }
     }
 
     @Override
-    public boolean mouseClicked(
-            double mouseX,
-            double mouseY,
-            int button
-    ) {
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
         int x = localX(mouseX);
         int y = localY(mouseY);
+
+        if (!isPointerButton(button)) {
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
 
         if (settingsModule != null) {
             if (inside(x, y, UI_W - 42, 44, 30, 31)) {
                 closeSettings();
+                return true;
+            }
+
+            if (beginSettingsScrollbarDrag(x, y)) {
                 return true;
             }
 
@@ -618,10 +542,7 @@ public final class ClickGuiMain extends Screen {
             }
 
             if (inside(x, y, 10, 46, UI_W - 20, UI_H - 57)) {
-                scrollingSettings = true;
-                pressY = y;
-                settingsScrollStart = settingsScroll;
-                movedDuringPress = false;
+                beginSettingsScroll(y);
                 return true;
             }
 
@@ -636,10 +557,15 @@ public final class ClickGuiMain extends Screen {
             if (inside(x, y, categoryX, 46, categoryW, 27)) {
                 category = current;
                 moduleScroll = 0.0D;
+                pendingModule = null;
                 return true;
             }
 
             categoryX += categoryW + 5;
+        }
+
+        if (beginModuleScrollbarDrag(x, y)) {
+            return true;
         }
 
         int listX = 19;
@@ -648,48 +574,38 @@ public final class ClickGuiMain extends Screen {
         int rowY = rowTop - (int) moduleScroll;
 
         for (Module module : ModuleManager.getByCategory(category)) {
-            if (!inside(x, y, listX, rowY, listW, 33)) {
-                rowY += 38;
-                continue;
-            }
+            if (inside(x, y, listX, rowY, listW, 33)) {
+                int dotX = listX + listW - 20;
 
-            int listY = rowY;
-
-            int dotX = listX + listW - 20;
-
-            if (inside(x, y, dotX - 18, listY - 3, 36, 39)) {
-                if (module.getName().equals("Alt Manager")) {
-                    if (client != null) {
-                        client.openScreen(AltManagerScreen.create(this));
+                if (inside(x, y, dotX - 18, rowY - 3, 36, 39)) {
+                    if ("Alt Manager".equals(module.getName())) {
+                        mc.openScreen(AltManagerScreen.create(this));
+                        return true;
                     }
-                } else {
+
                     settingsModule = module;
                     settingsScroll = 0.0D;
                     bindingModule = null;
-                    moduleScroll = clamp(
-                            moduleScroll,
-                            0.0D,
-                            getMaxModuleScroll(ModuleManager.getByCategory(category))
-                    );
+                    return true;
                 }
 
+                pendingModule = module;
+                movedDuringPress = false;
+                pressX = x;
+                pressY = y;
+                moduleScrollStart = moduleScroll;
                 return true;
             }
 
-            module.toggled();
-            TriggerBotClient.saveConfig();
-            return true;
+            rowY += 38;
         }
 
         if (inside(x, y, 12, 82, UI_W - 24, UI_H - 104)) {
-            scrollingModules = true;
-            pressY = y;
-            moduleScrollStart = moduleScroll;
-            movedDuringPress = false;
+            beginModuleScroll(y);
             return true;
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return true;
     }
 
     private boolean handleSettingsPress(int x, int y) {
@@ -711,38 +627,129 @@ public final class ClickGuiMain extends Screen {
                     pendingBoolean = (BooleanSetting) setting;
                     scrollingSettings = false;
                     movedDuringPress = false;
+                    pressX = x;
                     pressY = y;
                     return true;
                 }
-
                 cursor += 36;
             } else if (setting instanceof NumberSetting) {
                 if (inside(x, y, contentX, cursor, contentW, 53)) {
                     draggingSlider = (NumberSetting) setting;
                     scrollingSettings = false;
                     movedDuringPress = false;
+                    pressX = x;
+                    pressY = y;
                     updateSlider(
                             draggingSlider,
                             x,
                             contentX + 9,
                             contentW - 18
                     );
-                    TriggerBotClient.saveConfig();
                     return true;
                 }
-
                 cursor += 60;
             }
         }
 
         int bindY = panelY + panelH - 25;
-
         if (inside(x, y, contentX, bindY, contentW, 20)) {
             bindingModule = settingsModule;
             return true;
         }
 
         return false;
+    }
+
+    private boolean beginModuleScrollbarDrag(int x, int y) {
+        List<Module> modules = ModuleManager.getByCategory(category);
+        double max = getMaxModuleScroll(modules);
+        if (max <= 0.0D) {
+            return false;
+        }
+
+        int listX = 12;
+        int listY = 82;
+        int listW = UI_W - 24;
+        int rowTop = listY + 28;
+        int rowBottom = listY + listH() - 5;
+        int viewport = rowBottom - rowTop;
+        int total = Math.max(1, modules.size() * 38);
+        int barX = listX + listW - 6;
+        int barHeight = Math.max(24, (int) ((viewport / (double) total) * viewport));
+        int barY = rowTop + (int) ((viewport - barHeight) * (moduleScroll / max));
+
+        if (!inside(x, y, barX - 6, rowTop, 16, viewport)) {
+            return false;
+        }
+
+        draggingModuleScrollBar = true;
+
+        if (y < barY || y > barY + barHeight) {
+            double progress = clamp(
+                    (y - rowTop - barHeight * 0.5D) /
+                            Math.max(1.0D, viewport - barHeight),
+                    0.0D,
+                    1.0D
+            );
+            moduleScroll = progress * max;
+            scrollGrabOffset = barHeight * 0.5D;
+        } else {
+            scrollGrabOffset = y - barY;
+        }
+
+        return true;
+    }
+
+    private boolean beginSettingsScrollbarDrag(int x, int y) {
+        double max = getMaxSettingsScroll();
+        if (max <= 0.0D) {
+            return false;
+        }
+
+        int panelX = 10;
+        int panelW = UI_W - 20;
+        int top = 86;
+        int bottom = 46 + (UI_H - 57) - 32;
+        int viewport = bottom - top;
+        int total = viewport + (int) max;
+        int barX = panelX + panelW - 6;
+        int barHeight = Math.max(24, (int) ((viewport / (double) total) * viewport));
+        int barY = top + (int) ((viewport - barHeight) * (settingsScroll / max));
+
+        if (!inside(x, y, barX - 6, top, 16, viewport)) {
+            return false;
+        }
+
+        draggingSettingsScrollBar = true;
+
+        if (y < barY || y > barY + barHeight) {
+            double progress = clamp(
+                    (y - top - barHeight * 0.5D) /
+                            Math.max(1.0D, viewport - barHeight),
+                    0.0D,
+                    1.0D
+            );
+            settingsScroll = progress * max;
+            scrollGrabOffset = barHeight * 0.5D;
+        } else {
+            scrollGrabOffset = y - barY;
+        }
+
+        return true;
+    }
+
+    private void beginModuleScroll(int y) {
+        scrollingModules = true;
+        movedDuringPress = false;
+        pressY = y;
+        moduleScrollStart = moduleScroll;
+    }
+
+    private void beginSettingsScroll(int y) {
+        scrollingSettings = true;
+        movedDuringPress = false;
+        pressY = y;
+        settingsScrollStart = settingsScroll;
     }
 
     @Override
@@ -756,14 +763,31 @@ public final class ClickGuiMain extends Screen {
         int x = localX(mouseX);
         int y = localY(mouseY);
 
-        if (draggingSlider != null) {
-            updateSlider(
-                    draggingSlider,
-                    x,
-                    28,
-                    404
-            );
+        if (draggingModuleScrollBar) {
+            moveModuleScrollbar(y);
             return true;
+        }
+
+        if (draggingSettingsScrollBar) {
+            moveSettingsScrollbar(y);
+            return true;
+        }
+
+        if (draggingSlider != null) {
+            double dx = Math.abs(x - pressX);
+            double dy = Math.abs(y - pressY);
+
+            if (dy > 5.0D && dy > dx + 2.0D) {
+                draggingSlider = null;
+                pendingBoolean = null;
+                movedDuringPress = true;
+                beginSettingsScroll((int) pressY);
+            } else {
+                int sliderX = 28;
+                int sliderWidth = 404;
+                updateSlider(draggingSlider, x, sliderX, sliderWidth);
+                return true;
+            }
         }
 
         if (pendingBoolean != null || scrollingSettings) {
@@ -774,41 +798,77 @@ public final class ClickGuiMain extends Screen {
 
             if (scrollingSettings) {
                 double next = settingsScrollStart - (y - pressY);
-                settingsScroll = clamp(
-                        next,
-                        0.0D,
-                        getMaxSettingsScroll()
-                );
-
+                settingsScroll = clamp(next, 0.0D, getMaxSettingsScroll());
                 return true;
             }
         }
 
-        if (scrollingModules) {
+        if (pendingModule != null || scrollingModules) {
             if (Math.abs(y - pressY) > 4) {
                 movedDuringPress = true;
+                scrollingModules = true;
             }
 
-            double next = moduleScrollStart - (y - pressY);
-            moduleScroll = clamp(
-                    next,
-                    0.0D,
-                    getMaxModuleScroll(ModuleManager.getByCategory(category))
-            );
-            return true;
+            if (scrollingModules) {
+                double next = moduleScrollStart - (y - pressY);
+                moduleScroll = clamp(
+                        next,
+                        0.0D,
+                        getMaxModuleScroll(ModuleManager.getByCategory(category))
+                );
+                return true;
+            }
         }
 
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
+    private void moveModuleScrollbar(int y) {
+        List<Module> modules = ModuleManager.getByCategory(category);
+        double max = getMaxModuleScroll(modules);
+        if (max <= 0.0D) {
+            return;
+        }
+
+        int top = 110;
+        int bottom = 82 + listH() - 5;
+        int viewport = bottom - top;
+        int total = Math.max(1, modules.size() * 38);
+        int barHeight = Math.max(24, (int) ((viewport / (double) total) * viewport));
+
+        double progress = (y - top - scrollGrabOffset)
+                / Math.max(1.0D, viewport - barHeight);
+
+        moduleScroll = clamp(progress * max, 0.0D, max);
+    }
+
+    private void moveSettingsScrollbar(int y) {
+        double max = getMaxSettingsScroll();
+        if (max <= 0.0D) {
+            return;
+        }
+
+        int top = 86;
+        int bottom = 46 + (UI_H - 57) - 32;
+        int viewport = bottom - top;
+        int total = viewport + (int) max;
+        int barHeight = Math.max(24, (int) ((viewport / (double) total) * viewport));
+
+        double progress = (y - top - scrollGrabOffset)
+                / Math.max(1.0D, viewport - barHeight);
+
+        settingsScroll = clamp(progress * max, 0.0D, max);
+    }
+
     @Override
-    public boolean mouseReleased(
-            double mouseX,
-            double mouseY,
-            int button
-    ) {
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (pendingBoolean != null && !movedDuringPress) {
             pendingBoolean.toggle();
+            TriggerBotClient.saveConfig();
+        }
+
+        if (pendingModule != null && !movedDuringPress) {
+            pendingModule.toggled();
             TriggerBotClient.saveConfig();
         }
 
@@ -818,11 +878,14 @@ public final class ClickGuiMain extends Screen {
 
         draggingSlider = null;
         pendingBoolean = null;
+        pendingModule = null;
         scrollingSettings = false;
         scrollingModules = false;
+        draggingSettingsScrollBar = false;
+        draggingModuleScrollBar = false;
         movedDuringPress = false;
 
-        return super.mouseReleased(mouseX, mouseY, button);
+        return true;
     }
 
     @Override
@@ -837,23 +900,19 @@ public final class ClickGuiMain extends Screen {
                     0.0D,
                     getMaxSettingsScroll()
             );
-            return true;
+        } else {
+            moduleScroll = clamp(
+                    moduleScroll - amount * 30.0D,
+                    0.0D,
+                    getMaxModuleScroll(ModuleManager.getByCategory(category))
+            );
         }
 
-        moduleScroll = clamp(
-                moduleScroll - amount * 30.0D,
-                0.0D,
-                getMaxModuleScroll(ModuleManager.getByCategory(category))
-        );
         return true;
     }
 
     @Override
-    public boolean keyPressed(
-            int keyCode,
-            int scanCode,
-            int modifiers
-    ) {
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (bindingModule != null) {
             bindingModule.setBind(
                     keyCode == GLFW.GLFW_KEY_ESCAPE ? -1 : keyCode
@@ -867,10 +926,9 @@ public final class ClickGuiMain extends Screen {
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             if (settingsModule != null) {
                 closeSettings();
-            } else if (client != null) {
-                client.openScreen(null);
+            } else {
+                mc.openScreen(null);
             }
-
             return true;
         }
 
@@ -882,9 +940,11 @@ public final class ClickGuiMain extends Screen {
         bindingModule = null;
         draggingSlider = null;
         pendingBoolean = null;
+        pendingModule = null;
         scrollingSettings = false;
         movedDuringPress = false;
         settingsScroll = 0.0D;
+        draggingSettingsScrollBar = false;
     }
 
     private void updateSlider(
@@ -911,22 +971,27 @@ public final class ClickGuiMain extends Screen {
         setting.setValue(value);
     }
 
+    private int listH() {
+        return UI_H - 104;
+    }
+
     private double getMaxModuleScroll(List<Module> modules) {
         if (modules == null || modules.isEmpty()) {
             return 0.0D;
         }
 
         int total = modules.size() * 38;
-        int viewport = (UI_H - 104) - 32;
+        int viewport = listH() - 32;
         return Math.max(0.0D, total - viewport);
     }
 
     private double getMaxSettingsScroll() {
+        if (settingsModule == null) {
+            return 0.0D;
+        }
+
         int total = 0;
-
-        for (com.essde342.triggerbot.ui.ISetting setting :
-                settingsModule.getSettings()) {
-
+        for (com.essde342.triggerbot.ui.ISetting setting : settingsModule.getSettings()) {
             if (setting instanceof BooleanSetting) {
                 total += 36;
             } else if (setting instanceof NumberSetting) {
@@ -935,7 +1000,6 @@ public final class ClickGuiMain extends Screen {
         }
 
         int viewport = (UI_H - 57) - 40 - 32;
-
         return Math.max(0.0D, total - viewport);
     }
 
@@ -950,16 +1014,13 @@ public final class ClickGuiMain extends Screen {
 
         String dots = "...";
         int dotsWidth = mc.textRenderer.getWidth(dots);
-
         StringBuilder result = new StringBuilder();
 
         for (int i = 0; i < text.length(); i++) {
             String next = result.toString() + text.charAt(i);
-
             if (mc.textRenderer.getWidth(next) + dotsWidth > maxWidth) {
                 break;
             }
-
             result.append(text.charAt(i));
         }
 
@@ -973,23 +1034,18 @@ public final class ClickGuiMain extends Screen {
         if (name.contains("Time") || name.contains("Delay")) {
             return Math.round(value) + " ms";
         }
-
         if (name.contains("FPS")) {
             return Math.round(value) + " FPS";
         }
-
         if (name.contains("Ratio")) {
             return String.format(Locale.ROOT, "%.2f", value);
         }
-
         if (name.contains("Gamma")) {
             return String.format(Locale.ROOT, "%.0f", value);
         }
-
         if (name.contains("Range")) {
             return String.format(Locale.ROOT, "%.1f", value);
         }
-
         if (setting.getIncrement() >= 1.0D) {
             return String.valueOf(Math.round(value));
         }
@@ -999,19 +1055,11 @@ public final class ClickGuiMain extends Screen {
 
     private String keyName(int keyCode) {
         String name = GLFW.glfwGetKeyName(keyCode, 0);
-
         if (name == null || name.isEmpty()) {
             return String.valueOf(keyCode);
         }
 
         return name.toUpperCase(Locale.ROOT);
-    }
-
-    private String pretty(Category category) {
-        String text = category.name().toLowerCase(Locale.ROOT);
-
-        return Character.toUpperCase(text.charAt(0))
-                + text.substring(1);
     }
 
     private void drawText(
@@ -1021,13 +1069,7 @@ public final class ClickGuiMain extends Screen {
             int y,
             int color
     ) {
-        mc.textRenderer.draw(
-                matrices,
-                text,
-                x,
-                y,
-                color
-        );
+        mc.textRenderer.draw(matrices, text, x, y, color);
     }
 
     private void drawCentered(
@@ -1060,11 +1102,12 @@ public final class ClickGuiMain extends Screen {
                 && mouseY <= y + height;
     }
 
-    private double clamp(
-            double value,
-            double min,
-            double max
-    ) {
+    private boolean isPointerButton(int button) {
+        return button == GLFW.GLFW_MOUSE_BUTTON_LEFT
+                || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT;
+    }
+
+    private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
     }
 
