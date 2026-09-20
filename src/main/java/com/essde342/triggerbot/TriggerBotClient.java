@@ -1,6 +1,7 @@
 package com.essde342.triggerbot;
 
 import com.essde342.triggerbot.ui.ClickGuiMain;
+import com.essde342.triggerbot.ui.modules.ModuleManager;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -30,22 +31,19 @@ public class TriggerBotClient implements ClientModInitializer {
     public static final TriggerBotConfig CONFIG = new TriggerBotConfig();
 
     private static KeyBinding openMenuKey;
-    private static KeyBinding fullbrightKey;
-    private static KeyBinding noHurtCamKey;
     private static int optimizationTick = 0;
 
     private static boolean fullbrightSnapshotTaken = false;
     private static double savedGamma = 1.0D;
 
     private static PlayerEntity aimTarget;
-    private static long aimStartTime;
-    private static float aimStartYaw;
-    private static float aimStartPitch;
+    private static PlayerEntity triggerTarget;
     private static long lastTriggerAttackTime;
 
     @Override
     public void onInitializeClient() {
         loadConfig();
+        ModuleManager.moduleRegister();
         AltManager.load();
         optimizationTick = 0;
 
@@ -56,22 +54,8 @@ public class TriggerBotClient implements ClientModInitializer {
                 "category.triggerbot"
         ));
 
-        fullbrightKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.triggerbot.fullbright",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_G,
-                "category.triggerbot"
-        ));
-
         LightningESP.register();
         TargetESP.register();
-
-        noHurtCamKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.triggerbot.no_hurt_cam",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_H,
-                "category.triggerbot"
-        ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
@@ -82,13 +66,7 @@ public class TriggerBotClient implements ClientModInitializer {
                 }
             }
 
-            while (fullbrightKey.wasPressed()) {
-                toggleFullbright(client);
-            }
-
-            while (noHurtCamKey.wasPressed()) {
-                toggleNoHurtCam();
-            }
+            ModuleManager.handleKeyBinds(client);
 
             applyVisualFeatures(client);
 
@@ -96,10 +74,8 @@ public class TriggerBotClient implements ClientModInitializer {
                 TriggerBotOptimizer.tick(client);
             }
 
-            LightningESP.tick(client);
-            TargetESP.tick(client);
-
-            // Never throttle TriggerBot because of the mobile optimizer.
+            // Combat target selection runs before ESP so the ESP can follow the exact
+            // target currently used by Aim Assist / TriggerBot.
             // Vanilla attack cooldown remains the only attack-rate limiter.
             if (client.player != null && client.world != null) {
                 if (CONFIG.aimAssist) {
@@ -107,8 +83,13 @@ public class TriggerBotClient implements ClientModInitializer {
                 }
                 if (CONFIG.enabled) {
                     tickTriggerBot(client);
+                } else {
+                    triggerTarget = null;
                 }
             }
+
+            LightningESP.tick(client);
+            TargetESP.tick(client);
         });
     }
 
@@ -141,19 +122,7 @@ public class TriggerBotClient implements ClientModInitializer {
             return;
         }
 
-        long now = System.currentTimeMillis();
-        if (aimTarget != target) {
-            aimTarget = target;
-            aimStartTime = now;
-            aimStartYaw = player.yaw;
-            aimStartPitch = player.pitch;
-        }
-
-        float progress = (float)MathHelper.clamp(
-                (now - aimStartTime) / (double)Math.max(1, CONFIG.aimAssistDurationMs),
-                0.0D,
-                1.0D
-        );
+        aimTarget = target;
 
         double dx = target.getX() - player.getX();
         double dz = target.getZ() - player.getZ();
@@ -161,20 +130,29 @@ public class TriggerBotClient implements ClientModInitializer {
                 - (player.getY() + player.getStandingEyeHeight());
         double horizontal = Math.sqrt(dx * dx + dz * dz);
 
-        float targetYaw = (float)(Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
-        float targetPitch = (float)-(Math.atan2(dy, horizontal) * 180.0D / Math.PI);
+        float targetYaw = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
+        float targetPitch = (float) -(Math.atan2(dy, horizontal) * 180.0D / Math.PI);
 
-        float yawDelta = MathHelper.wrapDegrees(targetYaw - aimStartYaw);
-        player.yaw = aimStartYaw + yawDelta * progress;
-        player.pitch = MathHelper.clamp(
-                aimStartPitch + (targetPitch - aimStartPitch) * progress,
-                -90.0F,
-                90.0F
+        double responseMs = Math.max(100.0D, CONFIG.aimAssistDurationMs);
+        float smoothing = (float) MathHelper.clamp(
+                1.0D - Math.exp(-50.0D / responseMs),
+                0.04D,
+                0.38D
         );
+
+        float yawDelta = MathHelper.wrapDegrees(targetYaw - player.yaw);
+        float pitchDelta = targetPitch - player.pitch;
+
+        float yawStep = MathHelper.clamp(yawDelta * smoothing, -10.0F, 10.0F);
+        float pitchStep = MathHelper.clamp(pitchDelta * smoothing, -7.0F, 7.0F);
+
+        player.yaw += yawStep;
+        player.pitch = MathHelper.clamp(player.pitch + pitchStep, -90.0F, 90.0F);
     }
 
     private static void tickTriggerBot(MinecraftClient client) {
         PlayerEntity player = client.player;
+        triggerTarget = null;
 
         if (!player.isAlive() || client.currentScreen != null || client.interactionManager == null) {
             return;
@@ -209,6 +187,8 @@ public class TriggerBotClient implements ClientModInitializer {
         if (player.squaredDistanceTo(target) > CONFIG.triggerRange * CONFIG.triggerRange) {
             return;
         }
+
+        triggerTarget = (PlayerEntity) target;
 
         if (player.getAttackCooldownProgress(0.0F) < 1.0F) {
             return;
@@ -325,7 +305,23 @@ public class TriggerBotClient implements ClientModInitializer {
             client.options.gamma = clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D);
         }
     }
+    public static PlayerEntity getCurrentCombatTarget() {
+        if (aimTarget != null && aimTarget.isAlive()) {
+            return aimTarget;
+        }
+
+        if (triggerTarget != null && triggerTarget.isAlive()) {
+            return triggerTarget;
+        }
+
+        return null;
+    }
+
     public static void saveConfig() {
+        if (ModuleManager.isInitialized()) {
+            ModuleManager.syncBindsToConfig();
+        }
+
         File file = getConfigFile();
         File parent = file.getParentFile();
 
@@ -354,7 +350,16 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("  \"targetFps\": " + CONFIG.targetFps + ",\n");
             writer.write("  \"fullbright\": " + CONFIG.fullbright + ",\n");
             writer.write("  \"noHurtCam\": " + CONFIG.noHurtCam + ",\n");
-            writer.write("  \"fullbrightGamma\": " + CONFIG.fullbrightGamma + "\n");
+            writer.write("  \"fullbrightGamma\": " + CONFIG.fullbrightGamma + ",\n");
+            writer.write("  \"bindTriggerBot\": " + CONFIG.bindTriggerBot + ",\n");
+            writer.write("  \"bindAimAssist\": " + CONFIG.bindAimAssist + ",\n");
+            writer.write("  \"bindLightningEsp\": " + CONFIG.bindLightningEsp + ",\n");
+            writer.write("  \"bindTargetEsp\": " + CONFIG.bindTargetEsp + ",\n");
+            writer.write("  \"bindFullbright\": " + CONFIG.bindFullbright + ",\n");
+            writer.write("  \"bindNoHurtCam\": " + CONFIG.bindNoHurtCam + ",\n");
+            writer.write("  \"bindAspectRatio\": " + CONFIG.bindAspectRatio + ",\n");
+            writer.write("  \"bindOptimization\": " + CONFIG.bindOptimization + ",\n");
+            writer.write("  \"bindAdaptiveOptimization\": " + CONFIG.bindAdaptiveOptimization + "\n");
             writer.write("}\n");
         } catch (IOException ignored) {
         }
@@ -402,6 +407,20 @@ public class TriggerBotClient implements ClientModInitializer {
                     readDouble(text, "fullbrightGamma", CONFIG.fullbrightGamma),
                     1.0D,
                     20.0D
+            );
+
+            CONFIG.bindTriggerBot = readInt(text, "bindTriggerBot", CONFIG.bindTriggerBot);
+            CONFIG.bindAimAssist = readInt(text, "bindAimAssist", CONFIG.bindAimAssist);
+            CONFIG.bindLightningEsp = readInt(text, "bindLightningEsp", CONFIG.bindLightningEsp);
+            CONFIG.bindTargetEsp = readInt(text, "bindTargetEsp", CONFIG.bindTargetEsp);
+            CONFIG.bindFullbright = readInt(text, "bindFullbright", CONFIG.bindFullbright);
+            CONFIG.bindNoHurtCam = readInt(text, "bindNoHurtCam", CONFIG.bindNoHurtCam);
+            CONFIG.bindAspectRatio = readInt(text, "bindAspectRatio", CONFIG.bindAspectRatio);
+            CONFIG.bindOptimization = readInt(text, "bindOptimization", CONFIG.bindOptimization);
+            CONFIG.bindAdaptiveOptimization = readInt(
+                    text,
+                    "bindAdaptiveOptimization",
+                    CONFIG.bindAdaptiveOptimization
             );
         } catch (IOException ignored) {
         }
