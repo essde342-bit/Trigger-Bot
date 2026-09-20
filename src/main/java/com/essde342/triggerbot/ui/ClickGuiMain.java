@@ -216,6 +216,7 @@ public final class ClickGuiMain extends Screen {
             drawDots(matrices, dotX, rowY + 8, settingsModule == module);
 
             rowY += 38;
+            }
         }
 
         if (getMaxModuleScroll(modules) > 0.0D) {
