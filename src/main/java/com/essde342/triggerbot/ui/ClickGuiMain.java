@@ -7,30 +7,30 @@ import com.essde342.triggerbot.ui.modules.Category;
 import com.essde342.triggerbot.ui.modules.Module;
 import com.essde342.triggerbot.ui.modules.ModuleManager;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.AbstractGui;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
-import java.awt.Color;
 import java.util.List;
 import java.util.Locale;
 
 public final class ClickGuiMain extends Screen {
-    private static final int W = 760;
-    private static final int H = 440;
+    private static final int BASE_W = 460;
+    private static final int BASE_H = 270;
 
-    private static final Color BLACK = new Color(10, 10, 11, 255);
-    private static final Color GRAPHITE = new Color(23, 23, 24, 255);
-    private static final Color GRAPHITE_2 = new Color(30, 30, 31, 255);
-    private static final Color GRAPHITE_3 = new Color(38, 38, 39, 255);
-    private static final Color HOVER = new Color(47, 47, 48, 255);
-    private static final Color LINE = new Color(60, 60, 61, 255);
-    private static final Color TEXT = new Color(238, 238, 239, 255);
-    private static final Color MUTED = new Color(150, 150, 153, 255);
-    private static final Color ACCENT = new Color(205, 205, 208, 255);
-    private static final Color ACCENT_DARK = new Color(88, 88, 91, 255);
-    private static final Color OFF = new Color(71, 71, 73, 255);
+    private static final int BLACK = 0xFF090A0C;
+    private static final int PANEL = 0xFF121417;
+    private static final int PANEL_2 = 0xFF191C20;
+    private static final int CARD = 0xFF20242A;
+    private static final int HOVER = 0xFF292E35;
+    private static final int BORDER = 0xFF353B43;
+    private static final int TEXT = 0xFFF1F3F5;
+    private static final int MUTED = 0xFF9CA3AD;
+    private static final int ACCENT = 0xFFB8BDC5;
+    private static final int ACCENT_DARK = 0xFF515963;
+    private static final int OFF = 0xFF3C424A;
 
     private final MinecraftClient mc = MinecraftClient.getInstance();
 
@@ -38,10 +38,11 @@ public final class ClickGuiMain extends Screen {
     private Module settingsModule;
     private Module bindingModule;
     private NumberSetting dragging;
+    private double settingsScroll = 0.0D;
 
     private float scale = 1.0F;
-    private int originX;
-    private int originY;
+    private int ox;
+    private int oy;
 
     public ClickGuiMain() {
         super(Text.of("Astra Client"));
@@ -55,233 +56,229 @@ public final class ClickGuiMain extends Screen {
 
     @Override
     public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
-        resize();
+        recalculateScale();
 
-        // Entire UI is opaque. There is deliberately no translucent vanilla screen behind it.
-        ClickGuiRender.rect(0, 0, width, height, BLACK);
+        // Full opaque background. Never call vanilla renderBackground here.
+        AbstractGui.fill(matrices, 0, 0, width, height, BLACK);
 
         matrices.push();
-        matrices.translate(originX, originY, 0.0D);
+        matrices.translate(ox, oy, 0.0D);
         matrices.scale(scale, scale, 1.0F);
 
         int mx = localX(mouseX);
         int my = localY(mouseY);
 
-        drawMain(matrices, mx, my);
+        drawFrame(matrices);
 
-        if (settingsModule != null) {
-            drawSettings(matrices, mx, my);
+        if (settingsModule == null) {
+            drawModuleScreen(matrices, mx, my);
+        } else {
+            drawSettingsScreen(matrices, mx, my);
         }
 
         matrices.pop();
     }
 
-    private void resize() {
+    private void recalculateScale() {
         scale = Math.min(
                 1.0F,
-                Math.min((width - 12.0F) / W, (height - 12.0F) / H)
+                Math.min(
+                        (width - 12.0F) / (float) BASE_W,
+                        (height - 12.0F) / (float) BASE_H
+                )
         );
 
         if (scale < 0.55F) {
             scale = 0.55F;
         }
 
-        originX = (int) ((width - W * scale) / 2.0F);
-        originY = (int) ((height - H * scale) / 2.0F);
+        ox = (int) ((width - BASE_W * scale) * 0.5F);
+        oy = (int) ((height - BASE_H * scale) * 0.5F);
     }
 
-    private int localX(double x) {
-        return (int) ((x - originX) / scale);
+    private int localX(double mouseX) {
+        return (int) ((mouseX - ox) / scale);
     }
 
-    private int localY(double y) {
-        return (int) ((y - originY) / scale);
+    private int localY(double mouseY) {
+        return (int) ((mouseY - oy) / scale);
     }
 
-    private void drawMain(MatrixStack matrices, int mx, int my) {
-        ClickGuiRender.rounded(0, 0, W, H, 12, GRAPHITE);
-        ClickGuiRender.border(0, 0, W, H, 12, LINE);
+    private void drawFrame(MatrixStack matrices) {
+        panel(matrices, 0, 0, BASE_W, BASE_H, PANEL);
+        border(matrices, 0, 0, BASE_W, BASE_H, BORDER);
 
-        drawText(matrices, "ASTRA CLIENT", 20, 16, TEXT.getRGB());
-        drawText(matrices, "1.0.0", 122, 18, MUTED.getRGB());
+        drawText(matrices, "ASTRA", 16, 12, TEXT);
+        drawText(matrices, "CLIENT 1.0.0", 55, 14, MUTED);
+        drawText(matrices, "RSHIFT", BASE_W - 48, 14, MUTED);
 
-        drawText(matrices, "RIGHT SHIFT", W - 104, 18, MUTED.getRGB());
-        ClickGuiRender.rect(0, 52, W, 1, LINE);
-
-        drawSidebar(matrices, mx, my);
-        drawModuleList(matrices, mx, my);
-
-        drawText(matrices, "ESC  CLOSE", 20, H - 20, MUTED.getRGB());
+        AbstractGui.fill(matrices, 0, 39, BASE_W, 40, BORDER);
     }
 
-    private void drawSidebar(MatrixStack matrices, int mx, int my) {
-        int x = 14;
-        int y = 67;
-        int w = 128;
-        int h = 341;
+    private void drawModuleScreen(MatrixStack matrices, int mx, int my) {
+        drawCategoryBar(matrices, mx, my);
+        drawModules(matrices, mx, my);
 
-        ClickGuiRender.rounded(x, y, w, h, 9, BLACK);
-        ClickGuiRender.border(x, y, w, h, 9, LINE);
+        drawText(matrices, "Tap ••• for settings", 16, BASE_H - 16, MUTED);
+        drawText(matrices, "ESC", BASE_W - 27, BASE_H - 16, MUTED);
+    }
 
-        drawText(matrices, "CATEGORY", x + 12, y + 11, MUTED.getRGB());
+    private void drawCategoryBar(MatrixStack matrices, int mx, int my) {
+        int x = 12;
+        int y = 47;
+        int w = 76;
+        int h = 28;
+        int gap = 5;
 
-        int rowY = y + 34;
         for (Category current : Category.values()) {
             boolean selected = current == category;
-            boolean hovered = inside(mx, my, x + 8, rowY, w - 16, 40);
+            boolean hovered = inside(mx, my, x, y, w, h);
 
-            ClickGuiRender.rounded(
-                    x + 8,
-                    rowY,
-                    w - 16,
-                    40,
-                    7,
-                    selected ? ACCENT_DARK : hovered ? HOVER : GRAPHITE
+            panel(
+                    matrices,
+                    x,
+                    y,
+                    w,
+                    h,
+                    selected ? ACCENT_DARK : (hovered ? HOVER : PANEL_2)
             );
 
-            if (selected) {
-                ClickGuiRender.rect(x + 8, rowY, 4, 40, ACCENT);
-            }
-
-            drawText(
+            drawCentered(
                     matrices,
                     pretty(current),
-                    x + 20,
-                    rowY + 13,
-                    selected ? TEXT.getRGB() : MUTED.getRGB()
+                    x + w / 2,
+                    y + 10,
+                    selected ? TEXT : MUTED
             );
 
-            rowY += 48;
+            x += w + gap;
         }
     }
 
-    private void drawModuleList(MatrixStack matrices, int mx, int my) {
-        int x = 154;
-        int y = 67;
-        int w = 592;
-        int h = 341;
+    private void drawModules(MatrixStack matrices, int mx, int my) {
+        int x = 12;
+        int y = 81;
+        int w = BASE_W - 24;
+        int h = BASE_H - 102;
 
-        ClickGuiRender.rounded(x, y, w, h, 9, BLACK);
-        ClickGuiRender.border(x, y, w, h, 9, LINE);
+        panel(matrices, x, y, w, h, BLACK);
+        border(matrices, x, y, w, h, BORDER);
 
-        drawText(matrices, pretty(category), x + 14, y + 11, TEXT.getRGB());
-        drawText(matrices, "MODULES", x + 14, y + 28, MUTED.getRGB());
+        drawText(matrices, pretty(category), x + 10, y + 9, TEXT);
 
         List<Module> modules = ModuleManager.getByCategory(category);
-        int cardY = y + 48;
-
-        if (modules.isEmpty()) {
-            drawText(matrices, "No modules", x + 14, cardY + 12, MUTED.getRGB());
-            return;
-        }
+        int rowY = y + 28;
 
         for (Module module : modules) {
-            if (cardY + 54 > y + h - 6) {
+            if (rowY + 38 > y + h - 5) {
                 break;
             }
 
-            boolean hovered = inside(mx, my, x + 10, cardY, w - 20, 48);
+            boolean hovered = inside(mx, my, x + 7, rowY, w - 14, 35);
             boolean enabled = module.isEnabled();
 
-            ClickGuiRender.rounded(
-                    x + 10,
-                    cardY,
-                    w - 20,
-                    48,
-                    7,
-                    hovered ? HOVER : GRAPHITE_2
+            panel(
+                    matrices,
+                    x + 7,
+                    rowY,
+                    w - 14,
+                    35,
+                    hovered ? HOVER : CARD
             );
 
             if (enabled) {
-                ClickGuiRender.rect(x + 10, cardY, 4, 48, ACCENT);
+                AbstractGui.fill(
+                        matrices,
+                        x + 7,
+                        rowY,
+                        x + 10,
+                        rowY + 35,
+                        ACCENT
+                );
             }
 
             drawText(
                     matrices,
-                    fit(module.getName(), 210),
-                    x + 22,
-                    cardY + 8,
-                    TEXT.getRGB()
+                    fit(module.getName(), 125),
+                    x + 16,
+                    rowY + 6,
+                    TEXT
             );
 
             drawText(
                     matrices,
-                    fit(module.getDesc(), 320),
-                    x + 22,
-                    cardY + 26,
-                    MUTED.getRGB()
+                    fit(module.getDesc(), 210),
+                    x + 16,
+                    rowY + 21,
+                    MUTED
             );
 
-            int switchX = x + w - 114;
-            ClickGuiRender.rounded(
-                    switchX,
-                    cardY + 12,
-                    42,
-                    24,
-                    12,
-                    enabled ? ACCENT_DARK : OFF
-            );
+            int toggleX = x + w - 82;
+            drawSwitch(matrices, toggleX, rowY + 8, enabled);
 
-            ClickGuiRender.circle(
-                    enabled ? switchX + 32 : switchX + 10,
-                    cardY + 24,
-                    7,
-                    enabled ? TEXT : new Color(155, 155, 158, 255)
-            );
+            int dotsX = x + w - 20;
+            drawDots(matrices, dotsX, rowY + 10, settingsModule == module);
 
-            int menuX = x + w - 44;
-            ClickGuiRender.rounded(
-                    menuX - 18,
-                    cardY + 7,
-                    36,
-                    34,
-                    7,
-                    settingsModule == module ? ACCENT_DARK : GRAPHITE_3
-            );
-
-            ClickGuiRender.circle(menuX, cardY + 16, 2, TEXT);
-            ClickGuiRender.circle(menuX, cardY + 24, 2, TEXT);
-            ClickGuiRender.circle(menuX, cardY + 32, 2, TEXT);
-
-            cardY += 57;
+            rowY += 40;
         }
     }
 
-    private void drawSettings(MatrixStack matrices, int mx, int my) {
-        int x = 190;
-        int y = 34;
-        int w = 536;
-        int h = 372;
+    private void drawSettingsScreen(MatrixStack matrices, int mx, int my) {
+        int x = 12;
+        int y = 47;
+        int w = BASE_W - 24;
+        int h = BASE_H - 66;
 
-        ClickGuiRender.rect(0, 0, W, H, BLACK);
+        panel(matrices, x, y, w, h, BLACK);
+        border(matrices, x, y, w, h, BORDER);
 
-        ClickGuiRender.rounded(x, y, w, h, 11, GRAPHITE);
-        ClickGuiRender.border(x, y, w, h, 11, LINE);
+        drawText(matrices, settingsModule.getName(), x + 12, y + 10, TEXT);
+        drawText(matrices, "SETTINGS", x + 12, y + 25, MUTED);
 
-        drawText(matrices, fit(settingsModule.getName(), 360), x + 18, y + 15, TEXT.getRGB());
-        drawText(matrices, "MODULE SETTINGS", x + 18, y + 32, MUTED.getRGB());
+        panel(matrices, x + w - 30, y + 7, 22, 22, CARD);
+        drawCentered(matrices, "X", x + w - 19, y + 14, MUTED);
 
-        ClickGuiRender.rounded(x + w - 44, y + 10, 30, 30, 8, GRAPHITE_3);
-        drawCentered(matrices, "X", x + w - 29, y + 18, MUTED.getRGB());
+        int contentX = x + 10;
+        int contentW = w - 20;
+        int top = y + 45;
+        int bottom = y + h - 35;
 
-        int contentX = x + 16;
-        int contentW = w - 32;
-        int cy = y + 54;
-        int bottom = y + h - 54;
+        int cursor = top - (int) settingsScroll;
 
         for (ISetting setting : settingsModule.getSettings()) {
             if (setting instanceof BooleanSetting) {
-                if (cy + 42 > bottom) break;
-                cy = drawBoolean(matrices, (BooleanSetting) setting, contentX, cy, contentW, mx, my);
+                if (cursor + 30 >= top && cursor <= bottom) {
+                    drawBooleanSetting(
+                            matrices,
+                            (BooleanSetting) setting,
+                            contentX,
+                            cursor,
+                            contentW,
+                            mx,
+                            my
+                    );
+                }
+                cursor += 36;
             } else if (setting instanceof NumberSetting) {
-                if (cy + 66 > bottom) break;
-                cy = drawNumber(matrices, (NumberSetting) setting, contentX, cy, contentW, mx, my);
+                if (cursor + 54 >= top && cursor <= bottom) {
+                    drawNumberSetting(
+                            matrices,
+                            (NumberSetting) setting,
+                            contentX,
+                            cursor,
+                            contentW,
+                            mx,
+                            my
+                    );
+                }
+                cursor += 60;
             }
         }
 
-        int bindY = y + h - 43;
-        ClickGuiRender.rounded(contentX, bindY, contentW, 31, 7, GRAPHITE_2);
-        drawText(matrices, "BIND", contentX + 12, bindY + 9, MUTED.getRGB());
+        int bindY = y + h - 28;
+        panel(matrices, contentX, bindY, contentW, 22, PANEL_2);
+
+        drawText(matrices, "BIND", contentX + 8, bindY + 7, MUTED);
 
         String bind = bindingModule == settingsModule
                 ? "PRESS KEY"
@@ -289,25 +286,19 @@ public final class ClickGuiMain extends Screen {
                 ? "NONE"
                 : keyName(settingsModule.getBind());
 
-        int bw = mc.textRenderer.getWidth(bind);
+        int bindWidth = mc.textRenderer.getWidth(bind);
         drawText(
                 matrices,
-                bind,
-                contentX + contentW - 12 - bw,
-                bindY + 9,
-                TEXT.getRGB()
+                fit(bind, 75),
+                contentX + contentW - 8 - bindWidth,
+                bindY + 7,
+                TEXT
         );
 
-        drawText(
-                matrices,
-                "Click the three dots beside a module to open these settings.",
-                contentX,
-                y + h - 61,
-                MUTED.getRGB()
-        );
+        drawText(matrices, "ESC  BACK", x + 10, y + h - 9, MUTED);
     }
 
-    private int drawBoolean(
+    private void drawBooleanSetting(
             MatrixStack matrices,
             BooleanSetting setting,
             int x,
@@ -316,48 +307,19 @@ public final class ClickGuiMain extends Screen {
             int mx,
             int my
     ) {
-        boolean hovered = inside(mx, my, x, y, w, 38);
+        if (y < 85 || y + 30 > BASE_H - 45) {
+            return;
+        }
 
-        ClickGuiRender.rounded(
-                x,
-                y,
-                w,
-                38,
-                7,
-                hovered ? HOVER : GRAPHITE_2
-        );
+        boolean hovered = inside(mx, my, x, y, w, 30);
+        panel(matrices, x, y, w, 30, hovered ? HOVER : CARD);
 
-        drawText(
-                matrices,
-                fit(setting.getName(), w - 105),
-                x + 12,
-                y + 11,
-                TEXT.getRGB()
-        );
+        drawText(matrices, fit(setting.getName(), w - 70), x + 9, y + 9, TEXT);
 
-        int sx = x + w - 52;
-        boolean enabled = setting.isEnabled();
-
-        ClickGuiRender.rounded(
-                sx,
-                y + 10,
-                38,
-                18,
-                9,
-                enabled ? ACCENT_DARK : OFF
-        );
-
-        ClickGuiRender.circle(
-                enabled ? sx + 29 : sx + 9,
-                y + 19,
-                6,
-                enabled ? TEXT : new Color(155, 155, 158, 255)
-        );
-
-        return y + 46;
+        drawSwitch(matrices, x + w - 44, y + 6, setting.isEnabled());
     }
 
-    private int drawNumber(
+    private void drawNumberSetting(
             MatrixStack matrices,
             NumberSetting setting,
             int x,
@@ -366,52 +328,66 @@ public final class ClickGuiMain extends Screen {
             int mx,
             int my
     ) {
-        boolean hovered = inside(mx, my, x, y, w, 62);
+        if (y < 85 || y + 54 > BASE_H - 45) {
+            return;
+        }
 
-        ClickGuiRender.rounded(
-                x,
-                y,
-                w,
-                62,
-                7,
-                hovered ? HOVER : GRAPHITE_2
-        );
+        boolean hovered = inside(mx, my, x, y, w, 54);
+        panel(matrices, x, y, w, 54, hovered ? HOVER : CARD);
 
-        String name = fit(setting.getName(), w - 120);
         String value = format(setting);
+        drawText(matrices, fit(setting.getName(), w - 90), x + 9, y + 7, TEXT);
 
-        drawText(matrices, name, x + 12, y + 8, TEXT.getRGB());
+        int valueWidth = mc.textRenderer.getWidth(value);
+        drawText(matrices, value, x + w - 9 - valueWidth, y + 7, MUTED);
 
-        int valueW = mc.textRenderer.getWidth(value);
-        drawText(
-                matrices,
-                value,
-                x + w - 12 - valueW,
-                y + 8,
-                MUTED.getRGB()
-        );
+        int sliderX = x + 9;
+        int sliderY = y + 34;
+        int sliderW = w - 18;
 
-        int sliderX = x + 12;
-        int sliderY = y + 39;
-        int sliderW = w - 24;
+        AbstractGui.fill(matrices, sliderX, sliderY, sliderX + sliderW, sliderY + 5, OFF);
 
-        ClickGuiRender.rounded(sliderX, sliderY, sliderW, 6, 3, OFF);
-
-        double progress = (
-                setting.getDoubleValue() - setting.getMin()
-        ) / Math.max(0.000001D, setting.getMax() - setting.getMin());
+        double progress = (setting.getDoubleValue() - setting.getMin())
+                / Math.max(0.000001D, setting.getMax() - setting.getMin());
 
         progress = Math.max(0.0D, Math.min(1.0D, progress));
 
-        int fill = (int) Math.round(sliderW * progress);
+        int filled = (int) Math.round(sliderW * progress);
 
-        if (fill > 0) {
-            ClickGuiRender.rounded(sliderX, sliderY, fill, 6, 3, ACCENT_DARK);
+        if (filled > 0) {
+            AbstractGui.fill(
+                    matrices,
+                    sliderX,
+                    sliderY,
+                    sliderX + filled,
+                    sliderY + 5,
+                    ACCENT_DARK
+            );
         }
 
-        ClickGuiRender.circle(sliderX + fill, sliderY + 3, 7, ACCENT);
+        int knob = sliderX + filled;
+        AbstractGui.fill(matrices, knob - 2, sliderY - 3, knob + 3, sliderY + 8, ACCENT);
+    }
 
-        return y + 70;
+    private void drawSwitch(MatrixStack matrices, int x, int y, boolean enabled) {
+        panel(matrices, x, y, 30, 18, enabled ? ACCENT_DARK : OFF);
+
+        AbstractGui.fill(
+                matrices,
+                enabled ? x + 18 : x + 3,
+                y + 4,
+                enabled ? x + 26 : x + 11,
+                y + 14,
+                enabled ? TEXT : MUTED
+        );
+    }
+
+    private void drawDots(MatrixStack matrices, int x, int y, boolean selected) {
+        panel(matrices, x - 7, y - 4, 14, 22, selected ? ACCENT_DARK : PANEL_2);
+
+        AbstractGui.fill(matrices, x - 1, y, x + 2, y + 3, TEXT);
+        AbstractGui.fill(matrices, x - 1, y + 6, x + 2, y + 9, TEXT);
+        AbstractGui.fill(matrices, x - 1, y + 12, x + 2, y + 15, TEXT);
     }
 
     @Override
@@ -420,47 +396,36 @@ public final class ClickGuiMain extends Screen {
         int y = localY(mouseY);
 
         if (settingsModule != null) {
-            int panelX = 190;
-            int panelY = 34;
-            int panelW = 536;
-            int panelH = 372;
-
-            if (inside(x, y, panelX + panelW - 50, panelY + 7, 40, 38)) {
+            if (inside(x, y, BASE_W - 54, 51, 28, 28)) {
                 closeSettings();
                 return true;
             }
 
-            int contentX = panelX + 16;
-            int contentW = panelW - 32;
-            int cy = panelY + 54;
-            int bottom = panelY + panelH - 54;
+            int contentX = 22;
+            int contentW = BASE_W - 44;
+            int cursor = 92 - (int) settingsScroll;
 
             for (ISetting setting : settingsModule.getSettings()) {
                 if (setting instanceof BooleanSetting) {
-                    if (cy + 42 > bottom) break;
-
-                    if (inside(x, y, contentX, cy, contentW, 38)) {
+                    if (inside(x, y, contentX, cursor, contentW, 30)) {
                         ((BooleanSetting) setting).toggle();
                         TriggerBotClient.saveConfig();
                         return true;
                     }
-
-                    cy += 46;
+                    cursor += 36;
                 } else if (setting instanceof NumberSetting) {
-                    if (cy + 66 > bottom) break;
-
-                    if (inside(x, y, contentX, cy, contentW, 62)) {
+                    if (inside(x, y, contentX, cursor, contentW, 54)) {
                         dragging = (NumberSetting) setting;
-                        updateSlider(dragging, x, contentX + 12, contentW - 24);
+                        updateSlider(dragging, x, contentX + 9, contentW - 18);
                         TriggerBotClient.saveConfig();
                         return true;
                     }
-
-                    cy += 70;
+                    cursor += 60;
                 }
             }
 
-            if (inside(x, y, contentX, panelY + panelH - 43, contentW, 31)) {
+            int bindY = BASE_H - 47;
+            if (inside(x, y, 22, bindY, contentW, 22)) {
                 bindingModule = settingsModule;
                 return true;
             }
@@ -468,49 +433,37 @@ public final class ClickGuiMain extends Screen {
             return true;
         }
 
-        int sidebarX = 22;
-        int sidebarY = 101;
+        int categoryX = 12;
         for (Category current : Category.values()) {
-            if (inside(x, y, sidebarX, sidebarY, 112, 40)) {
+            if (inside(x, y, categoryX, 47, 76, 28)) {
                 category = current;
                 return true;
             }
-            sidebarY += 48;
+            categoryX += 81;
         }
 
-        int listX = 164;
-        int listY = 115;
-        int listW = 572;
+        int rowY = 109;
+        int cardX = 19;
+        int cardW = BASE_W - 38;
 
         for (Module module : ModuleManager.getByCategory(category)) {
-            if (!inside(x, y, listX, listY, listW, 48)) {
-                listY += 57;
-                continue;
-            }
+            if (inside(x, y, cardX, rowY, cardW, 35)) {
+                int dotsX = cardX + cardW - 20;
 
-            int toggleX = listX + listW - 114;
-            int dotsX = listX + listW - 62;
+                if (inside(x, y, dotsX - 10, rowY - 2, 20, 39)) {
+                    settingsModule = module;
+                    settingsScroll = 0.0D;
+                    bindingModule = null;
+                    dragging = null;
+                    return true;
+                }
 
-            if (inside(x, y, dotsX - 18, listY + 6, 36, 36)) {
-                settingsModule = module;
-                bindingModule = null;
-                dragging = null;
-                return true;
-            }
-
-            if (button == 0 && inside(x, y, toggleX - 4, listY + 4, 52, 40)) {
                 module.toggled();
                 TriggerBotClient.saveConfig();
                 return true;
             }
 
-            if (button == 0) {
-                module.toggled();
-                TriggerBotClient.saveConfig();
-                return true;
-            }
-
-            listY += 57;
+            rowY += 40;
         }
 
         return super.mouseClicked(mouseX, mouseY, button);
@@ -526,7 +479,7 @@ public final class ClickGuiMain extends Screen {
     ) {
         if (dragging != null) {
             int x = localX(mouseX);
-            updateSlider(dragging, x, 206, 492);
+            updateSlider(dragging, x, 31, BASE_W - 56);
             TriggerBotClient.saveConfig();
             return true;
         }
@@ -541,9 +494,37 @@ public final class ClickGuiMain extends Screen {
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        if (settingsModule != null) {
+            settingsScroll -= amount * 24.0D;
+
+            int total = 0;
+            for (ISetting setting : settingsModule.getSettings()) {
+                total += setting instanceof NumberSetting ? 60 : 36;
+            }
+
+            double maxScroll = Math.max(
+                    0.0D,
+                    total - (BASE_H - 110)
+            );
+
+            settingsScroll = Math.max(
+                    0.0D,
+                    Math.min(maxScroll, settingsScroll)
+            );
+
+            return true;
+        }
+
+        return super.mouseScrolled(mouseX, mouseY, amount);
+    }
+
+    @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (bindingModule != null) {
-            bindingModule.setBind(keyCode == GLFW.GLFW_KEY_ESCAPE ? -1 : keyCode);
+            bindingModule.setBind(
+                    keyCode == GLFW.GLFW_KEY_ESCAPE ? -1 : keyCode
+            );
             TriggerBotClient.saveConfig();
             bindingModule = null;
             return true;
@@ -558,6 +539,7 @@ public final class ClickGuiMain extends Screen {
             if (client != null) {
                 client.openScreen(null);
             }
+
             return true;
         }
 
@@ -568,12 +550,13 @@ public final class ClickGuiMain extends Screen {
         settingsModule = null;
         bindingModule = null;
         dragging = null;
+        settingsScroll = 0.0D;
     }
 
-    private void updateSlider(NumberSetting setting, double mouseX, int sliderX, int sliderW) {
+    private void updateSlider(NumberSetting setting, double mouseX, int sliderX, int sliderWidth) {
         double progress = Math.max(
                 0.0D,
-                Math.min(1.0D, (mouseX - sliderX) / sliderW)
+                Math.min(1.0D, (mouseX - sliderX) / sliderWidth)
         );
 
         double value = setting.getMin()
@@ -589,23 +572,34 @@ public final class ClickGuiMain extends Screen {
     }
 
     private String fit(String value, int maxWidth) {
-        if (value == null || value.isEmpty()) return "";
-        if (mc.textRenderer.getWidth(value) <= maxWidth) return value;
-
-        String suffix = "...";
-        int suffixWidth = mc.textRenderer.getWidth(suffix);
-
-        if (suffixWidth >= maxWidth) return "";
-
-        StringBuilder result = new StringBuilder();
-
-        for (int i = 0; i < value.length(); i++) {
-            String next = result.toString() + value.charAt(i);
-            if (mc.textRenderer.getWidth(next) + suffixWidth > maxWidth) break;
-            result.append(value.charAt(i));
+        if (value == null || value.isEmpty()) {
+            return "";
         }
 
-        return result + suffix;
+        if (mc.textRenderer.getWidth(value) <= maxWidth) {
+            return value;
+        }
+
+        String dots = "...";
+        int dotsWidth = mc.textRenderer.getWidth(dots);
+
+        if (dotsWidth >= maxWidth) {
+            return "";
+        }
+
+        StringBuilder builder = new StringBuilder();
+
+        for (int i = 0; i < value.length(); i++) {
+            String next = builder.toString() + value.charAt(i);
+
+            if (mc.textRenderer.getWidth(next) + dotsWidth > maxWidth) {
+                break;
+            }
+
+            builder.append(value.charAt(i));
+        }
+
+        return builder + dots;
     }
 
     private String format(NumberSetting setting) {
@@ -628,13 +622,17 @@ public final class ClickGuiMain extends Screen {
             return String.format(Locale.ROOT, "%.0f", value);
         }
 
-        return setting.getIncrement() >= 1.0D
-                ? String.valueOf(Math.round(value))
-                : String.format(Locale.ROOT, "%.1f", value);
+        if (setting.getIncrement() >= 1.0D) {
+            return String.valueOf(Math.round(value));
+        }
+
+        return String.format(Locale.ROOT, "%.1f", value);
     }
 
     private String keyName(int keyCode) {
-        if (keyCode < 0) return "NONE";
+        if (keyCode < 0) {
+            return "NONE";
+        }
 
         String name = GLFW.glfwGetKeyName(keyCode, 0);
         return name == null
@@ -644,14 +642,21 @@ public final class ClickGuiMain extends Screen {
 
     private String pretty(Category value) {
         String text = value.name().toLowerCase(Locale.ROOT);
-        return Character.toUpperCase(text.charAt(0)) + text.substring(1);
+        return Character.toUpperCase(text.charAt(0))
+                + text.substring(1);
     }
 
     private void drawText(MatrixStack matrices, String text, int x, int y, int color) {
         mc.textRenderer.draw(matrices, text, x, y, color);
     }
 
-    private void drawCentered(MatrixStack matrices, String text, int centerX, int y, int color) {
+    private void drawCentered(
+            MatrixStack matrices,
+            String text,
+            int centerX,
+            int y,
+            int color
+    ) {
         drawText(
                 matrices,
                 text,
@@ -661,10 +666,49 @@ public final class ClickGuiMain extends Screen {
         );
     }
 
-    private boolean inside(double mouseX, double mouseY, int x, int y, int w, int h) {
+    private boolean inside(
+            double mouseX,
+            double mouseY,
+            int x,
+            int y,
+            int width,
+            int height
+    ) {
         return mouseX >= x
-                && mouseX <= x + w
+                && mouseX <= x + width
                 && mouseY >= y
-                && mouseY <= y + h;
+                && mouseY <= y + height;
+    }
+
+    private void panel(
+            MatrixStack matrices,
+            int x,
+            int y,
+            int width,
+            int height,
+            int color
+    ) {
+        AbstractGui.fill(
+                matrices,
+                x,
+                y,
+                x + width,
+                y + height,
+                color
+        );
+    }
+
+    private void border(
+            MatrixStack matrices,
+            int x,
+            int y,
+            int width,
+            int height,
+            int color
+    ) {
+        AbstractGui.fill(matrices, x, y, x + width, y + 1, color);
+        AbstractGui.fill(matrices, x, y + height - 1, x + width, y + height, color);
+        AbstractGui.fill(matrices, x, y, x + 1, y + height, color);
+        AbstractGui.fill(matrices, x + width - 1, y, x + width, y + height, color);
     }
 }
