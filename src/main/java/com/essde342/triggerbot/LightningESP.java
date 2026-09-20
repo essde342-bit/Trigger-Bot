@@ -252,7 +252,7 @@ public final class LightningESP {
         }
 
         Vec3d direction = end.subtract(start);
-        Vec3d midpoint = start.add(direction.scale(0.5D));
+        Vec3d midpoint = start.add(direction.multiply(0.5D));
 
         Vec3d perpendicular;
         if (Math.abs(direction.y) < 0.9D) {
@@ -262,7 +262,7 @@ public final class LightningESP {
         }
 
         double offset = (RANDOM.nextDouble() - 0.5D) * 2.0D * maxOffset;
-        Vec3d displaced = midpoint.add(perpendicular.scale(offset));
+        Vec3d displaced = midpoint.add(perpendicular.multiply(offset));
 
         List<Vec3d> left = generatePath(
                 start,
