@@ -43,11 +43,15 @@ public final class ClickGuiMain extends Screen {
     private NumberSetting draggingSlider;
     private BooleanSetting pendingBoolean;
     private boolean scrollingSettings;
+    private boolean scrollingModules;
     private boolean movedDuringPress;
     private double pressY;
 
     private double settingsScroll;
     private double settingsScrollStart;
+
+    private double moduleScroll;
+    private double moduleScrollStart;
 
     private float scale = 1.0F;
     private int originX;
@@ -151,11 +155,12 @@ public final class ClickGuiMain extends Screen {
 
         List<Module> modules = ModuleManager.getByCategory(category);
 
-        int rowY = listY + 28;
+        int rowTop = listY + 28;
+        int rowBottom = listY + listH - 4;
+        int rowY = rowTop - (int) moduleScroll;
+
         for (Module module : modules) {
-            if (rowY + 36 > listY + listH - 4) {
-                break;
-            }
+            if (rowY >= rowTop && rowY + 33 <= rowBottom) {
 
             boolean hover = inside(
                     mx,
@@ -211,6 +216,27 @@ public final class ClickGuiMain extends Screen {
             drawDots(matrices, dotX, rowY + 8, settingsModule == module);
 
             rowY += 38;
+        }
+
+        if (getMaxModuleScroll(modules) > 0.0D) {
+            int viewport = rowBottom - rowTop;
+            int total = modules.size() * 38;
+            int barHeight = Math.max(
+                    18,
+                    (int) ((viewport / (double) total) * viewport)
+            );
+            double progress = moduleScroll / getMaxModuleScroll(modules);
+            int barY = rowTop
+                    + (int) ((viewport - barHeight) * progress);
+
+            box(
+                    matrices,
+                    listX + listW - 5,
+                    barY,
+                    3,
+                    barHeight,
+                    ACCENT_DARK
+            );
         }
 
         drawText(
@@ -608,21 +634,25 @@ public final class ClickGuiMain extends Screen {
         for (Category current : Category.values()) {
             if (inside(x, y, categoryX, 46, categoryW, 27)) {
                 category = current;
+                moduleScroll = 0.0D;
                 return true;
             }
 
             categoryX += categoryW + 5;
         }
 
-        int listY = 110;
         int listX = 19;
         int listW = UI_W - 38;
+        int rowTop = 110;
+        int rowY = rowTop - (int) moduleScroll;
 
         for (Module module : ModuleManager.getByCategory(category)) {
-            if (!inside(x, y, listX, listY, listW, 33)) {
-                listY += 38;
+            if (!inside(x, y, listX, rowY, listW, 33)) {
+                rowY += 38;
                 continue;
             }
+
+            int listY = rowY;
 
             int dotX = listX + listW - 20;
 
@@ -635,6 +665,11 @@ public final class ClickGuiMain extends Screen {
                     settingsModule = module;
                     settingsScroll = 0.0D;
                     bindingModule = null;
+                    moduleScroll = clamp(
+                            moduleScroll,
+                            0.0D,
+                            getMaxModuleScroll(ModuleManager.getByCategory(category))
+                    );
                 }
 
                 return true;
@@ -642,6 +677,14 @@ public final class ClickGuiMain extends Screen {
 
             module.toggled();
             TriggerBotClient.saveConfig();
+            return true;
+        }
+
+        if (inside(x, y, 12, 82, UI_W - 24, UI_H - 104)) {
+            scrollingModules = true;
+            pressY = y;
+            moduleScrollStart = moduleScroll;
+            movedDuringPress = false;
             return true;
         }
 
@@ -719,7 +762,6 @@ public final class ClickGuiMain extends Screen {
                     28,
                     404
             );
-            TriggerBotClient.saveConfig();
             return true;
         }
 
@@ -741,6 +783,20 @@ public final class ClickGuiMain extends Screen {
             }
         }
 
+        if (scrollingModules) {
+            if (Math.abs(y - pressY) > 4) {
+                movedDuringPress = true;
+            }
+
+            double next = moduleScrollStart - (y - pressY);
+            moduleScroll = clamp(
+                    next,
+                    0.0D,
+                    getMaxModuleScroll(ModuleManager.getByCategory(category))
+            );
+            return true;
+        }
+
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
@@ -755,9 +811,14 @@ public final class ClickGuiMain extends Screen {
             TriggerBotClient.saveConfig();
         }
 
+        if (draggingSlider != null) {
+            TriggerBotClient.saveConfig();
+        }
+
         draggingSlider = null;
         pendingBoolean = null;
         scrollingSettings = false;
+        scrollingModules = false;
         movedDuringPress = false;
 
         return super.mouseReleased(mouseX, mouseY, button);
@@ -778,7 +839,12 @@ public final class ClickGuiMain extends Screen {
             return true;
         }
 
-        return super.mouseScrolled(mouseX, mouseY, amount);
+        moduleScroll = clamp(
+                moduleScroll - amount * 30.0D,
+                0.0D,
+                getMaxModuleScroll(ModuleManager.getByCategory(category))
+        );
+        return true;
     }
 
     @Override
@@ -842,6 +908,16 @@ public final class ClickGuiMain extends Screen {
         }
 
         setting.setValue(value);
+    }
+
+    private double getMaxModuleScroll(List<Module> modules) {
+        if (modules == null || modules.isEmpty()) {
+            return 0.0D;
+        }
+
+        int total = modules.size() * 38;
+        int viewport = (UI_H - 104) - 32;
+        return Math.max(0.0D, total - viewport);
     }
 
     private double getMaxSettingsScroll() {
