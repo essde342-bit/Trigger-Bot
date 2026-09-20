@@ -112,7 +112,7 @@ public final class LightningESP {
         }
 
         long now = System.currentTimeMillis();
-        Vector3d basePos = interpolate(lastTarget, context.tickDelta());
+        Vec3d basePos = interpolate(lastTarget, context.tickDelta());
 
         if (now - lastSpawn >= SPAWN_INTERVAL_MS && BOLTS.size() < MAX_BOLTS) {
             for (int i = 0; i < SPAWN_PER_WAVE && BOLTS.size() < MAX_BOLTS; i++) {
@@ -174,8 +174,8 @@ public final class LightningESP {
                 int b = 255;
 
                 for (int i = 0; i < bolt.points.size() - 1; i++) {
-                    Vector3d first = bolt.points.get(i);
-                    Vector3d second = bolt.points.get(i + 1);
+                    Vec3d first = bolt.points.get(i);
+                    Vec3d second = bolt.points.get(i + 1);
 
                     buffer.vertex(
                             context.matrixStack().peek().getModel(),
@@ -206,7 +206,7 @@ public final class LightningESP {
         RenderSystem.shadeModel(GL11.GL_FLAT);
     }
 
-    private static LightningBolt spawnBolt(PlayerEntity target, Vector3d basePos) {
+    private static LightningBolt spawnBolt(PlayerEntity target, Vec3d basePos) {
         double width = target.getWidth();
         double height = target.getHeight();
 
@@ -214,16 +214,16 @@ public final class LightningESP {
         double radius = width * 0.5D + 0.07D;
         double startY = 0.10D + RANDOM.nextDouble() * Math.max(0.10D, height - 0.12D);
 
-        Vector3d start = basePos.add(
+        Vec3d start = basePos.add(
                 Math.cos(angle) * radius,
                 startY,
                 Math.sin(angle) * radius
         );
 
-        Vector3d dir = randomDirection();
+        Vec3d dir = randomDirection();
         double length = 0.30D + RANDOM.nextDouble() * 0.38D;
 
-        Vector3d end = start.add(
+        Vec3d end = start.add(
                 dir.x * length,
                 dir.y * length,
                 dir.z * length
@@ -238,39 +238,39 @@ public final class LightningESP {
         return bolt;
     }
 
-    private static List<Vector3d> generatePath(
-            Vector3d start,
-            Vector3d end,
+    private static List<Vec3d> generatePath(
+            Vec3d start,
+            Vec3d end,
             int depth,
             double maxOffset
     ) {
         if (depth <= 0) {
-            List<Vector3d> result = new ArrayList<Vector3d>(2);
+            List<Vec3d> result = new ArrayList<Vec3d>(2);
             result.add(start);
             result.add(end);
             return result;
         }
 
-        Vector3d direction = end.subtract(start);
-        Vector3d midpoint = start.add(direction.scale(0.5D));
+        Vec3d direction = end.subtract(start);
+        Vec3d midpoint = start.add(direction.scale(0.5D));
 
-        Vector3d perpendicular;
+        Vec3d perpendicular;
         if (Math.abs(direction.y) < 0.9D) {
-            perpendicular = direction.crossProduct(new Vector3d(0.0D, 1.0D, 0.0D)).normalize();
+            perpendicular = direction.crossProduct(new Vec3d(0.0D, 1.0D, 0.0D)).normalize();
         } else {
-            perpendicular = direction.crossProduct(new Vector3d(1.0D, 0.0D, 0.0D)).normalize();
+            perpendicular = direction.crossProduct(new Vec3d(1.0D, 0.0D, 0.0D)).normalize();
         }
 
         double offset = (RANDOM.nextDouble() - 0.5D) * 2.0D * maxOffset;
-        Vector3d displaced = midpoint.add(perpendicular.scale(offset));
+        Vec3d displaced = midpoint.add(perpendicular.scale(offset));
 
-        List<Vector3d> left = generatePath(
+        List<Vec3d> left = generatePath(
                 start,
                 displaced,
                 depth - 1,
                 maxOffset * 0.5D
         );
-        List<Vector3d> right = generatePath(
+        List<Vec3d> right = generatePath(
                 displaced,
                 end,
                 depth - 1,
@@ -282,20 +282,20 @@ public final class LightningESP {
         return left;
     }
 
-    private static Vector3d randomDirection() {
+    private static Vec3d randomDirection() {
         double yaw = RANDOM.nextDouble() * Math.PI * 2.0D;
         double pitch = Math.toRadians(-70.0D + RANDOM.nextDouble() * 140.0D);
         double cosPitch = Math.cos(pitch);
 
-        return new Vector3d(
+        return new Vec3d(
                 Math.cos(yaw) * cosPitch,
                 Math.sin(pitch),
                 Math.sin(yaw) * cosPitch
         );
     }
 
-    private static Vector3d interpolate(Entity entity, float tickDelta) {
-        return new Vector3d(
+    private static Vec3d interpolate(Entity entity, float tickDelta) {
+        return new Vec3d(
                 entity.prevX + (entity.getX() - entity.prevX) * tickDelta,
                 entity.prevY + (entity.getY() - entity.prevY) * tickDelta,
                 entity.prevZ + (entity.getZ() - entity.prevZ) * tickDelta
