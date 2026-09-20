@@ -14,6 +14,7 @@ public class TriggerBotConfig {
 
     public boolean lightningEsp = false;
     public boolean targetEsp = false;
+    public boolean jumpCircle = false;
 
     public boolean aspectRatioEnabled = false;
     public double aspectRatio = 1.7777778D;
@@ -31,6 +32,7 @@ public class TriggerBotConfig {
     public int bindAimAssist = -1;
     public int bindLightningEsp = -1;
     public int bindTargetEsp = -1;
+    public int bindJumpCircle = -1;
     public int bindFullbright = -1;
     public int bindNoHurtCam = -1;
     public int bindAspectRatio = -1;
