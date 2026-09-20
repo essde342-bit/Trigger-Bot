@@ -80,7 +80,10 @@ public class TriggerBotClient implements ClientModInitializer {
             if (client.player != null && client.world != null) {
                 if (CONFIG.aimAssist) {
                     tickAimAssist(client);
+                } else {
+                    aimTarget = null;
                 }
+
                 if (CONFIG.enabled) {
                     tickTriggerBot(client);
                 } else {
