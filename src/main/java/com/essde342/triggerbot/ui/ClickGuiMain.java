@@ -716,8 +716,8 @@ public final class ClickGuiMain extends Screen {
             updateSlider(
                     draggingSlider,
                     x,
-                    21,
-                    UI_W - 42
+                    28,
+                    404
             );
             TriggerBotClient.saveConfig();
             return true;
