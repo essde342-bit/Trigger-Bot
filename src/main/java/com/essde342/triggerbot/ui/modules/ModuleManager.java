@@ -7,12 +7,16 @@ import com.essde342.triggerbot.ui.imple.BooleanSetting;
 import com.essde342.triggerbot.ui.imple.NumberSetting;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.client.MinecraftClient;
+import org.lwjgl.glfw.GLFW;
 
 public final class ModuleManager {
     private static final List<Module> MODULES = new ArrayList<Module>();
+    private static final Map<Module, Boolean> KEY_STATES = new HashMap<Module, Boolean>();
     private static boolean initialized;
 
     private ModuleManager() {}
@@ -72,7 +76,7 @@ public final class ModuleManager {
         link(new Module(
                 "Target ESP",
                 Category.RENDER,
-                "Clean outline around the current target.",
+                "Bright rotating particles around the current combat target.",
                 c().targetEsp,
                 value -> c().targetEsp = value
         ));
@@ -162,10 +166,16 @@ public final class ModuleManager {
                 false,
                 value -> {}
         ));
+
+        applyConfiguredBinds();
     }
 
     public static void link(Module module) {
         MODULES.add(module);
+    }
+
+    public static List<Module> getModules() {
+        return MODULES;
     }
 
     public static List<Module> getByCategory(Category category) {
@@ -178,5 +188,72 @@ public final class ModuleManager {
         }
 
         return result;
+    }
+
+    public static void handleKeyBinds(MinecraftClient client) {
+        if (client == null || client.getWindow() == null) {
+            return;
+        }
+
+        long handle = client.getWindow().getHandle();
+        boolean allowToggle = client.currentScreen == null;
+
+        for (Module module : MODULES) {
+            int bind = module.getBind();
+            boolean down = bind >= 0 && GLFW.glfwGetKey(handle, bind) == GLFW.GLFW_PRESS;
+            boolean previous = KEY_STATES.containsKey(module)
+                    && Boolean.TRUE.equals(KEY_STATES.get(module));
+
+            if (allowToggle && down && !previous) {
+                if (!"Alt Manager".equals(module.getName())) {
+                    module.toggled();
+                    TriggerBotClient.saveConfig();
+                }
+            }
+
+            KEY_STATES.put(module, down);
+        }
+    }
+
+    public static void applyConfiguredBinds() {
+        setBind("TriggerBot", c().bindTriggerBot);
+        setBind("Aim Assist", c().bindAimAssist);
+        setBind("Lightning ESP", c().bindLightningEsp);
+        setBind("Target ESP", c().bindTargetEsp);
+        setBind("Fullbright", c().bindFullbright);
+        setBind("No Hurt Cam", c().bindNoHurtCam);
+        setBind("Aspect Ratio", c().bindAspectRatio);
+        setBind("Optimization", c().bindOptimization);
+        setBind("Adaptive FPS", c().bindAdaptiveOptimization);
+    }
+
+    public static void syncBindsToConfig() {
+        c().bindTriggerBot = getBind("TriggerBot");
+        c().bindAimAssist = getBind("Aim Assist");
+        c().bindLightningEsp = getBind("Lightning ESP");
+        c().bindTargetEsp = getBind("Target ESP");
+        c().bindFullbright = getBind("Fullbright");
+        c().bindNoHurtCam = getBind("No Hurt Cam");
+        c().bindAspectRatio = getBind("Aspect Ratio");
+        c().bindOptimization = getBind("Optimization");
+        c().bindAdaptiveOptimization = getBind("Adaptive FPS");
+    }
+
+    private static int getBind(String name) {
+        for (Module module : MODULES) {
+            if (module.getName().equals(name)) {
+                return module.getBind();
+            }
+        }
+        return -1;
+    }
+
+    private static void setBind(String name, int bind) {
+        for (Module module : MODULES) {
+            if (module.getName().equals(name)) {
+                module.setBind(bind);
+                return;
+            }
+        }
     }
 }
