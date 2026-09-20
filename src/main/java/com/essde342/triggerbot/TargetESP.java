@@ -10,16 +10,18 @@ import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.Vec3d;
 import org.lwjgl.opengl.GL11;
 
 public final class TargetESP {
-    private static final int PARTICLE_COUNT = 24;
-    private static final double ROTATION_SPEED = 0.0045D;
+    private static final int SEGMENTS = 48;
+    private static final double MAX_RANGE = 36.0D;
 
     private static PlayerEntity target;
 
-    private TargetESP() {}
+    private TargetESP() {
+    }
 
     public static void register() {
         WorldRenderEvents.LAST.register(TargetESP::render);
@@ -28,17 +30,54 @@ public final class TargetESP {
     public static void tick(MinecraftClient client) {
         target = null;
 
-        if (!TriggerBotClient.CONFIG.targetEsp
-                || client == null
+        if (client == null
                 || client.player == null
-                || client.world == null) {
+                || client.world == null
+                || !TriggerBotClient.CONFIG.targetEsp) {
             return;
         }
 
-        PlayerEntity combatTarget = TriggerBotClient.getCurrentCombatTarget();
-        if (valid(client, combatTarget)) {
-            target = combatTarget;
+        PlayerEntity crosshair = getCrosshairTarget(client);
+        if (valid(client, crosshair)) {
+            target = crosshair;
+            return;
         }
+
+        PlayerEntity combat = TriggerBotClient.getCurrentCombatTarget();
+        if (valid(client, combat)) {
+            target = combat;
+            return;
+        }
+
+        target = findNearest(client);
+    }
+
+    private static PlayerEntity getCrosshairTarget(MinecraftClient client) {
+        if (!(client.crosshairTarget instanceof EntityHitResult)) {
+            return null;
+        }
+
+        Entity entity = ((EntityHitResult) client.crosshairTarget).getEntity();
+        return entity instanceof PlayerEntity ? (PlayerEntity) entity : null;
+    }
+
+    private static PlayerEntity findNearest(MinecraftClient client) {
+        PlayerEntity nearest = null;
+        double bestDistance = MAX_RANGE;
+
+        for (PlayerEntity candidate : client.world.getPlayers()) {
+            if (!valid(client, candidate)) {
+                continue;
+            }
+
+            double distance = client.player.squaredDistanceTo(candidate);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                nearest = candidate;
+            }
+        }
+
+        return nearest;
     }
 
     private static boolean valid(MinecraftClient client, PlayerEntity player) {
@@ -46,51 +85,28 @@ public final class TargetESP {
                 && player != client.player
                 && player.isAlive()
                 && !player.isSpectator()
-                && client.player.squaredDistanceTo(player) <= 36.0D
+                && client.player.squaredDistanceTo(player) <= MAX_RANGE
                 && client.player.canSee(player);
     }
 
     private static void render(WorldRenderContext context) {
-        if (!TriggerBotClient.CONFIG.targetEsp
-                || target == null
-                || !target.isAlive()
-                || context.matrixStack() == null) {
-            return;
-        }
-
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.gameRenderer == null
-                || client.player == null || client.world == null
+
+        if (!TriggerBotClient.CONFIG.targetEsp
+                || client.player == null
+                || client.world == null
+                || context.matrixStack() == null
+                || target == null
                 || !valid(client, target)) {
-            target = null;
             return;
         }
 
-        Vec3d targetPos = interpolate(target, context.tickDelta());
+        Vec3d pos = interpolate(target, context.tickDelta());
+        double radius = Math.max(0.46D, target.getWidth() * 0.62D);
+        double height = Math.max(1.75D, target.getHeight());
 
-        // WorldRenderEvents.LAST already renders with the active camera transform.
-        // Do not translate by -cameraPos here or world-space particles are displaced.
-        context.matrixStack().push();
-        renderParticles(
-                context,
-                targetPos,
-                target.getWidth(),
-                target.getHeight()
-        );
-        context.matrixStack().pop();
-    }
-
-    private static void renderParticles(
-            WorldRenderContext context,
-            Vec3d base,
-            float targetWidth,
-            float targetHeight
-    ) {
-        long now = System.nanoTime();
-        double rotation = now * ROTATION_SPEED * 0.000001D;
-
-        double radius = Math.max(0.48D, targetWidth * 0.56D);
-        double height = Math.max(1.4D, targetHeight);
+        long now = System.nanoTime() / 1_000_000L;
+        double pulse = 0.5D + 0.5D * Math.sin(now * 0.008D);
 
         RenderSystem.enableBlend();
         RenderSystem.blendFunc(
@@ -102,48 +118,18 @@ public final class TargetESP {
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
 
-        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        // GL_LINE_STRIP is reliable on GL4ES; no GL_POINTS or thick line dependence.
+        drawCircle(context, pos.x, pos.y + 0.04D, pos.z,
+                radius + 0.08D + pulse * 0.08D, 120, 55, 220, 35);
+        drawCircle(context, pos.x, pos.y + 0.045D, pos.z,
+                radius + pulse * 0.05D, 185, 90, 255, 110);
+        drawCircle(context, pos.x, pos.y + 0.052D, pos.z,
+                radius - 0.035D, 245, 235, 255, 235);
 
-        GL11.glPointSize(11.0F);
-        buffer.begin(GL11.GL_POINTS, VertexFormats.POSITION_COLOR);
-        for (int i = 0; i < PARTICLE_COUNT; i++) {
-            Vec3d p = particlePosition(base, radius, height, rotation, i, false);
-            buffer.vertex(
-                    context.matrixStack().peek().getModel(),
-                    (float) p.x,
-                    (float) p.y,
-                    (float) p.z
-            ).color(155, 95, 255, 70).next();
-        }
-        Tessellator.getInstance().draw();
+        // A second ring above the waist makes the target visible even on small screens.
+        drawCircle(context, pos.x, pos.y + height * 0.50D, pos.z,
+                radius * 0.72D + pulse * 0.04D, 155, 70, 240, 65);
 
-        GL11.glPointSize(6.0F);
-        buffer.begin(GL11.GL_POINTS, VertexFormats.POSITION_COLOR);
-        for (int i = 0; i < PARTICLE_COUNT; i++) {
-            Vec3d p = particlePosition(base, radius, height, rotation, i, true);
-            buffer.vertex(
-                    context.matrixStack().peek().getModel(),
-                    (float) p.x,
-                    (float) p.y,
-                    (float) p.z
-            ).color(200, 150, 255, 140).next();
-        }
-        Tessellator.getInstance().draw();
-
-        GL11.glPointSize(2.8F);
-        buffer.begin(GL11.GL_POINTS, VertexFormats.POSITION_COLOR);
-        for (int i = 0; i < PARTICLE_COUNT; i++) {
-            Vec3d p = particlePosition(base, radius, height, rotation, i, true);
-            buffer.vertex(
-                    context.matrixStack().peek().getModel(),
-                    (float) p.x,
-                    (float) p.y,
-                    (float) p.z
-            ).color(245, 235, 255, 255).next();
-        }
-        Tessellator.getInstance().draw();
-
-        GL11.glPointSize(1.0F);
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
         RenderSystem.enableCull();
@@ -155,32 +141,26 @@ public final class TargetESP {
         RenderSystem.disableBlend();
     }
 
-    private static Vec3d particlePosition(
-            Vec3d base,
-            double radius,
-            double height,
-            double rotation,
-            int index,
-            boolean reverse
-    ) {
-        double t = index / (double) (PARTICLE_COUNT - 1);
-        double angle = rotation
-                + index * (Math.PI * 2.0D / PARTICLE_COUNT)
-                + (reverse ? Math.PI : 0.0D);
+    private static void drawCircle(WorldRenderContext context, double x, double y, double z,
+            double radius, int red, int green, int blue, int alpha) {
+        if (radius <= 0.0D || alpha <= 0) {
+            return;
+        }
 
-        double y = base.y
-                + 0.18D
-                + height * 0.72D * t
-                + Math.sin(angle * 2.0D) * 0.045D;
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        buffer.begin(GL11.GL_LINE_STRIP, VertexFormats.POSITION_COLOR);
 
-        double localRadius = radius
-                + Math.sin(angle * 3.0D + rotation) * 0.025D;
+        for (int i = 0; i <= SEGMENTS; i++) {
+            double angle = i * (Math.PI * 2.0D / SEGMENTS);
+            buffer.vertex(
+                    context.matrixStack().peek().getModel(),
+                    (float) (x + Math.cos(angle) * radius),
+                    (float) y,
+                    (float) (z + Math.sin(angle) * radius)
+            ).color(red, green, blue, alpha).next();
+        }
 
-        return new Vec3d(
-                base.x + Math.cos(angle) * localRadius,
-                y,
-                base.z + Math.sin(angle) * localRadius
-        );
+        Tessellator.getInstance().draw();
     }
 
     private static Vec3d interpolate(Entity entity, float tickDelta) {
