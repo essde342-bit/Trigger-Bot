@@ -14,6 +14,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.SwordItem;
 import net.minecraft.item.TridentItem;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.UseAction;
 import net.minecraft.util.hit.EntityHitResult;
 import org.lwjgl.glfw.GLFW;
@@ -84,10 +85,60 @@ public class TriggerBotClient implements ClientModInitializer {
 
             // Never throttle TriggerBot because of the mobile optimizer.
             // Vanilla attack cooldown remains the only attack-rate limiter.
-            if (client.player != null && client.world != null && CONFIG.enabled) {
-                tickTriggerBot(client);
+            if (client.player != null && client.world != null) {
+                if (CONFIG.aimAssist) {
+                    tickAimAssist(client);
+                }
+                if (CONFIG.enabled) {
+                    tickTriggerBot(client);
+                }
             }
         });
+    }
+
+    private static void tickAimAssist(MinecraftClient client) {
+        PlayerEntity player = client.player;
+        if (player == null || !player.isAlive() || client.currentScreen != null) {
+            return;
+        }
+
+        PlayerEntity target = null;
+        double bestDistance = 6.0D * 6.0D;
+
+        for (PlayerEntity candidate : client.world.getPlayers()) {
+            if (candidate == player || !candidate.isAlive() || candidate.isSpectator()) {
+                continue;
+            }
+
+            double distance = player.squaredDistanceTo(candidate);
+            if (distance >= bestDistance || !player.canSee(candidate)) {
+                continue;
+            }
+
+            bestDistance = distance;
+            target = candidate;
+        }
+
+        if (target == null) {
+            return;
+        }
+
+        double dx = target.getX() - player.getX();
+        double dz = target.getZ() - player.getZ();
+        double dy = target.getY() + target.getStandingEyeHeight() * 0.85D
+                - (player.getY() + player.getStandingEyeHeight());
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+
+        float targetYaw = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
+        float targetPitch = (float) -(Math.atan2(dy, horizontal) * 180.0D / Math.PI);
+
+        float yawDelta = MathHelper.wrapDegrees(targetYaw - player.yaw);
+        float pitchDelta = MathHelper.wrapDegrees(targetPitch - player.pitch);
+
+        // Smooth, human-like movement: never snaps directly to the target.
+        float smoothing = 0.18F;
+        player.yaw += yawDelta * smoothing;
+        player.pitch = MathHelper.clamp(player.pitch + pitchDelta * smoothing, -90.0F, 90.0F);
     }
 
     private static void tickTriggerBot(MinecraftClient client) {
@@ -249,6 +300,8 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("  \"onlyCrits\": " + CONFIG.onlyCrits + ",\n");
             writer.write("  \"smartCrits\": " + CONFIG.smartCrits + ",\n");
             writer.write("  \"onlyWeapon\": " + CONFIG.onlyWeapon + ",\n");
+            writer.write("  \"aimAssist\": " + CONFIG.aimAssist + ",\n");
+            writer.write("  \"aspectRatio\": " + CONFIG.aspectRatio + ",\n");
             writer.write("  \"optimization\": " + CONFIG.optimization + ",\n");
             writer.write("  \"optimizationLevel\": " + CONFIG.optimizationLevel + ",\n");
             writer.write("  \"adaptiveOptimization\": " + CONFIG.adaptiveOptimization + ",\n");
@@ -284,6 +337,8 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.onlyCrits = readBoolean(text, "onlyCrits", CONFIG.onlyCrits);
             CONFIG.smartCrits = readBoolean(text, "smartCrits", CONFIG.smartCrits);
             CONFIG.onlyWeapon = readBoolean(text, "onlyWeapon", CONFIG.onlyWeapon);
+            CONFIG.aimAssist = readBoolean(text, "aimAssist", CONFIG.aimAssist);
+            CONFIG.aspectRatio = clampDouble(readDouble(text, "aspectRatio", CONFIG.aspectRatio), 0.50D, 3.00D);
             CONFIG.optimization = readBoolean(text, "optimization", CONFIG.optimization);
             CONFIG.optimizationLevel = clampInt(readInt(text, "optimizationLevel", CONFIG.optimizationLevel), 0, 2);
             CONFIG.adaptiveOptimization = readBoolean(text, "adaptiveOptimization", CONFIG.adaptiveOptimization);
