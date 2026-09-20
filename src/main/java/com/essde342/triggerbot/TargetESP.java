@@ -85,8 +85,7 @@ public final class TargetESP {
                 && player != client.player
                 && player.isAlive()
                 && !player.isSpectator()
-                && client.player.squaredDistanceTo(player) <= MAX_RANGE
-                && client.player.canSee(player);
+                && client.player.squaredDistanceTo(player) <= MAX_RANGE;
     }
 
     private static void render(WorldRenderContext context) {
