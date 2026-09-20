@@ -63,7 +63,9 @@ public final class JumpCircleClient implements ClientModInitializer {
         }
 
         boolean jumpStarted = !airborne && nowAirborne && player.getVelocity().y > 0.02D;
-        boolean jumpInput = player.input != null && player.input.jumping && player.isOnGround();
+        boolean jumpInput = client.options != null
+                && client.options.keyJump.isPressed()
+                && player.isOnGround();
 
         if (jumpStarted || jumpInput) {
             effectX = player.getX();
