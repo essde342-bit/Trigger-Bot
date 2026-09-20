@@ -10,7 +10,7 @@ archivesBaseName = project.archives_base_name
 version = project.mod_version
 group = project.maven_group
 
-def uiFontUrl = "https://raw.githubusercontent.com/rsms/inter/master/docs/font-files/Inter-Regular.ttf"
+def uiFontUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf"
 def generatedUiFontRoot = file("$buildDir/generated/ui-font")
 def generatedUiFont = file("$generatedUiFontRoot/assets/triggerbot/font/ui.ttf")
 
