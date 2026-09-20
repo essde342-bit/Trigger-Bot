@@ -7,7 +7,7 @@ import com.essde342.triggerbot.ui.modules.Category;
 import com.essde342.triggerbot.ui.modules.Module;
 import com.essde342.triggerbot.ui.modules.ModuleManager;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.AbstractGui;
+import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
@@ -59,7 +59,7 @@ public final class ClickGuiMain extends Screen {
         recalculateScale();
 
         // Full opaque background. Never call vanilla renderBackground here.
-        AbstractGui.fill(matrices, 0, 0, width, height, BLACK);
+        DrawableHelper.fill(matrices, 0, 0, width, height, BLACK);
 
         matrices.push();
         matrices.translate(ox, oy, 0.0D);
@@ -112,7 +112,7 @@ public final class ClickGuiMain extends Screen {
         drawText(matrices, "CLIENT 1.0.0", 55, 14, MUTED);
         drawText(matrices, "RSHIFT", BASE_W - 48, 14, MUTED);
 
-        AbstractGui.fill(matrices, 0, 39, BASE_W, 40, BORDER);
+        DrawableHelper.fill(matrices, 0, 39, BASE_W, 40, BORDER);
     }
 
     private void drawModuleScreen(MatrixStack matrices, int mx, int my) {
@@ -187,7 +187,7 @@ public final class ClickGuiMain extends Screen {
             );
 
             if (enabled) {
-                AbstractGui.fill(
+                DrawableHelper.fill(
                         matrices,
                         x + 7,
                         rowY,
@@ -345,7 +345,7 @@ public final class ClickGuiMain extends Screen {
         int sliderY = y + 34;
         int sliderW = w - 18;
 
-        AbstractGui.fill(matrices, sliderX, sliderY, sliderX + sliderW, sliderY + 5, OFF);
+        DrawableHelper.fill(matrices, sliderX, sliderY, sliderX + sliderW, sliderY + 5, OFF);
 
         double progress = (setting.getDoubleValue() - setting.getMin())
                 / Math.max(0.000001D, setting.getMax() - setting.getMin());
@@ -355,7 +355,7 @@ public final class ClickGuiMain extends Screen {
         int filled = (int) Math.round(sliderW * progress);
 
         if (filled > 0) {
-            AbstractGui.fill(
+            DrawableHelper.fill(
                     matrices,
                     sliderX,
                     sliderY,
@@ -366,13 +366,13 @@ public final class ClickGuiMain extends Screen {
         }
 
         int knob = sliderX + filled;
-        AbstractGui.fill(matrices, knob - 2, sliderY - 3, knob + 3, sliderY + 8, ACCENT);
+        DrawableHelper.fill(matrices, knob - 2, sliderY - 3, knob + 3, sliderY + 8, ACCENT);
     }
 
     private void drawSwitch(MatrixStack matrices, int x, int y, boolean enabled) {
         panel(matrices, x, y, 30, 18, enabled ? ACCENT_DARK : OFF);
 
-        AbstractGui.fill(
+        DrawableHelper.fill(
                 matrices,
                 enabled ? x + 18 : x + 3,
                 y + 4,
@@ -385,9 +385,9 @@ public final class ClickGuiMain extends Screen {
     private void drawDots(MatrixStack matrices, int x, int y, boolean selected) {
         panel(matrices, x - 7, y - 4, 14, 22, selected ? ACCENT_DARK : PANEL_2);
 
-        AbstractGui.fill(matrices, x - 1, y, x + 2, y + 3, TEXT);
-        AbstractGui.fill(matrices, x - 1, y + 6, x + 2, y + 9, TEXT);
-        AbstractGui.fill(matrices, x - 1, y + 12, x + 2, y + 15, TEXT);
+        DrawableHelper.fill(matrices, x - 1, y, x + 2, y + 3, TEXT);
+        DrawableHelper.fill(matrices, x - 1, y + 6, x + 2, y + 9, TEXT);
+        DrawableHelper.fill(matrices, x - 1, y + 12, x + 2, y + 15, TEXT);
     }
 
     @Override
@@ -688,7 +688,7 @@ public final class ClickGuiMain extends Screen {
             int height,
             int color
     ) {
-        AbstractGui.fill(
+        DrawableHelper.fill(
                 matrices,
                 x,
                 y,
@@ -706,9 +706,9 @@ public final class ClickGuiMain extends Screen {
             int height,
             int color
     ) {
-        AbstractGui.fill(matrices, x, y, x + width, y + 1, color);
-        AbstractGui.fill(matrices, x, y + height - 1, x + width, y + height, color);
-        AbstractGui.fill(matrices, x, y, x + 1, y + height, color);
-        AbstractGui.fill(matrices, x + width - 1, y, x + width, y + height, color);
+        DrawableHelper.fill(matrices, x, y, x + width, y + 1, color);
+        DrawableHelper.fill(matrices, x, y + height - 1, x + width, y + height, color);
+        DrawableHelper.fill(matrices, x, y, x + 1, y + height, color);
+        DrawableHelper.fill(matrices, x + width - 1, y, x + width, y + height, color);
     }
 }
