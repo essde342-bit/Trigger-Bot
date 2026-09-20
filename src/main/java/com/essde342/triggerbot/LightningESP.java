@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Random;
 
 public final class LightningESP {
-    private static final MinecraftClient mc = MinecraftClient.getInstance();
     private static final Random RANDOM = new Random();
 
     private static final int MAX_BOLTS = 8;
