@@ -37,6 +37,12 @@ public class TriggerBotClient implements ClientModInitializer {
     private static boolean fullbrightSnapshotTaken = false;
     private static double savedGamma = 1.0D;
 
+    private static PlayerEntity aimTarget;
+    private static long aimStartTime;
+    private static float aimStartYaw;
+    private static float aimStartPitch;
+    private static long lastTriggerAttackTime;
+
     @Override
     public void onInitializeClient() {
         loadConfig();
@@ -58,6 +64,7 @@ public class TriggerBotClient implements ClientModInitializer {
         ));
 
         LightningESP.register();
+        TargetESP.register();
 
         noHurtCamKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.triggerbot.no_hurt_cam",
@@ -88,6 +95,7 @@ public class TriggerBotClient implements ClientModInitializer {
             }
 
             LightningESP.tick(client);
+            TargetESP.tick(client);
 
             // Never throttle TriggerBot because of the mobile optimizer.
             // Vanilla attack cooldown remains the only attack-rate limiter.
@@ -105,11 +113,12 @@ public class TriggerBotClient implements ClientModInitializer {
     private static void tickAimAssist(MinecraftClient client) {
         PlayerEntity player = client.player;
         if (player == null || !player.isAlive() || client.currentScreen != null) {
+            aimTarget = null;
             return;
         }
 
         PlayerEntity target = null;
-        double bestDistance = 6.0D * 6.0D;
+        double bestDistance = CONFIG.aimAssistRange * CONFIG.aimAssistRange;
 
         for (PlayerEntity candidate : client.world.getPlayers()) {
             if (candidate == player || !candidate.isAlive() || candidate.isSpectator()) {
@@ -126,8 +135,23 @@ public class TriggerBotClient implements ClientModInitializer {
         }
 
         if (target == null) {
+            aimTarget = null;
             return;
         }
+
+        long now = System.currentTimeMillis();
+        if (aimTarget != target) {
+            aimTarget = target;
+            aimStartTime = now;
+            aimStartYaw = player.yaw;
+            aimStartPitch = player.pitch;
+        }
+
+        float progress = (float)MathHelper.clamp(
+                (now - aimStartTime) / (double)Math.max(1, CONFIG.aimAssistDurationMs),
+                0.0D,
+                1.0D
+        );
 
         double dx = target.getX() - player.getX();
         double dz = target.getZ() - player.getZ();
@@ -135,16 +159,16 @@ public class TriggerBotClient implements ClientModInitializer {
                 - (player.getY() + player.getStandingEyeHeight());
         double horizontal = Math.sqrt(dx * dx + dz * dz);
 
-        float targetYaw = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
-        float targetPitch = (float) -(Math.atan2(dy, horizontal) * 180.0D / Math.PI);
+        float targetYaw = (float)(Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
+        float targetPitch = (float)-(Math.atan2(dy, horizontal) * 180.0D / Math.PI);
 
-        float yawDelta = MathHelper.wrapDegrees(targetYaw - player.yaw);
-        float pitchDelta = MathHelper.wrapDegrees(targetPitch - player.pitch);
-
-        // Smooth, human-like movement: never snaps directly to the target.
-        float smoothing = 0.18F;
-        player.yaw += yawDelta * smoothing;
-        player.pitch = MathHelper.clamp(player.pitch + pitchDelta * smoothing, -90.0F, 90.0F);
+        float yawDelta = MathHelper.wrapDegrees(targetYaw - aimStartYaw);
+        player.yaw = aimStartYaw + yawDelta * progress;
+        player.pitch = MathHelper.clamp(
+                aimStartPitch + (targetPitch - aimStartPitch) * progress,
+                -90.0F,
+                90.0F
+        );
     }
 
     private static void tickTriggerBot(MinecraftClient client) {
@@ -173,7 +197,6 @@ public class TriggerBotClient implements ClientModInitializer {
         }
 
         Entity target = ((EntityHitResult) client.crosshairTarget).getEntity();
-
         if (!(target instanceof PlayerEntity)
                 || target == player
                 || !target.isAlive()
@@ -181,7 +204,10 @@ public class TriggerBotClient implements ClientModInitializer {
             return;
         }
 
-        // No artificial delay: attack on the first tick where vanilla cooldown is ready.
+        if (player.squaredDistanceTo(target) > CONFIG.triggerRange * CONFIG.triggerRange) {
+            return;
+        }
+
         if (player.getAttackCooldownProgress(0.0F) < 1.0F) {
             return;
         }
@@ -190,8 +216,14 @@ public class TriggerBotClient implements ClientModInitializer {
             return;
         }
 
+        long now = System.currentTimeMillis();
+        if (now - lastTriggerAttackTime < CONFIG.triggerDelayMs) {
+            return;
+        }
+
         client.interactionManager.attackEntity(player, target);
         player.swingHand(Hand.MAIN_HAND);
+        lastTriggerAttackTime = now;
     }
 
     private static boolean isWeapon(ItemStack stack) {
@@ -306,8 +338,13 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("  \"onlyCrits\": " + CONFIG.onlyCrits + ",\n");
             writer.write("  \"smartCrits\": " + CONFIG.smartCrits + ",\n");
             writer.write("  \"onlyWeapon\": " + CONFIG.onlyWeapon + ",\n");
+            writer.write("  \"triggerDelayMs\": " + CONFIG.triggerDelayMs + ",\n");
+            writer.write("  \"triggerRange\": " + CONFIG.triggerRange + ",\n");
             writer.write("  \"aimAssist\": " + CONFIG.aimAssist + ",\n");
+            writer.write("  \"aimAssistDurationMs\": " + CONFIG.aimAssistDurationMs + ",\n");
+            writer.write("  \"aimAssistRange\": " + CONFIG.aimAssistRange + ",\n");
             writer.write("  \"lightningEsp\": " + CONFIG.lightningEsp + ",\n");
+            writer.write("  \"targetEsp\": " + CONFIG.targetEsp + ",\n");
             writer.write("  \"aspectRatio\": " + CONFIG.aspectRatio + ",\n");
             writer.write("  \"optimization\": " + CONFIG.optimization + ",\n");
             writer.write("  \"optimizationLevel\": " + CONFIG.optimizationLevel + ",\n");
@@ -344,8 +381,13 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.onlyCrits = readBoolean(text, "onlyCrits", CONFIG.onlyCrits);
             CONFIG.smartCrits = readBoolean(text, "smartCrits", CONFIG.smartCrits);
             CONFIG.onlyWeapon = readBoolean(text, "onlyWeapon", CONFIG.onlyWeapon);
+            CONFIG.triggerDelayMs = clampInt(readInt(text, "triggerDelayMs", CONFIG.triggerDelayMs), 0, 500);
+            CONFIG.triggerRange = clampDouble(readDouble(text, "triggerRange", CONFIG.triggerRange), 2.0D, 6.0D);
             CONFIG.aimAssist = readBoolean(text, "aimAssist", CONFIG.aimAssist);
+            CONFIG.aimAssistDurationMs = clampInt(readInt(text, "aimAssistDurationMs", CONFIG.aimAssistDurationMs), 100, 1500);
+            CONFIG.aimAssistRange = clampDouble(readDouble(text, "aimAssistRange", CONFIG.aimAssistRange), 2.0D, 6.0D);
             CONFIG.lightningEsp = readBoolean(text, "lightningEsp", CONFIG.lightningEsp);
+            CONFIG.targetEsp = readBoolean(text, "targetEsp", CONFIG.targetEsp);
             CONFIG.aspectRatio = clampDouble(readDouble(text, "aspectRatio", CONFIG.aspectRatio), 0.50D, 3.00D);
             CONFIG.optimization = readBoolean(text, "optimization", CONFIG.optimization);
             CONFIG.optimizationLevel = clampInt(readInt(text, "optimizationLevel", CONFIG.optimizationLevel), 0, 2);
