@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "triggerbot",
   "version": "${version}",
-  "name": "Trigger Bot + Mobile Optimization",
-  "description": "Client-side TriggerBot with smart criticals, Alt Manager and custom mobile optimization for Minecraft 1.16.5 Fabric.",
+  "name": "Astra Client 1.0.0",
+  "description": "Astra Client 1.0.0 - Fabric client for Minecraft 1.16.5.",
   "authors": [
     "essde342-bit"
   ],
