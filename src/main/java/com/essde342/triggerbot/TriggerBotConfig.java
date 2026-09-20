@@ -5,6 +5,8 @@ public class TriggerBotConfig {
     public boolean onlyCrits = false;
     public boolean smartCrits = true;
     public boolean onlyWeapon = false;
+    public boolean aimAssist = false;
+    public double aspectRatio = 1.7777778D;
 
     // Custom mobile optimizer.
     public boolean optimization = true;
