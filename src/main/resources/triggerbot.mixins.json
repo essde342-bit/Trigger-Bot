@@ -8,7 +8,6 @@
     "MinecraftClientAccessor",
     "SessionAccessor",
     "GameRendererMixin",
-    "SplashScreenMixin",
     "WorldRendererMixin",
     "EntityRenderDispatcherMixin",
     "BlockEntityRenderDispatcherMixin"
