@@ -42,11 +42,13 @@ public class TriggerBotClient implements ClientModInitializer {
     private static float aimStartYaw;
     private static float aimStartPitch;
     private static long lastTriggerAttackTime;
+    private static long astraStartupSplashUntil;
 
     @Override
     public void onInitializeClient() {
         loadConfig();
         AltManager.load();
+        astraStartupSplashUntil = System.currentTimeMillis() + 4500L;
         optimizationTick = 0;
 
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -323,6 +325,10 @@ public class TriggerBotClient implements ClientModInitializer {
             client.options.gamma = clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D);
         }
     }
+    public static boolean isAstraStartupSplashVisible() {
+        return astraStartupSplashUntil > System.currentTimeMillis();
+    }
+
 
     public static void saveConfig() {
         File file = getConfigFile();
