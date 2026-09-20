@@ -178,6 +178,10 @@ public final class ModuleManager {
         return MODULES;
     }
 
+    public static boolean isInitialized() {
+        return initialized;
+    }
+
     public static List<Module> getByCategory(Category category) {
         List<Module> result = new ArrayList<Module>();
 
