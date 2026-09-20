@@ -36,7 +36,7 @@ public final class TriggerBotConfigScreen extends Screen {
                     save();
                 });
 
-        y += 26;
+        y += 24;
         addToggle(left, y, "Smart crits", TriggerBotClient.CONFIG.smartCrits,
                 value -> {
                     TriggerBotClient.CONFIG.smartCrits = value;
@@ -48,13 +48,20 @@ public final class TriggerBotConfigScreen extends Screen {
                     save();
                 });
 
-        y += 26;
+        y += 24;
         addToggle(left, y, "Aim Assist", TriggerBotClient.CONFIG.aimAssist,
                 value -> {
                     TriggerBotClient.CONFIG.aimAssist = value;
                     save();
                 });
-        addToggle(right, y, "Fullbright",, TriggerBotClient.CONFIG.fullbright,
+        addToggle(right, y, "Lightning ESP", TriggerBotClient.CONFIG.lightningEsp,
+                value -> {
+                    TriggerBotClient.CONFIG.lightningEsp = value;
+                    save();
+                });
+
+        y += 24;
+        addToggle(left, y, "Fullbright", TriggerBotClient.CONFIG.fullbright,
                 value -> {
                     TriggerBotClient.setFullbright(MinecraftClient.getInstance(), value);
                     save();
@@ -65,7 +72,7 @@ public final class TriggerBotConfigScreen extends Screen {
                     save();
                 });
 
-        y += 26;
+        y += 24;
         addToggle(left, y, "Optimization", TriggerBotClient.CONFIG.optimization,
                 value -> {
                     TriggerBotOptimizer.setOptimization(MinecraftClient.getInstance(), value);
@@ -84,7 +91,7 @@ public final class TriggerBotConfigScreen extends Screen {
                     save();
                 }));
 
-        y += 26;
+        y += 24;
         addButton(new ButtonWidget(
                 left, y, 150, 20,
                 new LiteralText(adaptiveText()),
@@ -104,12 +111,12 @@ public final class TriggerBotConfigScreen extends Screen {
                     save();
                 }));
 
-        y += 26;
+        y += 24;
         addButton(new AspectRatioSlider(
                 this.width / 2 - 154, y, 304, 20,
                 TriggerBotClient.CONFIG.aspectRatio));
 
-        y += 26;
+        y += 24;
         addButton(new ButtonWidget(
                 left, y, 150, 20,
                 new LiteralText(gammaText()),
@@ -151,13 +158,13 @@ public final class TriggerBotConfigScreen extends Screen {
                 20,
                 new LiteralText(toggleText(label, initial)),
                 button -> {
-                    boolean next = !isButtonEnabled(button, label);
+                    boolean next = !isButtonEnabled(label);
                     consumer.accept(next);
                     button.setMessage(new LiteralText(toggleText(label, next)));
                 }));
     }
 
-    private boolean isButtonEnabled(ButtonWidget button, String label) {
+    private boolean isButtonEnabled(String label) {
         if ("TriggerBot".equals(label)) {
             return TriggerBotClient.CONFIG.enabled;
         }
@@ -172,6 +179,9 @@ public final class TriggerBotConfigScreen extends Screen {
         }
         if ("Aim Assist".equals(label)) {
             return TriggerBotClient.CONFIG.aimAssist;
+        }
+        if ("Lightning ESP".equals(label)) {
+            return TriggerBotClient.CONFIG.lightningEsp;
         }
         if ("Fullbright".equals(label)) {
             return TriggerBotClient.CONFIG.fullbright;
@@ -203,10 +213,6 @@ public final class TriggerBotConfigScreen extends Screen {
 
     private static String targetFpsText() {
         return "Target FPS: " + TriggerBotClient.CONFIG.targetFps;
-    }
-
-    private static String aspectRatioText() {
-        return "Aspect Ratio: " + String.format(java.util.Locale.ROOT, "%.2f", TriggerBotClient.CONFIG.aspectRatio);
     }
 
     private static String gammaText() {
