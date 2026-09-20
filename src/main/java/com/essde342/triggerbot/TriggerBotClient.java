@@ -66,7 +66,6 @@ public class TriggerBotClient implements ClientModInitializer {
             }
 
             ModuleManager.handleKeyBinds(client);
-
             applyVisualFeatures(client);
 
             if (client.player != null && client.world != null) {
@@ -89,8 +88,6 @@ public class TriggerBotClient implements ClientModInitializer {
                     triggerTarget = null;
                 }
             }
-
-            TargetESP.tick(client);
         });
     }
 
@@ -215,14 +212,6 @@ public class TriggerBotClient implements ClientModInitializer {
                 || stack.getItem() instanceof TridentItem;
     }
 
-    /**
-     * Smart critical detection.
-     *
-     * It deliberately waits for the falling part of the jump instead of
-     * attacking on the way up. With Smart Crits enabled there is no mod-side
-     * cooldown: every subsequent vanilla-ready attack during a real crit
-     * window may be sent.
-     */
     private static boolean canCriticalHit(PlayerEntity player, boolean smart) {
         if (player.isOnGround()
                 || player.fallDistance <= 0.0F
@@ -245,9 +234,6 @@ public class TriggerBotClient implements ClientModInitializer {
         return true;
     }
 
-    /*
-     * CUSTOM FULLBRIGHT
-     */
     public static void toggleFullbright(MinecraftClient client) {
         setFullbright(client, !CONFIG.fullbright);
         saveConfig();
