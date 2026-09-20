@@ -42,13 +42,11 @@ public class TriggerBotClient implements ClientModInitializer {
     private static float aimStartYaw;
     private static float aimStartPitch;
     private static long lastTriggerAttackTime;
-    private static long astraStartupSplashUntil;
 
     @Override
     public void onInitializeClient() {
         loadConfig();
         AltManager.load();
-        astraStartupSplashUntil = System.currentTimeMillis() + 4500L;
         optimizationTick = 0;
 
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -325,11 +323,6 @@ public class TriggerBotClient implements ClientModInitializer {
             client.options.gamma = clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D);
         }
     }
-    public static boolean isAstraStartupSplashVisible() {
-        return astraStartupSplashUntil > System.currentTimeMillis();
-    }
-
-
     public static void saveConfig() {
         File file = getConfigFile();
         File parent = file.getParentFile();
@@ -351,6 +344,7 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("  \"aimAssistRange\": " + CONFIG.aimAssistRange + ",\n");
             writer.write("  \"lightningEsp\": " + CONFIG.lightningEsp + ",\n");
             writer.write("  \"targetEsp\": " + CONFIG.targetEsp + ",\n");
+            writer.write("  \"aspectRatioEnabled\": " + CONFIG.aspectRatioEnabled + ",\n");
             writer.write("  \"aspectRatio\": " + CONFIG.aspectRatio + ",\n");
             writer.write("  \"optimization\": " + CONFIG.optimization + ",\n");
             writer.write("  \"optimizationLevel\": " + CONFIG.optimizationLevel + ",\n");
@@ -394,6 +388,7 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.aimAssistRange = clampDouble(readDouble(text, "aimAssistRange", CONFIG.aimAssistRange), 2.0D, 6.0D);
             CONFIG.lightningEsp = readBoolean(text, "lightningEsp", CONFIG.lightningEsp);
             CONFIG.targetEsp = readBoolean(text, "targetEsp", CONFIG.targetEsp);
+            CONFIG.aspectRatioEnabled = readBoolean(text, "aspectRatioEnabled", CONFIG.aspectRatioEnabled);
             CONFIG.aspectRatio = clampDouble(readDouble(text, "aspectRatio", CONFIG.aspectRatio), 0.50D, 3.00D);
             CONFIG.optimization = readBoolean(text, "optimization", CONFIG.optimization);
             CONFIG.optimizationLevel = clampInt(readInt(text, "optimizationLevel", CONFIG.optimizationLevel), 0, 2);
