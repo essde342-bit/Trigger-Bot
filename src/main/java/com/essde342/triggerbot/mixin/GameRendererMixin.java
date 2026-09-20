@@ -1,5 +1,7 @@
 package com.essde342.triggerbot.mixin;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+
 import com.essde342.triggerbot.TriggerBotClient;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.util.math.MatrixStack;
