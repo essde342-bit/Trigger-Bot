@@ -77,6 +77,8 @@ public class TriggerBotClient implements ClientModInitializer {
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) {
                     client.openScreen(new ClickGuiMain());
+                } else if (client.currentScreen instanceof ClickGuiMain) {
+                    client.openScreen(null);
                 }
             }
 
