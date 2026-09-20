@@ -3,6 +3,7 @@ package com.essde342.triggerbot;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.LiteralText;
 
@@ -48,7 +49,12 @@ public final class TriggerBotConfigScreen extends Screen {
                 });
 
         y += 26;
-        addToggle(left, y, "Fullbright", TriggerBotClient.CONFIG.fullbright,
+        addToggle(left, y, "Aim Assist", TriggerBotClient.CONFIG.aimAssist,
+                value -> {
+                    TriggerBotClient.CONFIG.aimAssist = value;
+                    save();
+                });
+        addToggle(right, y, "Fullbright",, TriggerBotClient.CONFIG.fullbright,
                 value -> {
                     TriggerBotClient.setFullbright(MinecraftClient.getInstance(), value);
                     save();
@@ -97,6 +103,11 @@ public final class TriggerBotConfigScreen extends Screen {
                     button.setMessage(new LiteralText(targetFpsText()));
                     save();
                 }));
+
+        y += 26;
+        addButton(new AspectRatioSlider(
+                this.width / 2 - 154, y, 304, 20,
+                TriggerBotClient.CONFIG.aspectRatio));
 
         y += 26;
         addButton(new ButtonWidget(
@@ -159,6 +170,9 @@ public final class TriggerBotConfigScreen extends Screen {
         if ("Only weapon".equals(label)) {
             return TriggerBotClient.CONFIG.onlyWeapon;
         }
+        if ("Aim Assist".equals(label)) {
+            return TriggerBotClient.CONFIG.aimAssist;
+        }
         if ("Fullbright".equals(label)) {
             return TriggerBotClient.CONFIG.fullbright;
         }
@@ -191,8 +205,33 @@ public final class TriggerBotConfigScreen extends Screen {
         return "Target FPS: " + TriggerBotClient.CONFIG.targetFps;
     }
 
+    private static String aspectRatioText() {
+        return "Aspect Ratio: " + String.format(java.util.Locale.ROOT, "%.2f", TriggerBotClient.CONFIG.aspectRatio);
+    }
+
     private static String gammaText() {
         return "Gamma: " + (int) TriggerBotClient.CONFIG.fullbrightGamma;
+    }
+
+    private static final class AspectRatioSlider extends SliderWidget {
+        private AspectRatioSlider(int x, int y, int width, int height, double ratio) {
+            super(x, y, width, height, new LiteralText(""), (ratio - 0.50D) / 2.50D);
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            double ratio = 0.50D + this.value * 2.50D;
+            this.setMessage(new LiteralText("Aspect Ratio: "
+                    + String.format(java.util.Locale.ROOT, "%.2f", ratio)));
+        }
+
+        @Override
+        protected void applyValue() {
+            TriggerBotClient.CONFIG.aspectRatio =
+                    Math.max(0.50D, Math.min(3.00D, 0.50D + this.value * 2.50D));
+            save();
+        }
     }
 
     private static void save() {
