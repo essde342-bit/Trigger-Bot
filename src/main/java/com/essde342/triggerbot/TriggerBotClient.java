@@ -54,7 +54,6 @@ public class TriggerBotClient implements ClientModInitializer {
                 "category.triggerbot"
         ));
 
-        LightningESP.register();
         TargetESP.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -91,7 +90,6 @@ public class TriggerBotClient implements ClientModInitializer {
                 }
             }
 
-            LightningESP.tick(client);
             TargetESP.tick(client);
         });
     }
@@ -345,6 +343,7 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("  \"aimAssistRange\": " + CONFIG.aimAssistRange + ",\n");
             writer.write("  \"lightningEsp\": " + CONFIG.lightningEsp + ",\n");
             writer.write("  \"targetEsp\": " + CONFIG.targetEsp + ",\n");
+            writer.write("  \"jumpCircle\": " + CONFIG.jumpCircle + ",\n");
             writer.write("  \"aspectRatioEnabled\": " + CONFIG.aspectRatioEnabled + ",\n");
             writer.write("  \"aspectRatio\": " + CONFIG.aspectRatio + ",\n");
             writer.write("  \"optimization\": " + CONFIG.optimization + ",\n");
@@ -358,6 +357,7 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("  \"bindAimAssist\": " + CONFIG.bindAimAssist + ",\n");
             writer.write("  \"bindLightningEsp\": " + CONFIG.bindLightningEsp + ",\n");
             writer.write("  \"bindTargetEsp\": " + CONFIG.bindTargetEsp + ",\n");
+            writer.write("  \"bindJumpCircle\": " + CONFIG.bindJumpCircle + ",\n");
             writer.write("  \"bindFullbright\": " + CONFIG.bindFullbright + ",\n");
             writer.write("  \"bindNoHurtCam\": " + CONFIG.bindNoHurtCam + ",\n");
             writer.write("  \"bindAspectRatio\": " + CONFIG.bindAspectRatio + ",\n");
@@ -398,6 +398,7 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.aimAssistRange = clampDouble(readDouble(text, "aimAssistRange", CONFIG.aimAssistRange), 2.0D, 6.0D);
             CONFIG.lightningEsp = readBoolean(text, "lightningEsp", CONFIG.lightningEsp);
             CONFIG.targetEsp = readBoolean(text, "targetEsp", CONFIG.targetEsp);
+            CONFIG.jumpCircle = readBoolean(text, "jumpCircle", CONFIG.jumpCircle);
             CONFIG.aspectRatioEnabled = readBoolean(text, "aspectRatioEnabled", CONFIG.aspectRatioEnabled);
             CONFIG.aspectRatio = clampDouble(readDouble(text, "aspectRatio", CONFIG.aspectRatio), 0.50D, 3.00D);
             CONFIG.optimization = readBoolean(text, "optimization", CONFIG.optimization);
@@ -416,6 +417,7 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.bindAimAssist = readInt(text, "bindAimAssist", CONFIG.bindAimAssist);
             CONFIG.bindLightningEsp = readInt(text, "bindLightningEsp", CONFIG.bindLightningEsp);
             CONFIG.bindTargetEsp = readInt(text, "bindTargetEsp", CONFIG.bindTargetEsp);
+            CONFIG.bindJumpCircle = readInt(text, "bindJumpCircle", CONFIG.bindJumpCircle);
             CONFIG.bindFullbright = readInt(text, "bindFullbright", CONFIG.bindFullbright);
             CONFIG.bindNoHurtCam = readInt(text, "bindNoHurtCam", CONFIG.bindNoHurtCam);
             CONFIG.bindAspectRatio = readInt(text, "bindAspectRatio", CONFIG.bindAspectRatio);
