@@ -7,8 +7,7 @@
     "TitleScreenMixin",
     "MinecraftClientAccessor",
     "SessionAccessor",
-    "GameRendererMixin",
-    "ResourceLoadProgressGuiMixin"
+    "GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 0
