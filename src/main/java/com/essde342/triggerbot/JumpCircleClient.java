@@ -15,13 +15,15 @@ import net.minecraft.entity.player.PlayerEntity;
 import org.lwjgl.opengl.GL11;
 
 public final class JumpCircleClient implements ClientModInitializer {
-    private static final int SEGMENTS = 64;
-    private static final double BASE_RADIUS = 0.62D;
-    private static final long EFFECT_LIFETIME_MS = 520L;
+    private static final int SEGMENTS = 48;
+    private static final double BASE_RADIUS = 0.48D;
+    private static final double OUTER_RADIUS = 0.82D;
+    private static final long LANDING_LIFETIME_MS = 520L;
+    private static final long JUMP_LIFETIME_MS = 850L;
 
     private static boolean airborne;
     private static long jumpStartTime;
-    private static long lastLandTime;
+    private static long landTime;
     private static PlayerEntity trackedPlayer;
     private static ClientWorld trackedWorld;
 
@@ -34,8 +36,9 @@ public final class JumpCircleClient implements ClientModInitializer {
     private static void tick(MinecraftClient client) {
         PlayerEntity player = client.player;
         ClientWorld world = client.world;
+
         if (player == null || world == null) {
-            resetState();
+            reset();
             return;
         }
 
@@ -44,42 +47,54 @@ public final class JumpCircleClient implements ClientModInitializer {
             trackedWorld = world;
             airborne = false;
             jumpStartTime = 0L;
-            lastLandTime = 0L;
+            landTime = 0L;
         }
 
         boolean nowAirborne = !player.isOnGround()
                 && !player.isTouchingWater()
-                && !player.isClimbing();
+                && !player.isClimbing()
+                && !player.hasVehicle();
 
         long now = System.nanoTime() / 1_000_000L;
 
-        if (nowAirborne && !airborne && player.getVelocity().y > 0.05D) {
-            jumpStartTime = now;
-        } else if (!nowAirborne && airborne) {
-            lastLandTime = now;
+        if (TriggerBotClient.CONFIG.jumpCircle) {
+            if (nowAirborne && !airborne && player.getVelocity().y > 0.05D) {
+                jumpStartTime = now;
+            }
+
+            if (!nowAirborne && airborne) {
+                landTime = now;
+            }
+        } else {
+            jumpStartTime = 0L;
+            landTime = 0L;
         }
 
         airborne = nowAirborne;
     }
 
     private static void render(WorldRenderContext context) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null) {
+        if (!TriggerBotClient.CONFIG.jumpCircle || context.matrixStack() == null) {
             return;
         }
+
+        MinecraftClient client = MinecraftClient.getInstance();
         PlayerEntity player = client.player;
 
-        if (player == null || client.world == null
-                || context.matrixStack() == null) {
+        if (player == null || client.world == null) {
             return;
         }
 
         long now = System.nanoTime() / 1_000_000L;
-        boolean jumpActive = airborne && now - jumpStartTime <= 900L;
-        boolean landingActive = !airborne && lastLandTime > 0L
-                && now - lastLandTime <= EFFECT_LIFETIME_MS;
+        boolean jumping = airborne
+                && jumpStartTime > 0L
+                && now - jumpStartTime <= JUMP_LIFETIME_MS;
 
-        if (!jumpActive && !landingActive) {
+        boolean landing = !airborne
+                && landTime > 0L
+                && now - landTime <= LANDING_LIFETIME_MS;
+
+        if (!jumping && !landing) {
             return;
         }
 
@@ -88,83 +103,89 @@ public final class JumpCircleClient implements ClientModInitializer {
         double y = player.prevY + (player.getY() - player.prevY) * tickDelta + 0.035D;
         double z = player.prevZ + (player.getZ() - player.prevZ) * tickDelta;
 
-        float progress = jumpActive
-                ? (float) Math.max(0.0D, Math.min(1.0D, (now - jumpStartTime) / 900.0D))
-                : (float) Math.max(0.0D, Math.min(1.0D,
-                        (now - lastLandTime) / (double) EFFECT_LIFETIME_MS));
-
+        double progress;
         double radius;
         float alpha;
 
-        if (jumpActive) {
+        if (jumping) {
+            progress = Math.max(0.0D, Math.min(1.0D,
+                    (now - jumpStartTime) / (double) JUMP_LIFETIME_MS));
             double pulse = 0.5D + 0.5D * Math.sin(progress * Math.PI);
-            radius = BASE_RADIUS + 0.17D * pulse;
-            alpha = (float) (0.42D + 0.30D * pulse);
+            radius = BASE_RADIUS + (OUTER_RADIUS - BASE_RADIUS) * pulse;
+            alpha = (float) (0.72D - progress * 0.28D);
         } else {
-            radius = BASE_RADIUS + 0.48D * progress;
-            alpha = 0.70F * (1.0F - progress);
+            progress = Math.max(0.0D, Math.min(1.0D,
+                    (now - landTime) / (double) LANDING_LIFETIME_MS));
+            radius = BASE_RADIUS + (OUTER_RADIUS - BASE_RADIUS) * progress;
+            alpha = (float) (0.85D * (1.0D - progress));
         }
 
-        double rotation = now * 0.0025D;
-
         RenderSystem.enableBlend();
-        RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA,
-                GlStateManager.DstFactor.ONE);
+        RenderSystem.blendFunc(
+                GlStateManager.SrcFactor.SRC_ALPHA,
+                GlStateManager.DstFactor.ONE
+        );
         RenderSystem.disableTexture();
         RenderSystem.disableCull();
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
 
-        RenderSystem.lineWidth(5.0F);
-        drawRing(context, x, y, z, radius + 0.035D, rotation,
-                145, 85, 255, (int) (alpha * 90.0F));
+        drawRing(context, x, y, z, radius + 0.10D,
+                145, 85, 255, (int) (alpha * 35.0F));
+        drawRing(context, x, y + 0.004D, z, radius,
+                185, 120, 255, (int) (alpha * 95.0F));
+        drawRing(context, x, y + 0.008D, z, Math.max(0.05D, radius - 0.045D),
+                250, 242, 255, (int) (alpha * 220.0F));
 
-        RenderSystem.lineWidth(2.2F);
-        drawRing(context, x, y + 0.006D, z, radius, -rotation * 1.2D,
-                205, 145, 255, (int) (alpha * 210.0F));
-
-        RenderSystem.lineWidth(1.0F);
-        drawRing(context, x, y + 0.012D, z, radius - 0.022D, rotation * 1.65D,
-                248, 242, 255, (int) (alpha * 255.0F));
-
-        RenderSystem.lineWidth(1.0F);
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
         RenderSystem.enableCull();
         RenderSystem.enableTexture();
-        RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA,
-                GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
+        RenderSystem.blendFunc(
+                GlStateManager.SrcFactor.SRC_ALPHA,
+                GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA
+        );
         RenderSystem.disableBlend();
     }
 
-    private static void resetState() {
-        airborne = false;
-        jumpStartTime = 0L;
-        lastLandTime = 0L;
-        trackedPlayer = null;
-        trackedWorld = null;
-    }
-
     private static void drawRing(WorldRenderContext context, double centerX, double y,
-            double centerZ, double radius, double rotation, int red, int green,
-            int blue, int alpha) {
+            double centerZ, double radius, int red, int green, int blue, int alpha) {
         if (alpha <= 0 || radius <= 0.0D) {
             return;
         }
 
+        double inner = Math.max(0.01D, radius - 0.045D);
         BufferBuilder buffer = Tessellator.getInstance().getBuffer();
-        buffer.begin(GL11.GL_LINE_STRIP, VertexFormats.POSITION_COLOR);
+        buffer.begin(GL11.GL_TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);
 
         for (int i = 0; i <= SEGMENTS; i++) {
-            double angle = rotation + (i / (double) SEGMENTS) * Math.PI * 2.0D;
-            double px = centerX + Math.cos(angle) * radius;
-            double pz = centerZ + Math.sin(angle) * radius;
+            double angle = (i / (double) SEGMENTS) * Math.PI * 2.0D;
+            float cos = (float) Math.cos(angle);
+            float sin = (float) Math.sin(angle);
 
-            buffer.vertex(context.matrixStack().peek().getModel(),
-                    (float) px, (float) y, (float) pz)
-                    .color(red, green, blue, alpha).next();
+            buffer.vertex(
+                    context.matrixStack().peek().getModel(),
+                    (float) (centerX + cos * radius),
+                    (float) y,
+                    (float) (centerZ + sin * radius)
+            ).color(red, green, blue, alpha).next();
+
+            buffer.vertex(
+                    context.matrixStack().peek().getModel(),
+                    (float) (centerX + cos * inner),
+                    (float) y,
+                    (float) (centerZ + sin * inner)
+            ).color(red, green, blue, alpha).next();
         }
 
         Tessellator.getInstance().draw();
+    }
+
+    private static void reset() {
+        airborne = false;
+        jumpStartTime = 0L;
+        landTime = 0L;
+        trackedPlayer = null;
+        trackedWorld = null;
     }
 }
