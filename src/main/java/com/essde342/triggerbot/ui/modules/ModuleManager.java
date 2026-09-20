@@ -66,24 +66,24 @@ public final class ModuleManager {
         link(aim);
 
         link(new Module(
-                "Lightning ESP",
-                Category.RENDER,
-                "Animated lightning around the current target.",
-                c().lightningEsp,
-                value -> c().lightningEsp = value
-        ));
-
-        link(new Module(
                 "Target ESP",
-                Category.RENDER,
-                "Bright rotating particles around the current combat target.",
+                Category.VISUALS,
+                "Visible glow around the selected target.",
                 c().targetEsp,
                 value -> c().targetEsp = value
         ));
 
+        link(new Module(
+                "Jump Circle",
+                Category.VISUALS,
+                "Animated circle when jumping and landing.",
+                c().jumpCircle,
+                value -> c().jumpCircle = value
+        ));
+
         Module fullbright = new Module(
                 "Fullbright",
-                Category.RENDER,
+                Category.VISUALS,
                 "Raises gamma in dark areas.",
                 c().fullbright,
                 value -> {
@@ -111,7 +111,7 @@ public final class ModuleManager {
 
         link(new Module(
                 "No Hurt Cam",
-                Category.RENDER,
+                Category.VISUALS,
                 "Disables damage camera shake.",
                 c().noHurtCam,
                 value -> c().noHurtCam = value
@@ -119,7 +119,7 @@ public final class ModuleManager {
 
         Module aspect = new Module(
                 "Aspect Ratio",
-                Category.RENDER,
+                Category.VISUALS,
                 "Changes the camera projection ratio.",
                 c().aspectRatioEnabled,
                 value -> c().aspectRatioEnabled = value
@@ -136,7 +136,7 @@ public final class ModuleManager {
 
         link(new Module(
                 "Optimization",
-                Category.MOVEMENT,
+                Category.OTHER,
                 "Mobile performance profile.",
                 c().optimization,
                 value -> c().optimization = value
@@ -144,7 +144,7 @@ public final class ModuleManager {
 
         Module fps = new Module(
                 "Adaptive FPS",
-                Category.MOVEMENT,
+                Category.OTHER,
                 "Adaptive target FPS for the mobile profile.",
                 c().adaptiveOptimization,
                 value -> c().adaptiveOptimization = value
@@ -161,7 +161,7 @@ public final class ModuleManager {
 
         link(new Module(
                 "Alt Manager",
-                Category.PLAYER,
+                Category.OTHER,
                 "Opens the local nickname manager.",
                 false,
                 value -> {}
@@ -222,8 +222,8 @@ public final class ModuleManager {
     public static void applyConfiguredBinds() {
         setBind("TriggerBot", c().bindTriggerBot);
         setBind("Aim Assist", c().bindAimAssist);
-        setBind("Lightning ESP", c().bindLightningEsp);
         setBind("Target ESP", c().bindTargetEsp);
+        setBind("Jump Circle", c().bindJumpCircle);
         setBind("Fullbright", c().bindFullbright);
         setBind("No Hurt Cam", c().bindNoHurtCam);
         setBind("Aspect Ratio", c().bindAspectRatio);
@@ -234,8 +234,8 @@ public final class ModuleManager {
     public static void syncBindsToConfig() {
         c().bindTriggerBot = getBind("TriggerBot");
         c().bindAimAssist = getBind("Aim Assist");
-        c().bindLightningEsp = getBind("Lightning ESP");
         c().bindTargetEsp = getBind("Target ESP");
+        c().bindJumpCircle = getBind("Jump Circle");
         c().bindFullbright = getBind("Fullbright");
         c().bindNoHurtCam = getBind("No Hurt Cam");
         c().bindAspectRatio = getBind("Aspect Ratio");
