@@ -10,6 +10,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.player.PlayerEntity;
 import org.lwjgl.opengl.GL11;
 
@@ -21,6 +22,8 @@ public final class JumpCircleClient implements ClientModInitializer {
     private static boolean airborne;
     private static long jumpStartTime;
     private static long lastLandTime;
+    private static PlayerEntity trackedPlayer;
+    private static ClientWorld trackedWorld;
 
     @Override
     public void onInitializeClient() {
@@ -30,20 +33,27 @@ public final class JumpCircleClient implements ClientModInitializer {
 
     private static void tick(MinecraftClient client) {
         PlayerEntity player = client.player;
-        if (player == null || client.world == null) {
+        ClientWorld world = client.world;
+        if (player == null || world == null) {
+            resetState();
+            return;
+        }
+
+        if (trackedPlayer != player || trackedWorld != world) {
+            trackedPlayer = player;
+            trackedWorld = world;
             airborne = false;
             jumpStartTime = 0L;
             lastLandTime = 0L;
-            return;
         }
 
         boolean nowAirborne = !player.isOnGround()
                 && !player.isTouchingWater()
                 && !player.isClimbing();
 
-        long now = System.currentTimeMillis();
+        long now = System.nanoTime() / 1_000_000L;
 
-        if (nowAirborne && !airborne) {
+        if (nowAirborne && !airborne && player.getVelocity().y > 0.05D) {
             jumpStartTime = now;
         } else if (!nowAirborne && airborne) {
             lastLandTime = now;
@@ -54,14 +64,17 @@ public final class JumpCircleClient implements ClientModInitializer {
 
     private static void render(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
         PlayerEntity player = client.player;
 
-        if (client == null || player == null || client.world == null
+        if (player == null || client.world == null
                 || context.matrixStack() == null) {
             return;
         }
 
-        long now = System.currentTimeMillis();
+        long now = System.nanoTime() / 1_000_000L;
         boolean jumpActive = airborne && now - jumpStartTime <= 900L;
         boolean landingActive = !airborne && lastLandTime > 0L
                 && now - lastLandTime <= EFFECT_LIFETIME_MS;
@@ -122,6 +135,14 @@ public final class JumpCircleClient implements ClientModInitializer {
         RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA,
                 GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA);
         RenderSystem.disableBlend();
+    }
+
+    private static void resetState() {
+        airborne = false;
+        jumpStartTime = 0L;
+        lastLandTime = 0L;
+        trackedPlayer = null;
+        trackedWorld = null;
     }
 
     private static void drawRing(WorldRenderContext context, double centerX, double y,
