@@ -1,1 +1,170 @@
-package com.essde342.triggerbot.ui.modules; import com.essde342.triggerbot.*; import com.essde342.triggerbot.ui.imple.*; import java.util.*; public final class ModuleManager{private static final List<Module> ms=new ArrayList<>();private static boolean init;private static TriggerBotConfig c(){return TriggerBotClient.CONFIG;}public static void moduleRegister(){if(init)return;init=true;Module t=new Module("TriggerBot",Category.COMBAT,"Automatic attack",c().enabled,()->{c().enabled=!c().enabled;});t.addSetting(new BooleanSetting("Only Crits",c().onlyCrits,v->c().onlyCrits=v));t.addSetting(new BooleanSetting("Smart Crits",c().smartCrits,v->c().smartCrits=v));t.addSetting(new BooleanSetting("Only Weapon",c().onlyWeapon,v->c().onlyWeapon=v));link(t);link(new Module("Aim Assist",Category.COMBAT,"Smooth target rotation",c().aimAssist,()->c().aimAssist=!c().aimAssist));link(new Module("Lightning ESP",Category.COMBAT,"Lightning overlay",c().lightningEsp,()->c().lightningEsp=!c().lightningEsp));Module f=new Module("Fullbright",Category.RENDER,"Bright world",c().fullbright,()->{c().fullbright=!c().fullbright;TriggerBotClient.setFullbright(net.minecraft.client.MinecraftClient.getInstance(),c().fullbright);});f.addSetting(new NumberSetting("Gamma",c().fullbrightGamma,1,20,1,v->c().fullbrightGamma=v));link(f);link(new Module("No Hurt Cam",Category.RENDER,"Disable hurt camera",c().noHurtCam,()->c().noHurtCam=!c().noHurtCam));Module a=new Module("Aspect Ratio",Category.RENDER,"Projection ratio",false,()->{});a.addSetting(new NumberSetting("Ratio",c().aspectRatio,.5,3,.01,v->c().aspectRatio=v));link(a);link(new Module("Optimization",Category.MOVEMENT,"Mobile performance",c().optimization,()->c().optimization=!c().optimization));Module fps=new Module("Adaptive FPS",Category.MOVEMENT,"Adaptive FPS",c().adaptiveOptimization,()->c().adaptiveOptimization=!c().adaptiveOptimization);fps.addSetting(new NumberSetting("Target FPS",c().targetFps,30,60,15,v->c().targetFps=(int)Math.round(v)));link(fps);link(new Module("Alt Manager",Category.PLAYER,"Nickname manager",false,()->{}));}public static void link(Module m){ms.add(m);}public static List<Module> getByCategory(Category c){List<Module> r=new ArrayList<>();for(Module m:ms)if(m.getCategory()==c)r.add(m);return r;}}
+package com.essde342.triggerbot.ui.modules;
+
+import com.essde342.triggerbot.TriggerBotClient;
+import com.essde342.triggerbot.TriggerBotConfig;
+import com.essde342.triggerbot.ui.imple.BooleanSetting;
+import com.essde342.triggerbot.ui.imple.MultiSetting;
+import com.essde342.triggerbot.ui.imple.NumberSetting;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import net.minecraft.client.MinecraftClient;
+
+public final class ModuleManager {
+    private static final List<Module> MODULES = new ArrayList<>();
+    private static boolean initialized;
+
+    private ModuleManager() {
+    }
+
+    private static TriggerBotConfig config() {
+        return TriggerBotClient.CONFIG;
+    }
+
+    public static void moduleRegister() {
+        if (initialized) {
+            return;
+        }
+        initialized = true;
+
+        Module triggerBot = new Module(
+                "TriggerBot",
+                Category.COMBAT,
+                "Automatic attack on the player under your crosshair.",
+                config().enabled,
+                value -> config().enabled = value
+        );
+        triggerBot.addSetting(new BooleanSetting(
+                "Only Crits",
+                config().onlyCrits,
+                value -> config().onlyCrits = value
+        ));
+        triggerBot.addSetting(new BooleanSetting(
+                "Smart Crits",
+                config().smartCrits,
+                value -> config().smartCrits = value
+        ));
+        triggerBot.addSetting(new BooleanSetting(
+                "Only Weapon",
+                config().onlyWeapon,
+                value -> config().onlyWeapon = value
+        ));
+        link(triggerBot);
+
+        link(new Module(
+                "Aim Assist",
+                Category.COMBAT,
+                "Smoothly rotates toward the nearest visible player.",
+                config().aimAssist,
+                value -> config().aimAssist = value
+        ));
+
+        link(new Module(
+                "Lightning ESP",
+                Category.COMBAT,
+                "Renders a visual lightning effect around the current target.",
+                config().lightningEsp,
+                value -> config().lightningEsp = value
+        ));
+
+        Module fullbright = new Module(
+                "Fullbright",
+                Category.RENDER,
+                "Raises gamma so dark areas are easier to see.",
+                config().fullbright,
+                value -> {
+                    config().fullbright = value;
+                    TriggerBotClient.setFullbright(MinecraftClient.getInstance(), value);
+                }
+        );
+        fullbright.addSetting(new NumberSetting(
+                "Gamma",
+                config().fullbrightGamma,
+                1.0D,
+                20.0D,
+                1.0D,
+                value -> {
+                    config().fullbrightGamma = value;
+                    if (config().fullbright) {
+                        TriggerBotClient.setFullbright(MinecraftClient.getInstance(), true);
+                    }
+                }
+        ));
+        link(fullbright);
+
+        link(new Module(
+                "No Hurt Cam",
+                Category.RENDER,
+                "Removes camera shake after taking damage.",
+                config().noHurtCam,
+                value -> config().noHurtCam = value
+        ));
+
+        Module aspect = new Module(
+                "Aspect Ratio",
+                Category.RENDER,
+                "Changes the camera projection ratio.",
+                true,
+                value -> {
+                }
+        );
+        aspect.addSetting(new NumberSetting(
+                "Ratio",
+                config().aspectRatio,
+                0.50D,
+                3.00D,
+                0.01D,
+                value -> config().aspectRatio = value
+        ));
+        link(aspect);
+
+        link(new Module(
+                "Optimization",
+                Category.MOVEMENT,
+                "Applies the mobile performance profile.",
+                config().optimization,
+                value -> config().optimization = value
+        ));
+
+        Module adaptiveFps = new Module(
+                "Adaptive FPS",
+                Category.MOVEMENT,
+                "Adjusts the target FPS according to the selected profile.",
+                config().adaptiveOptimization,
+                value -> config().adaptiveOptimization = value
+        );
+        adaptiveFps.addSetting(new NumberSetting(
+                "Target FPS",
+                config().targetFps,
+                30.0D,
+                60.0D,
+                5.0D,
+                value -> config().targetFps = (int) Math.round(value)
+        ));
+        link(adaptiveFps);
+
+        link(new Module(
+                "Alt Manager",
+                Category.PLAYER,
+                "Manage local nicknames saved by Astra Client.",
+                false,
+                value -> {
+                }
+        ));
+    }
+
+    public static void link(Module module) {
+        MODULES.add(module);
+    }
+
+    public static List<Module> getByCategory(Category category) {
+        List<Module> result = new ArrayList<>();
+        for (Module module : MODULES) {
+            if (module.getCategory() == category) {
+                result.add(module);
+            }
+        }
+        return result;
+    }
+}
