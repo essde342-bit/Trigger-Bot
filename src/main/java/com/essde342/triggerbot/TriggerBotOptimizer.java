@@ -5,7 +5,6 @@ import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.SimpleOption;
 import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.option.GraphicsMode;
-import net.minecraft.client.option.ParticlesMode;
 
 public final class TriggerBotOptimizer {
     private static final long BALANCED_CHUNK_BUDGET = 6_000_000L;
@@ -22,7 +21,7 @@ public final class TriggerBotOptimizer {
     private static CloudRenderMode savedClouds;
     private static GraphicsMode savedGraphics;
     private static boolean savedAo;
-    private static ParticlesMode savedParticles;
+    private static Object savedParticles;
     private static boolean savedEntityShadows;
     private static int savedBiomeBlend;
     private static int savedMipmapLevels;
@@ -171,11 +170,27 @@ public final class TriggerBotOptimizer {
         options.getCloudRenderMode().setValue(CloudRenderMode.OFF);
         options.getGraphicsMode().setValue(GraphicsMode.FAST);
         options.getAo().setValue(currentLevel == 0);
-        options.getParticles().setValue(ParticlesMode.MINIMAL);
+        setMinimalParticles(options);
         options.getEntityShadows().setValue(false);
         options.getBiomeBlendRadius().setValue(0);
         options.getMipmapLevels().setValue(0);
         client.chunkCullingEnabled = true;
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void setMinimalParticles(GameOptions options) {
+        Object current = options.getParticles().getValue();
+        if (current instanceof Enum) {
+            Enum<?> value = (Enum<?>) current;
+            ((SimpleOption) options.getParticles()).setValue(
+                    Enum.valueOf((Class) value.getDeclaringClass(), "MINIMAL")
+            );
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void setParticlesValue(GameOptions options, Object value) {
+        ((SimpleOption) options.getParticles()).setValue(value);
     }
 
     private static void restore(MinecraftClient client) {
@@ -190,7 +205,7 @@ public final class TriggerBotOptimizer {
         options.getCloudRenderMode().setValue(savedClouds);
         options.getGraphicsMode().setValue(savedGraphics);
         options.getAo().setValue(savedAo);
-        options.getParticles().setValue(savedParticles);
+        setParticlesValue(options, savedParticles);
         options.getEntityShadows().setValue(savedEntityShadows);
         options.getBiomeBlendRadius().setValue(savedBiomeBlend);
         options.getMipmapLevels().setValue(savedMipmapLevels);
