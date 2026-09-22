@@ -43,6 +43,6 @@ java {
 
 jar {
     from("LICENSE") {
-        rename { "LICENSE_" + project.archives_baseName }
+        rename { "LICENSE_" + archivesBaseName }
     }
 }
