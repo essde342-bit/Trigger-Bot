@@ -1,6 +1,7 @@
 package kronex.fun.other.utils.display.shape;
 
 import net.minecraft.client.util.math.MatrixStack;
+import org.joml.Vector4f;
 
 public final class ShapeProperties {
     public final MatrixStack matrix;
@@ -23,9 +24,10 @@ public final class ShapeProperties {
         this.height = height;
     }
 
-    public static ShapeProperties create(MatrixStack matrix, float x, float y, float width, float height) {
-        return new ShapeProperties(matrix, x, y, width, height);
-    }
+    public static ShapeProperties create(MatrixStack matrix, float x, float y, float width, float height) { return new ShapeProperties(matrix, x, y, width, height); }
+    public static ShapeProperties create(MatrixStack matrix, float x, float y, float width) { return new ShapeProperties(matrix, x, y, width, 0); }
+
+    public ShapeProperties round(Vector4f radius) { this.radius = Math.max(Math.max(radius.x, radius.y), Math.max(radius.z, radius.w)); return this; }
 
     public ShapeProperties round(float radius) {
         this.radius = radius;
