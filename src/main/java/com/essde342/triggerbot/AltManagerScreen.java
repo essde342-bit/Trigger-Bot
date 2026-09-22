@@ -102,7 +102,7 @@ public final class AltManagerScreen extends Screen {
             rowY += ROW_HEIGHT;
         }
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> onClose())
+        addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> close())
                 .dimensions(center - 75, this.height - 28, 150, 20)
                 .build());
     }
@@ -118,7 +118,7 @@ public final class AltManagerScreen extends Screen {
         if (AltManager.apply(name)) {
             status = "Applied: " + name;
             nicknameField.setText(name);
-            nicknameField.setCursorToEnd();
+            nicknameField.setCursorToEnd(false);
         } else {
             status = "Apply failed";
         }
@@ -157,8 +157,8 @@ public final class AltManagerScreen extends Screen {
                     && mouseY <= rowY + 20) {
                 String name = alts.get(index);
                 nicknameField.setText(name);
-                nicknameField.setCursorToEnd();
-                nicknameField.setTextFieldFocused(true);
+                nicknameField.setCursorToEnd(false);
+                nicknameField.setFocused(true);
                 status = "Selected: " + name;
                 return true;
             }
@@ -187,14 +187,6 @@ public final class AltManagerScreen extends Screen {
 
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
-
-    @Override
-    public void tick() {
-        if (nicknameField != null) {
-            nicknameField.tick();
-        }
-    }
-
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
@@ -238,10 +230,5 @@ public final class AltManagerScreen extends Screen {
         if (this.client != null) {
             this.client.setScreen(this.parent);
         }
-    }
-
-    @Override
-    public void onClose() {
-        close();
     }
 }
