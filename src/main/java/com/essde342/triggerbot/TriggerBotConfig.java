@@ -26,7 +26,7 @@ public class TriggerBotConfig {
 
     public boolean fullbright = false;
     public boolean noHurtCam = true;
-    public double fullbrightGamma = 15.0D;
+    public double fullbrightGamma = 1.0D;
 
     public int bindTriggerBot = -1;
     public int bindAimAssist = -1;
