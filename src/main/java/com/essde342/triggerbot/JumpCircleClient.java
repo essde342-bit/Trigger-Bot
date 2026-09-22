@@ -64,7 +64,7 @@ public final class JumpCircleClient implements ClientModInitializer {
 
         boolean jumpStarted = !airborne && nowAirborne && player.getVelocity().y > 0.02D;
         boolean jumpInput = client.options != null
-                && client.options.keyJump.isPressed()
+                && client.options.jumpKey.isPressed()
                 && player.isOnGround();
 
         if (jumpStarted || jumpInput) {
@@ -139,7 +139,7 @@ public final class JumpCircleClient implements ClientModInitializer {
             float px = (float) (x + Math.cos(angle) * radius);
             float pz = (float) (z + Math.sin(angle) * radius);
 
-            buffer.vertex(entry.getModel(), px, (float) y, pz)
+            buffer.vertex(entry.getPositionMatrix(), px, (float) y, pz)
                     .color(red, green, blue, alpha)
                     .next();
         }
