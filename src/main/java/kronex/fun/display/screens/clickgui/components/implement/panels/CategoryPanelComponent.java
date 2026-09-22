@@ -75,7 +75,7 @@ public class CategoryPanelComponent extends AbstractComponent {
         Fonts.getSize(18,Fonts.Type.ICONS2).drawString(matrix,icon,startX,centerY+TITLE_BASELINE_Y_OFFSET-1.25f,HudColorutility.getIconColor());
         Fonts.getSize(14,Fonts.Type.DEFAULT).drawString(matrix,title,startX+iconW+TITLE_ICON_GAP,centerY+TITLE_BASELINE_Y_OFFSET,ColorAssist.rgba(232,234,240,255));
         float contentX=getContentX(),contentY=getContentYForRender(),contentW=getContentWidth(),contentH=getContentHeightForRender();
-        ScissorAssist scissor=Kronex.getInstance().scissorManager; scissor.push(positionMatrix,contentX,contentY,contentW,contentH);
+        ScissorAssist scissor=Kronex.getInstance().getScissorManager(); scissor.push(positionMatrix,contentX,contentY,contentW,contentH);
         String search=MenuScreen.INSTANCE.getSearchText(); boolean hasSearch=search!=null&&!search.isEmpty(); String searchLower=hasSearch?search.toLowerCase():"";
         float renderScroll=Math.round(smoothedScroll), yOff=0,totalH=0;
         for(PanelsModuleComponent m:modules){
