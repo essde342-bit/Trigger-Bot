@@ -141,7 +141,7 @@ public final class JumpCircleClient implements ClientModInitializer {
 
             buffer.vertex(entry.getPositionMatrix(), px, (float) y, pz)
                     .color(red, green, blue, alpha)
-                    ;
+                    .normal(entry, 0.0F, 1.0F, 0.0F);
         }
     }
 
