@@ -22,7 +22,7 @@ public class ValueComponent extends AbstractSettingComponent {
  @Override public boolean mouseClicked(double mouseX,double mouseY,int button){dragging=MathUtil.isHovered(mouseX,mouseY,x+width-SLIDER_WIDTH-9,y+13,SLIDER_WIDTH,4)&&button==0;return super.mouseClicked(mouseX,mouseY,button);}
  @Override public boolean mouseReleased(double mouseX,double mouseY,int button){dragging=false;return super.mouseReleased(mouseX,mouseY,button);}
  private float getDifference(int mouseX,MatrixStack matrix){
-  float percentValue=SLIDER_WIDTH*(setting.getValue()-setting.getMin())/(setting.getMax()-setting.getMin()),difference=MathHelper.clamp(mouseX-(x+width-SLIDER_WIDTH-9),0,SLIDER_WIDTH);
+  float percentValue=(float)(SLIDER_WIDTH*(setting.getValue()-setting.getMin())/(setting.getMax()-setting.getMin())),difference=MathHelper.clamp(mouseX-(x+width-SLIDER_WIDTH-9),0,SLIDER_WIDTH);
   animation=MathUtil.interpolate(animation,percentValue);
   rectangle.render(ShapeProperties.create(matrix,x+width-SLIDER_WIDTH-9,y+15,SLIDER_WIDTH,1).color(0x2D2E414D).build());
   rectangle.render(ShapeProperties.create(matrix,x+width-SLIDER_WIDTH-9,y+15,(float)animation,1).color(ColorAssist.getClientColor(),ColorAssist.getClientColor(),new Color(ColorAssist.getClientColor()).darker().getRGB(),new Color(ColorAssist.getClientColor()).darker().getRGB()).build());
