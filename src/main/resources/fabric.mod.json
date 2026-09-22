@@ -2,24 +2,11 @@
   "schemaVersion": 1,
   "id": "triggerbot",
   "version": "${version}",
-  "name": "Astra Client 1.0.0",
-  "description": "Astra Client 1.0.0 - Fabric client for Minecraft 1.16.5.",
-  "authors": [
-    "essde342-bit"
-  ],
+  "name": "Astra Client 1.1.0",
+  "description": "Astra Client 1.1.0 - Fabric client for Minecraft 1.21.4.",
+  "authors": ["essde342-bit"],
   "environment": "client",
-  "entrypoints": {
-    "client": [
-      "com.essde342.triggerbot.TriggerBotClient",
-      "com.essde342.triggerbot.JumpCircleClient"
-    ]
-  },
-  "mixins": [
-    "triggerbot.mixins.json"
-  ],
-  "depends": {
-    "fabricloader": ">=0.14.0",
-    "fabric": "*",
-    "minecraft": "1.16.5"
-  }
+  "entrypoints": {"client": ["com.essde342.triggerbot.TriggerBotClient", "com.essde342.triggerbot.JumpCircleClient"]},
+  "mixins": ["triggerbot.mixins.json"],
+  "depends": {"fabricloader": ">=0.16.9", "fabric-api": "*", "minecraft": "1.21.4"}
 }
