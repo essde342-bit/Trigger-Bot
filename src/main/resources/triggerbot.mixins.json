@@ -2,17 +2,14 @@
   "required": false,
   "minVersion": "0.8",
   "package": "com.essde342.triggerbot.mixin",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_21",
   "client": [
     "TitleScreenMixin",
     "MinecraftClientAccessor",
-    "SessionAccessor",
     "GameRendererMixin",
     "WorldRendererMixin",
     "EntityRenderDispatcherMixin",
     "BlockEntityRenderDispatcherMixin"
   ],
-  "injectors": {
-    "defaultRequire": 0
-  }
+  "injectors": {"defaultRequire": 0}
 }
