@@ -5,7 +5,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class AuctionUtils {
-    public static final Pattern funTimePricePattern = Pattern.compile("\\$(\\d+(?:[\\\\s,]\\d{3})*(?:\\.\\d{2})?)");
+    public static final Pattern funTimePricePattern = Pattern.compile("\\$(\\d+(?:[\\s,]\\d{3})*(?:\\.\\d{2})?)");
 
     private AuctionUtils() {}
 
