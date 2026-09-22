@@ -23,7 +23,7 @@ public class MultiSelectedButton extends AbstractComponent {
     private final String text;
     @Setter @Accessors(chain = true) private float alpha;
     private final kronex.fun.other.utils.display.other.animation.Animation alphaAnimation =
-            new DecelerateAnimation().setMs(300).setValue(0.5);
+            new DecelerateAnimation().setMs(300).setValue(0.5F);
 
     public MultiSelectedButton(MultiSelectSetting setting, String text) {
         this.setting = setting; this.text = text;
