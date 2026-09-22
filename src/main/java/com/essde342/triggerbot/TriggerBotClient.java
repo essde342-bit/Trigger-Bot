@@ -1,6 +1,6 @@
 package com.essde342.triggerbot;
 
-import com.essde342.triggerbot.ui.ClickGuiMain;
+import com.essde342.triggerbot.ui.MenuScreen;
 import com.essde342.triggerbot.ui.modules.ModuleManager;
 
 import net.fabricmc.api.ClientModInitializer;
@@ -58,8 +58,8 @@ public class TriggerBotClient implements ClientModInitializer {
 ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) {
-                    client.setScreen(new ClickGuiMain());
-                } else if (client.currentScreen instanceof ClickGuiMain) {
+                    client.setScreen(new MenuScreen());
+                } else if (client.currentScreen instanceof MenuScreen) {
                     client.setScreen(null);
                 }
             }
