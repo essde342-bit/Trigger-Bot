@@ -1,9 +1,8 @@
 package com.essde342.triggerbot;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.Session;
+import net.minecraft.client.session.Session;
 import com.essde342.triggerbot.mixin.MinecraftClientAccessor;
-import com.essde342.triggerbot.mixin.SessionAccessor;
 
 import java.io.File;
 import java.io.FileReader;
@@ -12,6 +11,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 public final class AltManager {
@@ -151,16 +151,15 @@ public final class AltManager {
         }
 
         Session current = client.getSession();
-        String accountType = ((SessionAccessor) (Object) current)
-                .triggerBot$getAccountType()
-                .name()
-                .toLowerCase(java.util.Locale.ROOT);
+        UUID uuid = current.getUuidOrNull();
 
         Session replacement = new Session(
                 normalized,
-                current.getUuid(),
+                uuid,
                 current.getAccessToken(),
-                accountType
+                current.getXuid(),
+                current.getClientId(),
+                current.getAccountType()
         );
 
         ((MinecraftClientAccessor) (Object) client).triggerBot$setSession(replacement);
