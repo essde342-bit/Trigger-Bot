@@ -1,9 +1,10 @@
 package com.essde342.triggerbot;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.GameOptions;
+import net.minecraft.client.option.SimpleOption;
 import net.minecraft.client.option.AoMode;
 import net.minecraft.client.option.CloudRenderMode;
-import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.GraphicsMode;
 import net.minecraft.client.option.ParticlesMode;
 
@@ -18,10 +19,10 @@ public final class TriggerBotOptimizer {
     private static int playerScanTimer = 0;
 
     private static int savedViewDistance;
-    private static float savedEntityDistance;
+    private static double savedEntityDistance;
     private static CloudRenderMode savedClouds;
     private static GraphicsMode savedGraphics;
-    private static AoMode savedAo;
+    private static boolean savedAo;
     private static ParticlesMode savedParticles;
     private static boolean savedEntityShadows;
     private static int savedBiomeBlend;
@@ -67,7 +68,6 @@ public final class TriggerBotOptimizer {
             apply(client);
         }
 
-        // Avoid scanning the whole player list every tick. This check is intentionally infrequent.
         if (++playerScanTimer >= 120) {
             playerScanTimer = 0;
             if (client.player != null && client.world != null) {
@@ -79,8 +79,9 @@ public final class TriggerBotOptimizer {
                     }
                 }
                 if (nearbyPlayers >= 8) {
-                    client.options.entityDistanceScaling =
-                            Math.min(client.options.entityDistanceScaling, 0.35F);
+                    client.options.getEntityDistanceScaling().setValue(
+                            Math.min(client.options.getEntityDistanceScaling().getValue(), 0.35D)
+                    );
                 }
             }
         }
@@ -144,15 +145,15 @@ public final class TriggerBotOptimizer {
     }
 
     private static void snapshot(GameOptions options) {
-        savedViewDistance = options.viewDistance;
-        savedEntityDistance = options.entityDistanceScaling;
-        savedClouds = options.cloudRenderMode;
-        savedGraphics = options.graphicsMode;
-        savedAo = options.ao;
-        savedParticles = options.particles;
-        savedEntityShadows = options.entityShadows;
-        savedBiomeBlend = options.biomeBlendRadius;
-        savedMipmapLevels = options.mipmapLevels;
+        savedViewDistance = options.getViewDistance().getValue();
+        savedEntityDistance = options.getEntityDistanceScaling().getValue();
+        savedClouds = options.getCloudRenderMode().getValue();
+        savedGraphics = options.getGraphicsMode().getValue();
+        savedAo = options.getAo().getValue();
+        savedParticles = options.getParticles().getValue();
+        savedEntityShadows = options.getEntityShadows().getValue();
+        savedBiomeBlend = options.getBiomeBlendRadius().getValue();
+        savedMipmapLevels = options.getMipmapLevels().getValue();
         snapshotTaken = true;
     }
 
@@ -160,19 +161,22 @@ public final class TriggerBotOptimizer {
         GameOptions options = client.options;
 
         int viewDistance = currentLevel == 2 ? 4 : (currentLevel == 1 ? 6 : 8);
-        float entityDistance = currentLevel == 2 ? 0.35F : (currentLevel == 1 ? 0.55F : 0.75F);
+        double entityDistance = currentLevel == 2 ? 0.35D : (currentLevel == 1 ? 0.55D : 0.75D);
 
-        options.viewDistance = Math.min(options.viewDistance, viewDistance);
-        options.entityDistanceScaling = Math.min(options.entityDistanceScaling, entityDistance);
-        options.cloudRenderMode = CloudRenderMode.OFF;
-        options.graphicsMode = GraphicsMode.FAST;
-        options.ao = currentLevel == 0 ? AoMode.MIN : AoMode.OFF;
-        options.particles = ParticlesMode.MINIMAL;
-        options.entityShadows = false;
-        options.biomeBlendRadius = 0;
-        options.mipmapLevels = 0;
+        SimpleOption<Integer> view = options.getViewDistance();
+        view.setValue(Math.min(view.getValue(), viewDistance));
+
+        SimpleOption<Double> entities = options.getEntityDistanceScaling();
+        entities.setValue(Math.min(entities.getValue(), entityDistance));
+
+        options.getCloudRenderMode().setValue(CloudRenderMode.OFF);
+        options.getGraphicsMode().setValue(GraphicsMode.FAST);
+        options.getAo().setValue(currentLevel == 0);
+        options.getParticles().setValue(ParticlesMode.MINIMAL);
+        options.getEntityShadows().setValue(false);
+        options.getBiomeBlendRadius().setValue(0);
+        options.getMipmapLevels().setValue(0);
         client.chunkCullingEnabled = true;
-        // Intentionally do not call options.write() here. Disk I/O during gameplay can cause stutters.
     }
 
     private static void restore(MinecraftClient client) {
@@ -182,15 +186,15 @@ public final class TriggerBotOptimizer {
         }
 
         GameOptions options = client.options;
-        options.viewDistance = savedViewDistance;
-        options.entityDistanceScaling = savedEntityDistance;
-        options.cloudRenderMode = savedClouds;
-        options.graphicsMode = savedGraphics;
-        options.ao = savedAo;
-        options.particles = savedParticles;
-        options.entityShadows = savedEntityShadows;
-        options.biomeBlendRadius = savedBiomeBlend;
-        options.mipmapLevels = savedMipmapLevels;
+        options.getViewDistance().setValue(savedViewDistance);
+        options.getEntityDistanceScaling().setValue(savedEntityDistance);
+        options.getCloudRenderMode().setValue(savedClouds);
+        options.getGraphicsMode().setValue(savedGraphics);
+        options.getAo().setValue(savedAo);
+        options.getParticles().setValue(savedParticles);
+        options.getEntityShadows().setValue(savedEntityShadows);
+        options.getBiomeBlendRadius().setValue(savedBiomeBlend);
+        options.getMipmapLevels().setValue(savedMipmapLevels);
         options.write();
 
         active = false;
@@ -200,20 +204,7 @@ public final class TriggerBotOptimizer {
     }
 
     private static int readFps(MinecraftClient client) {
-        if (client.fpsDebugString == null) {
-            return 0;
-        }
-
-        int value = 0;
-        for (int i = 0; i < client.fpsDebugString.length(); i++) {
-            char ch = client.fpsDebugString.charAt(i);
-            if (Character.isDigit(ch)) {
-                value = value * 10 + (ch - '0');
-            } else if (value > 0) {
-                break;
-            }
-        }
-        return value;
+        return client.getCurrentFps();
     }
 
     private static int clamp(int value, int min, int max) {
