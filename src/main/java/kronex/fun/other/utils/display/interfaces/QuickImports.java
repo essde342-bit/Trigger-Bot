@@ -74,9 +74,9 @@ public interface QuickImports {
             return delegate;
         }
 
-        public void add(AbstractWindow window) {
-            delegate().add(window);
-        }
+        public void add(AbstractWindow window) { delegate().add(window); }
+        public java.util.List<AbstractWindow> getWindows() { return delegate().getWindows(); }
+        public void delete(AbstractWindow window) { delegate().delete(window); }
 
         public void render(DrawContext context, int mouseX, int mouseY, float delta) {
             GuiRenderContext.set(context);
