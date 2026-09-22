@@ -55,13 +55,14 @@ public class TriggerBotClient implements ClientModInitializer {
         ));
 
         TargetESP.register();
+        LightningESP.register();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) {
-                    client.openScreen(new ClickGuiMain());
+                    client.setScreen(new ClickGuiMain());
                 } else if (client.currentScreen instanceof ClickGuiMain) {
-                    client.openScreen(null);
+                    client.setScreen(null);
                 }
             }
 
@@ -70,11 +71,9 @@ public class TriggerBotClient implements ClientModInitializer {
 
             if (client.player != null && client.world != null) {
                 TriggerBotOptimizer.tick(client);
+                LightningESP.tick(client);
             }
 
-            // Combat target selection runs before ESP so the ESP can follow the exact
-            // target currently used by Aim Assist / TriggerBot.
-            // Vanilla attack cooldown remains the only attack-rate limiter.
             if (client.player != null && client.world != null) {
                 if (CONFIG.aimAssist) {
                     tickAimAssist(client);
@@ -138,14 +137,14 @@ public class TriggerBotClient implements ClientModInitializer {
                 0.38D
         );
 
-        float yawDelta = MathHelper.wrapDegrees(targetYaw - player.yaw);
-        float pitchDelta = targetPitch - player.pitch;
+        float yawDelta = MathHelper.wrapDegrees(targetYaw - player.getYaw());
+        float pitchDelta = targetPitch - player.getPitch();
 
         float yawStep = MathHelper.clamp(yawDelta * smoothing, -10.0F, 10.0F);
         float pitchStep = MathHelper.clamp(pitchDelta * smoothing, -7.0F, 7.0F);
 
-        player.yaw += yawStep;
-        player.pitch = MathHelper.clamp(player.pitch + pitchStep, -90.0F, 90.0F);
+        player.setYaw(player.getYaw() + yawStep);
+        player.setPitch(MathHelper.clamp(player.getPitch() + pitchStep, -90.0F, 90.0F));
     }
 
     private static void tickTriggerBot(MinecraftClient client) {
@@ -248,11 +247,11 @@ public class TriggerBotClient implements ClientModInitializer {
 
         if (enabled) {
             if (!fullbrightSnapshotTaken) {
-                savedGamma = client.options.gamma;
+                savedGamma = client.options.getGamma().getValue();
                 fullbrightSnapshotTaken = true;
             }
 
-            client.options.gamma = clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D);
+            client.options.getGamma().setValue(clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D));
         } else {
             restoreOriginalGamma(client);
         }
@@ -264,7 +263,7 @@ public class TriggerBotClient implements ClientModInitializer {
         }
 
         if (fullbrightSnapshotTaken) {
-            client.options.gamma = savedGamma;
+            client.options.getGamma().setValue(savedGamma);
             fullbrightSnapshotTaken = false;
         }
     }
@@ -285,13 +284,16 @@ public class TriggerBotClient implements ClientModInitializer {
 
         if (CONFIG.fullbright) {
             if (!fullbrightSnapshotTaken) {
-                savedGamma = client.options.gamma;
+                savedGamma = client.options.getGamma().getValue();
                 fullbrightSnapshotTaken = true;
             }
 
-            client.options.gamma = clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D);
+            client.options.getGamma().setValue(clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D));
+        } else if (fullbrightSnapshotTaken) {
+            restoreOriginalGamma(client);
         }
     }
+
     public static PlayerEntity getCurrentCombatTarget() {
         if (aimTarget != null && aimTarget.isAlive()) {
             return aimTarget;
@@ -352,7 +354,6 @@ public class TriggerBotClient implements ClientModInitializer {
             writer.write("}\n");
         } catch (IOException ignored) {
         }
-
     }
 
     public static void loadConfig() {
