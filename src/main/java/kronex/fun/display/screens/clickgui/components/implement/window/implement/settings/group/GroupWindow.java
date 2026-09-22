@@ -33,7 +33,7 @@ public class GroupWindow extends AbstractWindow {
     @Override
     public void drawWindow(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrix = context.getMatrices();
-        ScissorAssist scissorManager = Kronex.getInstance().scissorManager;
+        ScissorAssist scissorManager = Kronex.getInstance().getScissorManager();
         height = MathHelper.clamp(getComponentHeight(), 0, 200);
         rectangle.render(ShapeProperties.create(matrix, x, y, width, height)
                 .round(4).thickness(2).softness(1).outlineColor(ColorAssist.getOutline()).color(ColorAssist.getGuiRectColor(1)).build());
