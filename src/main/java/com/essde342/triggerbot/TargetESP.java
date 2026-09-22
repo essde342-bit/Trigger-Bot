@@ -106,7 +106,7 @@ public final class TargetESP {
         }
 
         Vec3d camera = context.camera().getPos();
-        Vec3d pos = interpolate(target, context.tickDelta());
+        Vec3d pos = target.getLerpedPos(context.tickCounter().getTickDelta(false));
 
         double x = pos.x - camera.x;
         double y = pos.y - camera.y;
@@ -146,17 +146,9 @@ public final class TargetESP {
             float px = (float) (x + Math.cos(angle) * radius);
             float pz = (float) (z + Math.sin(angle) * radius);
 
-            buffer.vertex(entry.getModel(), px, (float) y, pz)
+            buffer.vertex(entry.getPositionMatrix(), px, (float) y, pz)
                     .color(red, green, blue, alpha)
                     .next();
         }
-    }
-
-    private static Vec3d interpolate(Entity entity, float tickDelta) {
-        return new Vec3d(
-                entity.prevX + (entity.getX() - entity.prevX) * tickDelta,
-                entity.prevY + (entity.getY() - entity.prevY) * tickDelta,
-                entity.prevZ + (entity.getZ() - entity.prevZ) * tickDelta
-        );
     }
 }
