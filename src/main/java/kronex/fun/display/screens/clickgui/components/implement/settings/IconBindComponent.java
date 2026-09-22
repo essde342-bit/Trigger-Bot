@@ -29,7 +29,7 @@ public class IconBindComponent extends AbstractSettingComponent {
     @Override public void render(DrawContext context,int mouseX,int mouseY,float delta){
         MatrixStack matrix=context.getMatrices(); String bindName=getBindName(setting.getKey());
         String name=binding?"("+bindName+") ...":bindName; float stringWidth=Fonts.getSize(12,SEMI).getStringWidth(name)-2; height=22;
-        rectangle.render(ShapeProperties.create(matrix,x+width-stringWidth-17,y+6.5f,stringWidth+10).round(3f)
+        rectangle.render(ShapeProperties.create(matrix,x+width-stringWidth-17,y+6.5f,stringWidth+10,12).round(3f)
             .outlineColor(new Color(200,200,200,255).getRGB()).color(new Color(61,67,71,80).getRGB(),new Color(71,77,81,80).getRGB(),new Color(81,87,91,80).getRGB(),new Color(91,97,101,80).getRGB()).build());
         Fonts.getSize(12,SEMI).drawString(matrix,name,x+width-12-stringWidth-1,y+12.25f,ColorHelper.getArgb(255,135,136,148));
         Fonts.getSize(14,DEFAULT).drawString(matrix,setting.getName(),x+8,y+12.25f,0xFFD4D6E1);
