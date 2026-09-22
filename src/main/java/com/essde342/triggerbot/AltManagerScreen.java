@@ -1,11 +1,11 @@
 package com.essde342.triggerbot;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.text.LiteralText;
+import net.minecraft.text.Text;
 
 import java.util.List;
 
@@ -19,7 +19,7 @@ public final class AltManagerScreen extends Screen {
     private String status = "";
 
     private AltManagerScreen(Screen parent) {
-        super(new LiteralText("Alt Manager"));
+        super(Text.literal("Alt Manager"));
         this.parent = parent;
     }
 
@@ -33,20 +33,19 @@ public final class AltManagerScreen extends Screen {
     }
 
     private void rebuildWidgets() {
-        this.buttons.clear();
-        this.children.clear();
+        clearChildren();
 
         int center = this.width / 2;
         int inputWidth = Math.min(260, this.width - 20);
         int inputX = center - inputWidth / 2;
 
-        nicknameField = this.addButton(new TextFieldWidget(
+        nicknameField = addDrawableChild(new TextFieldWidget(
                 this.textRenderer,
                 inputX,
                 40,
                 inputWidth,
                 20,
-                new LiteralText("Nickname")
+                Text.literal("Nickname")
         ));
         nicknameField.setMaxLength(16);
         nicknameField.setSuggestion("3-16 chars");
@@ -57,23 +56,13 @@ public final class AltManagerScreen extends Screen {
         int smallWidth = 78;
         int gap = 4;
 
-        this.addButton(new ButtonWidget(
-                center - smallWidth - gap / 2,
-                buttonY,
-                smallWidth,
-                20,
-                new LiteralText("Apply"),
-                button -> applyFromField()
-        ));
+        addDrawableChild(ButtonWidget.builder(Text.literal("Apply"), button -> applyFromField())
+                .dimensions(center - smallWidth - gap / 2, buttonY, smallWidth, 20)
+                .build());
 
-        this.addButton(new ButtonWidget(
-                center + gap / 2,
-                buttonY,
-                smallWidth,
-                20,
-                new LiteralText("Save"),
-                button -> saveFromField()
-        ));
+        addDrawableChild(ButtonWidget.builder(Text.literal("Save"), button -> saveFromField())
+                .dimensions(center + gap / 2, buttonY, smallWidth, 20)
+                .build());
 
         List<String> alts = AltManager.getAll();
         int maxOffset = Math.max(0, alts.size() - MAX_VISIBLE);
@@ -88,13 +77,13 @@ public final class AltManagerScreen extends Screen {
         int end = Math.min(alts.size(), scrollOffset + MAX_VISIBLE);
         for (int index = scrollOffset; index < end; index++) {
             final int altIndex = index;
-            TextFieldWidget altField = this.addButton(new TextFieldWidget(
+            TextFieldWidget altField = addDrawableChild(new TextFieldWidget(
                     this.textRenderer,
                     listX,
                     rowY,
                     fieldWidth,
                     20,
-                    new LiteralText("Saved alt")
+                    Text.literal("Saved alt")
             ));
             altField.setMaxLength(16);
             altField.setText(alts.get(index));
@@ -102,30 +91,20 @@ public final class AltManagerScreen extends Screen {
             altField.setFocusUnlocked(false);
             altField.setDrawsBackground(true);
 
-            this.addButton(new ButtonWidget(
-                    listX + fieldWidth + 4,
-                    rowY,
-                    deleteWidth,
-                    20,
-                    new LiteralText("Delete"),
-                    button -> {
+            addDrawableChild(ButtonWidget.builder(Text.literal("Delete"), button -> {
                         AltManager.remove(altIndex);
                         status = "";
                         rebuildWidgets();
-                    }
-            ));
+                    })
+                    .dimensions(listX + fieldWidth + 4, rowY, deleteWidth, 20)
+                    .build());
 
             rowY += ROW_HEIGHT;
         }
 
-        this.addButton(new ButtonWidget(
-                center - 75,
-                this.height - 28,
-                150,
-                20,
-                new LiteralText("Close"),
-                button -> onClose()
-        ));
+        addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> onClose())
+                .dimensions(center - 75, this.height - 28, 150, 20)
+                .build());
     }
 
     private void applyFromField() {
@@ -191,14 +170,14 @@ public final class AltManagerScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         List<String> alts = AltManager.getAll();
         int maxOffset = Math.max(0, alts.size() - MAX_VISIBLE);
 
         if (maxOffset > 0 && mouseY >= 94 && mouseY <= this.height - 42) {
-            if (amount < 0) {
+            if (verticalAmount < 0) {
                 scrollOffset = Math.min(maxOffset, scrollOffset + 1);
-            } else if (amount > 0) {
+            } else if (verticalAmount > 0) {
                 scrollOffset = Math.max(0, scrollOffset - 1);
             }
 
@@ -206,7 +185,7 @@ public final class AltManagerScreen extends Screen {
             return true;
         }
 
-        return super.mouseScrolled(mouseX, mouseY, amount);
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     @Override
@@ -217,50 +196,52 @@ public final class AltManagerScreen extends Screen {
     }
 
     @Override
-    public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
-        this.renderBackground(matrices);
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        renderBackground(context, mouseX, mouseY, delta);
 
         int center = this.width / 2;
         List<String> alts = AltManager.getAll();
 
-        drawCenteredText(
-                matrices,
+        context.drawCenteredTextWithShadow(
                 this.textRenderer,
-                new LiteralText("Alt Manager"),
+                Text.literal("Alt Manager"),
                 center,
                 12,
                 0xFFFFFF
         );
 
-        drawCenteredText(
-                matrices,
+        context.drawCenteredTextWithShadow(
                 this.textRenderer,
-                new LiteralText("Saved: " + alts.size()),
+                Text.literal("Saved: " + alts.size()),
                 center,
                 28,
                 0xAAAAAA
         );
 
         if (!status.isEmpty()) {
-            drawCenteredText(
-                    matrices,
+            context.drawCenteredTextWithShadow(
                     this.textRenderer,
-                    new LiteralText(status),
+                    Text.literal(status),
                     center,
                     this.height - 44,
                     0xFFFFFF
             );
         }
 
-        super.render(matrices, mouseX, mouseY, delta);
+        super.render(context, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public void close() {
+        AltManager.save();
+
+        if (this.client != null) {
+            this.client.setScreen(this.parent);
+        }
     }
 
     @Override
     public void onClose() {
-        AltManager.save();
-
-        if (this.client != null) {
-            this.client.openScreen(this.parent);
-        }
+        close();
     }
 }
