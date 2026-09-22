@@ -12,6 +12,7 @@ public final class ColorAssist {
     public static int getGuiRectColor(float alpha){return applyOpacity(0xFF181B22,alpha);}
     public static int getGuiRectColor2(float alpha){return applyOpacity(0xFF20242D,alpha);}
     public static int getOutline(){return 0xFF3A414D;}
+    public static int getOutline(float alpha){return applyOpacity(getOutline(),alpha);}
     public static int getOutline(float alpha,int ignored){return applyOpacity(getOutline(),alpha);}
     public static int rgba(int r,int g,int b,int a){return ((a&255)<<24)|((r&255)<<16)|((g&255)<<8)|(b&255);}
     public static int applyOpacity(int color,int alpha){int a=Math.max(0,Math.min(255,alpha));return (color&0x00FFFFFF)|(a<<24);}
