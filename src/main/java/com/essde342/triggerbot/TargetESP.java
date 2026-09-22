@@ -148,7 +148,7 @@ public final class TargetESP {
 
             buffer.vertex(entry.getPositionMatrix(), px, (float) y, pz)
                     .color(red, green, blue, alpha)
-                    .next();
+                    ;
         }
     }
 }
