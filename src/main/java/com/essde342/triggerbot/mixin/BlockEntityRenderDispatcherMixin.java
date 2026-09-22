@@ -16,7 +16,7 @@ public class BlockEntityRenderDispatcherMixin {
     private <E extends BlockEntity> void triggerBot$distanceCull(
             E blockEntity,
             float tickDelta,
-            net.minecraft.client.util.math.MatrixStack matrix,
+            net.minecraft.client.util.math.MatrixStack matrices,
             net.minecraft.client.render.VertexConsumerProvider vertexConsumers,
             CallbackInfo ci
     ) {
@@ -31,9 +31,15 @@ public class BlockEntityRenderDispatcherMixin {
             return;
         }
 
-        if (blockEntity.getPos().getSquaredDistance(player.getX(), player.getY(), player.getZ(), true)
-                > TriggerBotOptimizer.getBlockEntityRenderDistance()
-                    * TriggerBotOptimizer.getBlockEntityRenderDistance()) {
+        double distance = blockEntity.getPos().getSquaredDistance(
+                player.getX(),
+                player.getY(),
+                player.getZ(),
+                true
+        );
+        double limit = TriggerBotOptimizer.getBlockEntityRenderDistance();
+
+        if (distance > limit * limit) {
             ci.cancel();
         }
     }
