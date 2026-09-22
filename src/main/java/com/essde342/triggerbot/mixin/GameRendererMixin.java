@@ -1,46 +1,23 @@
 package com.essde342.triggerbot.mixin;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-
 import com.essde342.triggerbot.TriggerBotClient;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.Matrix4f;
-import net.minecraft.client.util.Window;
-import net.minecraft.client.MinecraftClient;
+import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Minimal Mixin bridge for the custom No Hurt Cam feature.
- *
- * The feature itself lives in TriggerBotClient; this bridge only cancels
- * vanilla GameRenderer#bobViewWhenHurt when the setting is enabled.
- */
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
     @Inject(method = "getBasicProjectionMatrix", at = @At("RETURN"), cancellable = true)
     private void triggerBot$applyAspectRatio(
-            net.minecraft.client.render.Camera camera,
-            float tickDelta,
-            boolean changingFov,
-            org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Matrix4f> cir
+            float fovDegrees,
+            CallbackInfoReturnable<Matrix4f> cir
     ) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.getWindow() == null) {
-            return;
-        }
-
-        Window window = client.getWindow();
-        int width = window.getFramebufferWidth();
-        int height = window.getFramebufferHeight();
-        if (width <= 0 || height <= 0) {
-            return;
-        }
-
-        float actualAspect = (float) width / (float) height;
         if (!TriggerBotClient.CONFIG.aspectRatioEnabled) {
             return;
         }
@@ -50,19 +27,31 @@ public abstract class GameRendererMixin {
             return;
         }
 
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) {
+            return;
+        }
+
+        int width = client.getWindow().getFramebufferWidth();
+        int height = client.getWindow().getFramebufferHeight();
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        float actualAspect = (float) width / (float) height;
         float correction = actualAspect / desiredAspect;
+
         Matrix4f projection = cir.getReturnValue();
-        projection.multiply(Matrix4f.scale(correction, 1.0F, 1.0F));
+        projection.scale(correction, 1.0F, 1.0F);
         cir.setReturnValue(projection);
     }
 
-
     @Inject(
-            method = "bobViewWhenHurt(Lnet/minecraft/client/util/math/MatrixStack;F)V",
+            method = "tiltViewWhenHurt(Lnet/minecraft/client/util/math/MatrixStack;F)V",
             at = @At("HEAD"),
             cancellable = true
     )
-    private void triggerBot$disableHurtCamera(
+    private void triggerBot$disableHurtTilt(
             MatrixStack matrices,
             float tickDelta,
             CallbackInfo info
@@ -72,4 +61,18 @@ public abstract class GameRendererMixin {
         }
     }
 
+    @Inject(
+            method = "bobView(Lnet/minecraft/client/util/math/MatrixStack;F)V",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void triggerBot$disableHurtBob(
+            MatrixStack matrices,
+            float tickDelta,
+            CallbackInfo info
+    ) {
+        if (TriggerBotClient.isNoHurtCamEnabled()) {
+            info.cancel();
+        }
+    }
 }
