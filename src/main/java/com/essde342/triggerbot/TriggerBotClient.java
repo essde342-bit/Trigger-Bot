@@ -196,7 +196,7 @@ public class TriggerBotClient implements ClientModInitializer {
                 savedGamma = client.options.getGamma().getValue();
                 fullbrightSnapshotTaken = true;
             }
-            client.options.getGamma().setValue(clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D));
+            client.options.getGamma().setValue(clampDouble(CONFIG.fullbrightGamma, 0.0D, 1.0D));
         } else {
             restoreOriginalGamma(client);
         }
@@ -317,7 +317,7 @@ public class TriggerBotClient implements ClientModInitializer {
             CONFIG.targetFps = clampInt(readInt(text, "targetFps", CONFIG.targetFps), 30, 60);
             CONFIG.fullbright = readBoolean(text, "fullbright", CONFIG.fullbright);
             CONFIG.noHurtCam = readBoolean(text, "noHurtCam", CONFIG.noHurtCam);
-            CONFIG.fullbrightGamma = clampDouble(readDouble(text, "fullbrightGamma", CONFIG.fullbrightGamma), 1.0D, 20.0D);
+            CONFIG.fullbrightGamma = clampDouble(readDouble(text, "fullbrightGamma", CONFIG.fullbrightGamma), 0.0D, 1.0D);
             CONFIG.bindTriggerBot = readInt(text, "bindTriggerBot", CONFIG.bindTriggerBot);
             CONFIG.bindAimAssist = readInt(text, "bindAimAssist", CONFIG.bindAimAssist);
             CONFIG.bindLightningEsp = readInt(text, "bindLightningEsp", CONFIG.bindLightningEsp);
