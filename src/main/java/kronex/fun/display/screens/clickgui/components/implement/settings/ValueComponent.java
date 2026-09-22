@@ -32,6 +32,6 @@ public class ValueComponent extends AbstractSettingComponent {
  }
  private void changeValue(float difference){
   BigDecimal bd=BigDecimal.valueOf((difference/SLIDER_WIDTH)*(setting.getMax()-setting.getMin())+setting.getMin()).setScale(2,RoundingMode.HALF_UP);
-  if(dragging){float value=difference==0?setting.getMin():bd.floatValue();if(setting.isInteger())value=(int)value;setting.setValue(value);}
+  if(dragging){float value=difference==0?(float)setting.getMin():bd.floatValue();if(setting.isInteger())value=(int)value;setting.setValue(value);}
  }
 }
