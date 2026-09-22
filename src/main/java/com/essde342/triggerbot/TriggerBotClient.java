@@ -1,6 +1,6 @@
 package com.essde342.triggerbot;
 
-import com.essde342.triggerbot.ui.MenuScreen;
+import kronex.fun.display.screens.clickgui.MenuScreen;
 import com.essde342.triggerbot.ui.modules.ModuleManager;
 
 import net.fabricmc.api.ClientModInitializer;
@@ -32,10 +32,8 @@ public class TriggerBotClient implements ClientModInitializer {
 
     private static KeyBinding openMenuKey;
     private static int optimizationTick = 0;
-
     private static boolean fullbrightSnapshotTaken = false;
     private static double savedGamma = 1.0D;
-
     private static PlayerEntity aimTarget;
     private static PlayerEntity triggerTarget;
     private static long lastTriggerAttackTime;
@@ -55,12 +53,12 @@ public class TriggerBotClient implements ClientModInitializer {
         ));
 
         TargetESP.register();
-ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) {
-                    client.setScreen(new MenuScreen());
+                    MenuScreen.INSTANCE.openGui();
                 } else if (client.currentScreen instanceof MenuScreen) {
-                    client.setScreen(null);
+                    client.currentScreen.keyPressed(GLFW.GLFW_KEY_ESCAPE, 0, 0);
                 }
             }
 
@@ -69,7 +67,7 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
             if (client.player != null && client.world != null) {
                 TriggerBotOptimizer.tick(client);
-}
+            }
 
             if (client.player != null && client.world != null) {
                 if (CONFIG.aimAssist) {
@@ -98,15 +96,9 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
         double bestDistance = CONFIG.aimAssistRange * CONFIG.aimAssistRange;
 
         for (PlayerEntity candidate : client.world.getPlayers()) {
-            if (candidate == player || !candidate.isAlive() || candidate.isSpectator()) {
-                continue;
-            }
-
+            if (candidate == player || !candidate.isAlive() || candidate.isSpectator()) continue;
             double distance = player.squaredDistanceTo(candidate);
-            if (distance >= bestDistance || !player.canSee(candidate)) {
-                continue;
-            }
-
+            if (distance >= bestDistance || !player.canSee(candidate)) continue;
             bestDistance = distance;
             target = candidate;
         }
@@ -117,26 +109,17 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
         }
 
         aimTarget = target;
-
         double dx = target.getX() - player.getX();
         double dz = target.getZ() - player.getZ();
-        double dy = target.getY() + target.getStandingEyeHeight() * 0.85D
-                - (player.getY() + player.getStandingEyeHeight());
+        double dy = target.getY() + target.getStandingEyeHeight() * 0.85D - (player.getY() + player.getStandingEyeHeight());
         double horizontal = Math.sqrt(dx * dx + dz * dz);
 
         float targetYaw = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
         float targetPitch = (float) -(Math.atan2(dy, horizontal) * 180.0D / Math.PI);
-
         double responseMs = Math.max(100.0D, CONFIG.aimAssistDurationMs);
-        float smoothing = (float) MathHelper.clamp(
-                1.0D - Math.exp(-50.0D / responseMs),
-                0.04D,
-                0.38D
-        );
-
+        float smoothing = (float) MathHelper.clamp(1.0D - Math.exp(-50.0D / responseMs), 0.04D, 0.38D);
         float yawDelta = MathHelper.wrapDegrees(targetYaw - player.getYaw());
         float pitchDelta = targetPitch - player.getPitch();
-
         float yawStep = MathHelper.clamp(yawDelta * smoothing, -10.0F, 10.0F);
         float pitchStep = MathHelper.clamp(pitchDelta * smoothing, -7.0F, 7.0F);
 
@@ -148,54 +131,33 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
         PlayerEntity player = client.player;
         triggerTarget = null;
 
-        if (!player.isAlive() || client.currentScreen != null || client.interactionManager == null) {
-            return;
-        }
+        if (!player.isAlive() || client.currentScreen != null || client.interactionManager == null) return;
 
         if (player.isUsingItem()) {
             ItemStack active = player.getActiveItem();
             if (active != null) {
                 UseAction action = active.getUseAction();
-                if (action == UseAction.EAT || action == UseAction.DRINK) {
-                    return;
-                }
+                if (action == UseAction.EAT || action == UseAction.DRINK) return;
             }
         }
 
-        if (CONFIG.onlyWeapon && !isWeapon(player.getMainHandStack())) {
-            return;
-        }
-
-        if (!(client.crosshairTarget instanceof EntityHitResult)) {
-            return;
-        }
+        if (CONFIG.onlyWeapon && !isWeapon(player.getMainHandStack())) return;
+        if (!(client.crosshairTarget instanceof EntityHitResult)) return;
 
         Entity target = ((EntityHitResult) client.crosshairTarget).getEntity();
         if (!(target instanceof PlayerEntity)
                 || target == player
                 || !target.isAlive()
-                || target.isSpectator()) {
-            return;
-        }
+                || target.isSpectator()) return;
 
-        if (player.squaredDistanceTo(target) > CONFIG.triggerRange * CONFIG.triggerRange) {
-            return;
-        }
-
+        if (player.squaredDistanceTo(target) > CONFIG.triggerRange * CONFIG.triggerRange) return;
         triggerTarget = (PlayerEntity) target;
 
-        if (player.getAttackCooldownProgress(0.0F) < 1.0F) {
-            return;
-        }
-
-        if (CONFIG.onlyCrits && !canCriticalHit(player, CONFIG.smartCrits)) {
-            return;
-        }
+        if (player.getAttackCooldownProgress(0.0F) < 1.0F) return;
+        if (CONFIG.onlyCrits && !canCriticalHit(player, CONFIG.smartCrits)) return;
 
         long now = System.currentTimeMillis();
-        if (now - lastTriggerAttackTime < CONFIG.triggerDelayMs) {
-            return;
-        }
+        if (now - lastTriggerAttackTime < CONFIG.triggerDelayMs) return;
 
         client.interactionManager.attackEntity(player, target);
         player.swingHand(Hand.MAIN_HAND);
@@ -203,9 +165,7 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
     }
 
     private static boolean isWeapon(ItemStack stack) {
-        return stack.getItem() instanceof SwordItem
-                || stack.getItem() instanceof AxeItem
-                || stack.getItem() instanceof TridentItem;
+        return stack.getItem() instanceof SwordItem || stack.getItem() instanceof AxeItem || stack.getItem() instanceof TridentItem;
     }
 
     private static boolean canCriticalHit(PlayerEntity player, boolean smart) {
@@ -215,18 +175,10 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
                 || player.isTouchingWater()
                 || player.hasVehicle()
                 || player.hasStatusEffect(StatusEffects.BLINDNESS)
-                || player.isSprinting()) {
-            return false;
-        }
+                || player.isSprinting()) return false;
 
-        if (player.getAttackCooldownProgress(0.0F) < 0.9F) {
-            return false;
-        }
-
-        if (smart && player.getVelocity().y > 0.0D) {
-            return false;
-        }
-
+        if (player.getAttackCooldownProgress(0.0F) < 0.9F) return false;
+        if (smart && player.getVelocity().y > 0.0D) return false;
         return true;
     }
 
@@ -237,17 +189,13 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
     public static void setFullbright(MinecraftClient client, boolean enabled) {
         CONFIG.fullbright = enabled;
-
-        if (client == null || client.options == null) {
-            return;
-        }
+        if (client == null || client.options == null) return;
 
         if (enabled) {
             if (!fullbrightSnapshotTaken) {
                 savedGamma = client.options.getGamma().getValue();
                 fullbrightSnapshotTaken = true;
             }
-
             client.options.getGamma().setValue(clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D));
         } else {
             restoreOriginalGamma(client);
@@ -255,10 +203,7 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
     }
 
     private static void restoreOriginalGamma(MinecraftClient client) {
-        if (client == null || client.options == null) {
-            return;
-        }
-
+        if (client == null || client.options == null) return;
         if (fullbrightSnapshotTaken) {
             client.options.getGamma().setValue(savedGamma);
             fullbrightSnapshotTaken = false;
@@ -275,16 +220,12 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
     }
 
     private static void applyVisualFeatures(MinecraftClient client) {
-        if (client == null || client.options == null) {
-            return;
-        }
-
+        if (client == null || client.options == null) return;
         if (CONFIG.fullbright) {
             if (!fullbrightSnapshotTaken) {
                 savedGamma = client.options.getGamma().getValue();
                 fullbrightSnapshotTaken = true;
             }
-
             client.options.getGamma().setValue(clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D));
         } else if (fullbrightSnapshotTaken) {
             restoreOriginalGamma(client);
@@ -292,28 +233,17 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
     }
 
     public static PlayerEntity getCurrentCombatTarget() {
-        if (aimTarget != null && aimTarget.isAlive()) {
-            return aimTarget;
-        }
-
-        if (triggerTarget != null && triggerTarget.isAlive()) {
-            return triggerTarget;
-        }
-
+        if (aimTarget != null && aimTarget.isAlive()) return aimTarget;
+        if (triggerTarget != null && triggerTarget.isAlive()) return triggerTarget;
         return null;
     }
 
     public static void saveConfig() {
-        if (ModuleManager.isInitialized()) {
-            ModuleManager.syncBindsToConfig();
-        }
+        if (ModuleManager.isInitialized()) ModuleManager.syncBindsToConfig();
 
         File file = getConfigFile();
         File parent = file.getParentFile();
-
-        if (!parent.exists() && !parent.mkdirs()) {
-            return;
-        }
+        if (!parent.exists() && !parent.mkdirs()) return;
 
         try (FileWriter writer = new FileWriter(file)) {
             writer.write("{\n");
@@ -355,7 +285,6 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
     public static void loadConfig() {
         File file = getConfigFile();
-
         if (!file.exists()) {
             saveConfig();
             return;
@@ -365,10 +294,7 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
             StringBuilder json = new StringBuilder();
             char[] buffer = new char[512];
             int read;
-
-            while ((read = reader.read(buffer)) != -1) {
-                json.append(buffer, 0, read);
-            }
+            while ((read = reader.read(buffer)) != -1) json.append(buffer, 0, read);
 
             String text = json.toString();
             CONFIG.enabled = readBoolean(text, "enabled", CONFIG.enabled);
@@ -391,12 +317,7 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
             CONFIG.targetFps = clampInt(readInt(text, "targetFps", CONFIG.targetFps), 30, 60);
             CONFIG.fullbright = readBoolean(text, "fullbright", CONFIG.fullbright);
             CONFIG.noHurtCam = readBoolean(text, "noHurtCam", CONFIG.noHurtCam);
-            CONFIG.fullbrightGamma = clampDouble(
-                    readDouble(text, "fullbrightGamma", CONFIG.fullbrightGamma),
-                    1.0D,
-                    20.0D
-            );
-
+            CONFIG.fullbrightGamma = clampDouble(readDouble(text, "fullbrightGamma", CONFIG.fullbrightGamma), 1.0D, 20.0D);
             CONFIG.bindTriggerBot = readInt(text, "bindTriggerBot", CONFIG.bindTriggerBot);
             CONFIG.bindAimAssist = readInt(text, "bindAimAssist", CONFIG.bindAimAssist);
             CONFIG.bindLightningEsp = readInt(text, "bindLightningEsp", CONFIG.bindLightningEsp);
@@ -406,11 +327,7 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
             CONFIG.bindNoHurtCam = readInt(text, "bindNoHurtCam", CONFIG.bindNoHurtCam);
             CONFIG.bindAspectRatio = readInt(text, "bindAspectRatio", CONFIG.bindAspectRatio);
             CONFIG.bindOptimization = readInt(text, "bindOptimization", CONFIG.bindOptimization);
-            CONFIG.bindAdaptiveOptimization = readInt(
-                    text,
-                    "bindAdaptiveOptimization",
-                    CONFIG.bindAdaptiveOptimization
-            );
+            CONFIG.bindAdaptiveOptimization = readInt(text, "bindAdaptiveOptimization", CONFIG.bindAdaptiveOptimization);
         } catch (IOException ignored) {
         }
     }
@@ -418,95 +335,41 @@ ClientTickEvents.END_CLIENT_TICK.register(client -> {
     private static int readInt(String json, String key, int fallback) {
         String needle = "\"" + key + "\"";
         int start = json.indexOf(needle);
-        if (start < 0) {
-            return fallback;
-        }
-
+        if (start < 0) return fallback;
         int colon = json.indexOf(':', start + needle.length());
-        if (colon < 0) {
-            return fallback;
-        }
-
+        if (colon < 0) return fallback;
         int end = colon + 1;
-        while (end < json.length() && Character.isWhitespace(json.charAt(end))) {
-            end++;
-        }
-
+        while (end < json.length() && Character.isWhitespace(json.charAt(end))) end++;
         int stop = end;
-        while (stop < json.length()
-                && (Character.isDigit(json.charAt(stop)) || json.charAt(stop) == '-')) {
-            stop++;
-        }
-
-        try {
-            return Integer.parseInt(json.substring(end, stop));
-        } catch (NumberFormatException ignored) {
-            return fallback;
-        }
+        while (stop < json.length() && (Character.isDigit(json.charAt(stop)) || json.charAt(stop) == '-')) stop++;
+        try { return Integer.parseInt(json.substring(end, stop)); } catch (NumberFormatException ignored) { return fallback; }
     }
 
     private static double readDouble(String json, String key, double fallback) {
         String needle = "\"" + key + "\"";
         int start = json.indexOf(needle);
-        if (start < 0) {
-            return fallback;
-        }
-
+        if (start < 0) return fallback;
         int colon = json.indexOf(':', start + needle.length());
-        if (colon < 0) {
-            return fallback;
-        }
-
+        if (colon < 0) return fallback;
         int end = colon + 1;
-        while (end < json.length() && Character.isWhitespace(json.charAt(end))) {
-            end++;
-        }
-
+        while (end < json.length() && Character.isWhitespace(json.charAt(end))) end++;
         int stop = end;
-        while (stop < json.length()
-                && "0123456789.-".indexOf(json.charAt(stop)) >= 0) {
-            stop++;
-        }
-
-        try {
-            return Double.parseDouble(json.substring(end, stop));
-        } catch (NumberFormatException ignored) {
-            return fallback;
-        }
+        while (stop < json.length() && "0123456789.-".indexOf(json.charAt(stop)) >= 0) stop++;
+        try { return Double.parseDouble(json.substring(end, stop)); } catch (NumberFormatException ignored) { return fallback; }
     }
 
-    private static int clampInt(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private static double clampDouble(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
+    private static int clampInt(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
+    private static double clampDouble(double value, double min, double max) { return Math.max(min, Math.min(max, value)); }
 
     private static boolean readBoolean(String json, String key, boolean fallback) {
         String needle = "\"" + key + "\"";
         int start = json.indexOf(needle);
-
-        if (start < 0) {
-            return fallback;
-        }
-
+        if (start < 0) return fallback;
         int colon = json.indexOf(':', start + needle.length());
-
-        if (colon < 0) {
-            return fallback;
-        }
-
+        if (colon < 0) return fallback;
         String value = json.substring(colon + 1).trim();
-
-        if (value.startsWith("true")) {
-            return true;
-        }
-
-        if (value.startsWith("false")) {
-            return false;
-        }
-
+        if (value.startsWith("true")) return true;
+        if (value.startsWith("false")) return false;
         return fallback;
     }
 

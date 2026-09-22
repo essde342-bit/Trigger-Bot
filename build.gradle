@@ -20,6 +20,9 @@ dependencies {
     mappings "net.fabricmc:yarn:" + project.yarn_mappings + ":v2"
     modImplementation "net.fabricmc:fabric-loader:" + project.loader_version
     modImplementation "net.fabricmc.fabric-api:fabric-api:" + project.fabric_version
+
+    compileOnly "org.projectlombok:lombok:1.18.36"
+    annotationProcessor "org.projectlombok:lombok:1.18.36"
 }
 
 processResources {
@@ -40,6 +43,6 @@ java {
 
 jar {
     from("LICENSE") {
-        rename { "LICENSE_" + project.archivesBaseName }
+        rename { "LICENSE_" + project.archives_baseName }
     }
 }
