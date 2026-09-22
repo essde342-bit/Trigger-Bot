@@ -34,7 +34,6 @@ public class EntityRenderDispatcherMixin {
             return;
         }
 
-        // Keep players visible farther away so TriggerBot/gameplay still feels normal.
         double distance = entity.squaredDistanceTo(localPlayer);
 
         double limit;
