@@ -72,7 +72,7 @@ public class MultiSelectComponent extends AbstractSettingComponent {
         rectangle.render(ShapeProperties.create(matrix, x1 - 3, y + 4, 66, 14)
                 .round(2).thickness(2).softness(0.5F).outlineColor(ColorAssist.getOutline()).color(ColorAssist.getGuiRectColor(0.5F)).build());
         String selectedName = String.join(", ", setting.getSelected());
-        ScissorAssist scissor = Kronex.getInstance().scissorManager;
+        ScissorAssist scissor = Kronex.getInstance().getScissorManager();
         scissor.push(matrix.peek().getPositionMatrix(), x1 - 2, (float) window.getScaledHeight() / 2 - 96, 64, 220);
         font.drawStringWithScroll(matrix, selectedName, x1, y + 10, 64, ColorAssist.getText());
         scissor.pop();
