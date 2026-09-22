@@ -31,12 +31,7 @@ public class BlockEntityRenderDispatcherMixin {
             return;
         }
 
-        double distance = blockEntity.getPos().getSquaredDistance(
-                player.getX(),
-                player.getY(),
-                player.getZ(),
-                true
-        );
+        double distance = blockEntity.getPos().getSquaredDistance(player.getPos());
         double limit = TriggerBotOptimizer.getBlockEntityRenderDistance();
 
         if (distance > limit * limit) {
