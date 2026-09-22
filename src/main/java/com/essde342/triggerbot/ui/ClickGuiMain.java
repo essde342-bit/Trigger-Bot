@@ -8,9 +8,8 @@ import com.essde342.triggerbot.ui.modules.Category;
 import com.essde342.triggerbot.ui.modules.Module;
 import com.essde342.triggerbot.ui.modules.ModuleManager;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
@@ -73,18 +72,18 @@ public final class ClickGuiMain extends Screen {
     }
 
     @Override
-    public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         recalculateScale();
 
-        DrawableHelper.fill(matrices, 0, 0, width, height, BACKDROP);
+        context.fill( 0, 0, width, height, BACKDROP);
 
-        matrices.push();
-        matrices.translate(originX, originY, 0.0D);
-        matrices.scale(scale, scale, 1.0F);
+        context.getMatrices().push();
+        context.getMatrices().translate(originX, originY, 0.0D);
+        context.getMatrices().scale(scale, scale, 1.0F);
 
-        drawMain(matrices, localX(mouseX), localY(mouseY));
+        drawMain(context, localX(mouseX), localY(mouseY));
 
-        matrices.pop();
+        context.getMatrices().pop();
     }
 
     private void recalculateScale() {
@@ -110,35 +109,35 @@ public final class ClickGuiMain extends Screen {
         return (int) ((y - originY) / scale);
     }
 
-    private void drawMain(MatrixStack matrices, int mx, int my) {
-        box(matrices, 0, 0, UI_W, UI_H, PANEL);
-        outline(matrices, 0, 0, UI_W, UI_H, BORDER);
+    private void drawMain(DrawContext context, int mx, int my) {
+        box(context, 0, 0, UI_W, UI_H, PANEL);
+        outline(context, 0, 0, UI_W, UI_H, BORDER);
 
-        drawText(matrices, "ASTRA", 14, 11, TEXT);
-        drawText(matrices, "CLIENT 1.0.0", 52, 13, MUTED);
-        drawText(matrices, "RSHIFT", UI_W - 51, 13, MUTED);
+        drawText(context, "ASTRA", 14, 11, TEXT);
+        drawText(context, "CLIENT 1.0.0", 52, 13, MUTED);
+        drawText(context, "RSHIFT", UI_W - 51, 13, MUTED);
 
-        DrawableHelper.fill(matrices, 0, 37, UI_W, 38, BORDER);
+        context.fill( 0, 37, UI_W, 38, BORDER);
 
         if (settingsModule == null) {
-            drawModuleView(matrices, mx, my);
+            drawModuleView(context, mx, my);
         } else {
-            drawSettingsView(matrices, mx, my);
+            drawSettingsView(context, mx, my);
         }
     }
 
-    private void drawModuleView(MatrixStack matrices, int mx, int my) {
-        drawCategories(matrices, mx, my);
+    private void drawModuleView(DrawContext context, int mx, int my) {
+        drawCategories(context, mx, my);
 
         int listX = 12;
         int listY = 82;
         int listW = UI_W - 24;
         int listH = UI_H - 104;
 
-        box(matrices, listX, listY, listW, listH, BACKDROP);
-        outline(matrices, listX, listY, listW, listH, BORDER);
+        box(context, listX, listY, listW, listH, BACKDROP);
+        outline(context, listX, listY, listW, listH, BORDER);
 
-        drawText(matrices, category.getDisplayName(), listX + 10, listY + 9, TEXT);
+        drawText(context, category.getDisplayName(), listX + 10, listY + 9, TEXT);
 
         List<Module> modules = ModuleManager.getByCategory(category);
 
@@ -152,7 +151,7 @@ public final class ClickGuiMain extends Screen {
                 boolean enabled = module.isEnabled();
 
                 box(
-                        matrices,
+                        context,
                         listX + 7,
                         rowY,
                         listW - 14,
@@ -162,7 +161,7 @@ public final class ClickGuiMain extends Screen {
 
                 if (enabled) {
                     DrawableHelper.fill(
-                            matrices,
+                            context,
                             listX + 7,
                             rowY,
                             listX + 10,
@@ -172,7 +171,7 @@ public final class ClickGuiMain extends Screen {
                 }
 
                 drawText(
-                        matrices,
+                        context,
                         fit(module.getName(), 150),
                         listX + 16,
                         rowY + 5,
@@ -180,7 +179,7 @@ public final class ClickGuiMain extends Screen {
                 );
 
                 drawText(
-                        matrices,
+                        context,
                         fit(module.getDesc(), 185),
                         listX + 16,
                         rowY + 19,
@@ -188,14 +187,14 @@ public final class ClickGuiMain extends Screen {
                 );
 
                 drawSwitch(
-                        matrices,
+                        context,
                         listX + listW - 74,
                         rowY + 7,
                         enabled
                 );
 
                 drawDots(
-                        matrices,
+                        context,
                         listX + listW - 20,
                         rowY + 8,
                         settingsModule == module
@@ -205,10 +204,10 @@ public final class ClickGuiMain extends Screen {
             rowY += 38;
         }
 
-        drawModuleScrollbar(matrices, listX, listY, listW, rowTop, rowBottom, modules);
+        drawModuleScrollbar(context, listX, listY, listW, rowTop, rowBottom, modules);
 
         drawText(
-                matrices,
+                context,
                 "Drag anywhere in the list • swipe on sliders to scroll",
                 14,
                 UI_H - 16,
@@ -216,7 +215,7 @@ public final class ClickGuiMain extends Screen {
         );
     }
 
-    private void drawCategories(MatrixStack matrices, int mx, int my) {
+    private void drawCategories(DrawContext context, int mx, int my) {
         int x = 10;
         int y = 46;
         int gap = 5;
@@ -228,7 +227,7 @@ public final class ClickGuiMain extends Screen {
             boolean hover = inside(mx, my, x, y, w, 27);
 
             box(
-                    matrices,
+                    context,
                     x,
                     y,
                     w,
@@ -237,7 +236,7 @@ public final class ClickGuiMain extends Screen {
             );
 
             drawCentered(
-                    matrices,
+                    context,
                     current.getDisplayName(),
                     x + w / 2,
                     y + 9,
@@ -249,7 +248,7 @@ public final class ClickGuiMain extends Screen {
     }
 
     private void drawModuleScrollbar(
-            MatrixStack matrices,
+            DrawContext context,
             int listX,
             int listY,
             int listW,
@@ -272,9 +271,9 @@ public final class ClickGuiMain extends Screen {
         double progress = moduleScroll / max;
         int barY = barTop + (int) ((viewport - barHeight) * progress);
 
-        box(matrices, barX, barTop, 4, viewport, PANEL_2);
+        box(context, barX, barTop, 4, viewport, PANEL_2);
         box(
-                matrices,
+                context,
                 barX,
                 barY,
                 4,
@@ -283,20 +282,20 @@ public final class ClickGuiMain extends Screen {
         );
     }
 
-    private void drawSettingsView(MatrixStack matrices, int mx, int my) {
+    private void drawSettingsView(DrawContext context, int mx, int my) {
         int x = 10;
         int y = 46;
         int w = UI_W - 20;
         int h = UI_H - 57;
 
-        box(matrices, x, y, w, h, BACKDROP);
-        outline(matrices, x, y, w, h, BORDER);
+        box(context, x, y, w, h, BACKDROP);
+        outline(context, x, y, w, h, BORDER);
 
-        drawText(matrices, fit(settingsModule.getName(), w - 82), x + 11, y + 9, TEXT);
-        drawText(matrices, "SETTINGS", x + 11, y + 24, MUTED);
+        drawText(context, fit(settingsModule.getName(), w - 82), x + 11, y + 9, TEXT);
+        drawText(context, "SETTINGS", x + 11, y + 24, MUTED);
 
-        box(matrices, x + w - 30, y + 7, 22, 22, CARD);
-        drawCentered(matrices, "X", x + w - 19, y + 14, MUTED);
+        box(context, x + w - 30, y + 7, 22, 22, CARD);
+        drawCentered(context, "X", x + w - 19, y + 14, MUTED);
 
         int contentX = x + 9;
         int contentW = w - 18;
@@ -309,7 +308,7 @@ public final class ClickGuiMain extends Screen {
                 int itemH = 31;
                 if (cursor + itemH >= top && cursor <= bottom) {
                     drawBoolean(
-                            matrices,
+                            context,
                             (BooleanSetting) setting,
                             contentX,
                             cursor,
@@ -323,7 +322,7 @@ public final class ClickGuiMain extends Screen {
                 int itemH = 53;
                 if (cursor + itemH >= top && cursor <= bottom) {
                     drawNumber(
-                            matrices,
+                            context,
                             (NumberSetting) setting,
                             contentX,
                             cursor,
@@ -336,11 +335,11 @@ public final class ClickGuiMain extends Screen {
             }
         }
 
-        drawSettingsScrollbar(matrices, x, w, top, bottom);
+        drawSettingsScrollbar(context, x, w, top, bottom);
 
         int bindY = y + h - 25;
-        box(matrices, contentX, bindY, contentW, 20, PANEL_2);
-        drawText(matrices, "BIND", contentX + 7, bindY + 6, MUTED);
+        box(context, contentX, bindY, contentW, 20, PANEL_2);
+        drawText(context, "BIND", contentX + 7, bindY + 6, MUTED);
 
         String bind = bindingModule == settingsModule
                 ? "PRESS KEY"
@@ -350,7 +349,7 @@ public final class ClickGuiMain extends Screen {
 
         String fittedBind = fit(bind, 82);
         drawText(
-                matrices,
+                context,
                 fittedBind,
                 contentX + contentW - 7 - mc.textRenderer.getWidth(fittedBind),
                 bindY + 6,
@@ -359,7 +358,7 @@ public final class ClickGuiMain extends Screen {
     }
 
     private void drawSettingsScrollbar(
-            MatrixStack matrices,
+            DrawContext context,
             int panelX,
             int panelW,
             int top,
@@ -378,9 +377,9 @@ public final class ClickGuiMain extends Screen {
         double progress = settingsScroll / max;
         int barY = top + (int) ((viewport - barHeight) * progress);
 
-        box(matrices, barX, top, 4, viewport, PANEL_2);
+        box(context, barX, top, 4, viewport, PANEL_2);
         box(
-                matrices,
+                context,
                 barX,
                 barY,
                 4,
@@ -390,7 +389,7 @@ public final class ClickGuiMain extends Screen {
     }
 
     private void drawBoolean(
-            MatrixStack matrices,
+            DrawContext context,
             BooleanSetting setting,
             int x,
             int y,
@@ -399,7 +398,7 @@ public final class ClickGuiMain extends Screen {
             int my
     ) {
         box(
-                matrices,
+                context,
                 x,
                 y,
                 w,
@@ -407,12 +406,12 @@ public final class ClickGuiMain extends Screen {
                 inside(mx, my, x, y, w, 31) ? HOVER : CARD
         );
 
-        drawText(matrices, fit(setting.getName(), w - 62), x + 9, y + 9, TEXT);
-        drawSwitch(matrices, x + w - 38, y + 7, setting.isEnabled());
+        drawText(context, fit(setting.getName(), w - 62), x + 9, y + 9, TEXT);
+        drawSwitch(context, x + w - 38, y + 7, setting.isEnabled());
     }
 
     private void drawNumber(
-            MatrixStack matrices,
+            DrawContext context,
             NumberSetting setting,
             int x,
             int y,
@@ -421,7 +420,7 @@ public final class ClickGuiMain extends Screen {
             int my
     ) {
         box(
-                matrices,
+                context,
                 x,
                 y,
                 w,
@@ -430,9 +429,9 @@ public final class ClickGuiMain extends Screen {
         );
 
         String value = format(setting);
-        drawText(matrices, fit(setting.getName(), w - 95), x + 9, y + 6, TEXT);
+        drawText(context, fit(setting.getName(), w - 95), x + 9, y + 6, TEXT);
         drawText(
-                matrices,
+                context,
                 value,
                 x + w - 9 - mc.textRenderer.getWidth(value),
                 y + 6,
@@ -444,7 +443,7 @@ public final class ClickGuiMain extends Screen {
         int sliderW = w - 18;
 
         DrawableHelper.fill(
-                matrices,
+                context,
                 sliderX,
                 sliderY,
                 sliderX + sliderW,
@@ -464,7 +463,7 @@ public final class ClickGuiMain extends Screen {
 
         if (fill > 0) {
             DrawableHelper.fill(
-                    matrices,
+                    context,
                     sliderX,
                     sliderY,
                     sliderX + fill,
@@ -474,7 +473,7 @@ public final class ClickGuiMain extends Screen {
         }
 
         DrawableHelper.fill(
-                matrices,
+                context,
                 sliderX + fill - 2,
                 sliderY - 3,
                 sliderX + fill + 3,
@@ -483,11 +482,11 @@ public final class ClickGuiMain extends Screen {
         );
     }
 
-    private void drawSwitch(MatrixStack matrices, int x, int y, boolean enabled) {
-        box(matrices, x, y, 30, 17, enabled ? ACCENT_DARK : OFF);
+    private void drawSwitch(DrawContext context, int x, int y, boolean enabled) {
+        box(context, x, y, 30, 17, enabled ? ACCENT_DARK : OFF);
 
         DrawableHelper.fill(
-                matrices,
+                context,
                 enabled ? x + 19 : x + 3,
                 y + 4,
                 enabled ? x + 26 : x + 10,
@@ -496,9 +495,9 @@ public final class ClickGuiMain extends Screen {
         );
     }
 
-    private void drawDots(MatrixStack matrices, int centerX, int y, boolean selected) {
+    private void drawDots(DrawContext context, int centerX, int y, boolean selected) {
         box(
-                matrices,
+                context,
                 centerX - 10,
                 y - 3,
                 20,
@@ -508,7 +507,7 @@ public final class ClickGuiMain extends Screen {
 
         for (int offset : new int[]{1, 8, 15}) {
             DrawableHelper.fill(
-                    matrices,
+                    context,
                     centerX - 1,
                     y + offset,
                     centerX + 2,
@@ -579,7 +578,7 @@ public final class ClickGuiMain extends Screen {
 
                 if (inside(x, y, dotX - 18, rowY - 3, 36, 39)) {
                     if ("Alt Manager".equals(module.getName())) {
-                        mc.openScreen(AltManagerScreen.create(this));
+                        mc.setScreen(AltManagerScreen.create(this));
                         return true;
                     }
 
@@ -892,17 +891,18 @@ public final class ClickGuiMain extends Screen {
     public boolean mouseScrolled(
             double mouseX,
             double mouseY,
-            double amount
+            double horizontalAmount,
+            double verticalAmount
     ) {
         if (settingsModule != null) {
             settingsScroll = clamp(
-                    settingsScroll - amount * 28.0D,
+                    settingsScroll - verticalAmount * 28.0D,
                     0.0D,
                     getMaxSettingsScroll()
             );
         } else {
             moduleScroll = clamp(
-                    moduleScroll - amount * 30.0D,
+                    moduleScroll - verticalAmount * 30.0D,
                     0.0D,
                     getMaxModuleScroll(ModuleManager.getByCategory(category))
             );
@@ -927,7 +927,7 @@ public final class ClickGuiMain extends Screen {
             if (settingsModule != null) {
                 closeSettings();
             } else {
-                mc.openScreen(null);
+                mc.setScreen(null);
             }
             return true;
         }
@@ -1063,24 +1063,24 @@ public final class ClickGuiMain extends Screen {
     }
 
     private void drawText(
-            MatrixStack matrices,
+            DrawContext context,
             String text,
             int x,
             int y,
             int color
     ) {
-        mc.textRenderer.draw(matrices, text, x, y, color);
+        context.drawText(mc.textRenderer, text, x, y, color, false);
     }
 
     private void drawCentered(
-            MatrixStack matrices,
+            DrawContext context,
             String text,
             int centerX,
             int y,
             int color
     ) {
         drawText(
-                matrices,
+                context,
                 text,
                 centerX - mc.textRenderer.getWidth(text) / 2,
                 y,
@@ -1112,7 +1112,7 @@ public final class ClickGuiMain extends Screen {
     }
 
     private void box(
-            MatrixStack matrices,
+            DrawContext context,
             int x,
             int y,
             int width,
@@ -1120,7 +1120,7 @@ public final class ClickGuiMain extends Screen {
             int color
     ) {
         DrawableHelper.fill(
-                matrices,
+                context,
                 x,
                 y,
                 x + width,
@@ -1130,25 +1130,25 @@ public final class ClickGuiMain extends Screen {
     }
 
     private void outline(
-            MatrixStack matrices,
+            DrawContext context,
             int x,
             int y,
             int width,
             int height,
             int color
     ) {
-        DrawableHelper.fill(matrices, x, y, x + width, y + 1, color);
+        context.fill( x, y, x + width, y + 1, color);
         DrawableHelper.fill(
-                matrices,
+                context,
                 x,
                 y + height - 1,
                 x + width,
                 y + height,
                 color
         );
-        DrawableHelper.fill(matrices, x, y, x + 1, y + height, color);
+        context.fill( x, y, x + 1, y + height, color);
         DrawableHelper.fill(
-                matrices,
+                context,
                 x + width - 1,
                 y,
                 x + width,
