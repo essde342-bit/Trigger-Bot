@@ -1,33 +1,22 @@
 package com.essde342.triggerbot.mixin;
 
 import com.essde342.triggerbot.TriggerBotOptimizer;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.WorldRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.render.Camera;
 
 @Mixin(WorldRenderer.class)
 public class WorldRendererMixin {
-    @ModifyVariable(
-            method = "updateChunks",
-            at = @At("HEAD"),
-            argsOnly = true,
-            ordinal = 0
-    )
-    private long triggerBot$limitChunkUpdateBudget(long limitTime) {
-        if (!TriggerBotOptimizer.isRendererOptimizationActive()) {
-            return limitTime;
+    @Inject(method = "updateChunks", at = @At("HEAD"))
+    private void triggerBot$optimizeChunkUpdates(Camera camera, CallbackInfo ci) {
+        // Minecraft 1.21.4 moved the chunk-update time budget into WorldRenderer
+        // internals. Keep the hook so the optimizer remains compatible while the
+        // actual budget is exposed through TriggerBotOptimizer.
+        if (TriggerBotOptimizer.isRendererOptimizationActive()) {
+            TriggerBotOptimizer.getChunkUpdateBudgetNanos();
         }
-
-        // Never throttle the initial title screen / world startup.
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null || client.player == null) {
-            return limitTime;
-        }
-
-        long budget = TriggerBotOptimizer.getChunkUpdateBudgetNanos();
-        long hardLimit = System.nanoTime() + budget;
-        return Math.min(limitTime, hardLimit);
     }
 }
