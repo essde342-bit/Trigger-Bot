@@ -2,7 +2,7 @@ package kronex.fun.display.screens.clickgui.components.implement.module;
 
 import kronex.fun.Kronex;
 import kronex.fun.display.screens.clickgui.components.AbstractComponent;
-import kronex.fun.display.screens.clickgui.components.implement.window.implement.module.ModuleSettingsWindow;
+import kronex.fun.display.screens.clickgui.components.implement.module.ModuleSettingsWindow;
 import kronex.fun.features.module.Module;
 import kronex.fun.other.utils.display.color.ColorAssist;
 import kronex.fun.other.utils.display.font.Fonts;
