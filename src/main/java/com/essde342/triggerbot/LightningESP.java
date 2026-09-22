@@ -1,18 +1,20 @@
 package com.essde342.triggerbot;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.Vec3d;
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
-import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -112,7 +114,7 @@ public final class LightningESP {
         }
 
         long now = System.currentTimeMillis();
-        Vec3d basePos = interpolate(lastTarget, context.tickDelta());
+        Vec3d basePos = lastTarget.getLerpedPos(context.tickCounter().getTickDelta(false));
 
         if (now - lastSpawn >= SPAWN_INTERVAL_MS && BOLTS.size() < MAX_BOLTS) {
             for (int i = 0; i < SPAWN_PER_WAVE && BOLTS.size() < MAX_BOLTS; i++) {
@@ -143,21 +145,21 @@ public final class LightningESP {
                 GlStateManager.SrcFactor.SRC_ALPHA,
                 GlStateManager.DstFactor.ONE
         );
-        RenderSystem.disableTexture();
         RenderSystem.disableCull();
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
-        RenderSystem.shadeModel(GL11.GL_SMOOTH);
-        RenderSystem.pushMatrix();
 
-        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        MatrixStackRef matrices = new MatrixStackRef(context);
 
-        // The LAST event already has the camera view transform active.
         for (int pass = 0; pass < 3; pass++) {
             float lineWidth = pass == 0 ? 5.5F : (pass == 1 ? 2.8F : 1.15F);
             RenderSystem.lineWidth(lineWidth);
+            RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
-            buffer.begin(GL11.GL_LINES, VertexFormats.POSITION_COLOR);
+            BufferBuilder buffer = Tessellator.getInstance().begin(
+                    VertexFormat.DrawMode.LINES,
+                    VertexFormats.POSITION_COLOR
+            );
 
             for (LightningBolt bolt : BOLTS) {
                 float life = (now - bolt.spawnTime) / (float) bolt.lifetimeMs;
@@ -178,32 +180,41 @@ public final class LightningESP {
                     Vec3d second = bolt.points.get(i + 1);
 
                     buffer.vertex(
-                            context.matrixStack().peek().getModel(),
+                            matrices.positionMatrix(),
                             (float) first.x,
                             (float) first.y,
                             (float) first.z
-                    ).color(r, g, b, a).next();
+                    ).color(r, g, b, a);
 
                     buffer.vertex(
-                            context.matrixStack().peek().getModel(),
+                            matrices.positionMatrix(),
                             (float) second.x,
                             (float) second.y,
                             (float) second.z
-                    ).color(r, g, b, a).next();
+                    ).color(r, g, b, a);
                 }
             }
 
-            Tessellator.getInstance().draw();
+            BufferRenderer.drawWithGlobalProgram(buffer);
         }
 
-        RenderSystem.popMatrix();
         RenderSystem.lineWidth(1.0F);
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
         RenderSystem.enableCull();
-        RenderSystem.enableTexture();
         RenderSystem.disableBlend();
-        RenderSystem.shadeModel(GL11.GL_FLAT);
+    }
+
+    private static final class MatrixStackRef {
+        private final net.minecraft.client.util.math.MatrixStack.Entry entry;
+
+        private MatrixStackRef(WorldRenderContext context) {
+            this.entry = context.matrixStack().peek();
+        }
+
+        private org.joml.Matrix4f positionMatrix() {
+            return entry.getPositionMatrix();
+        }
     }
 
     private static LightningBolt spawnBolt(PlayerEntity target, Vec3d basePos) {
@@ -291,14 +302,6 @@ public final class LightningESP {
                 Math.cos(yaw) * cosPitch,
                 Math.sin(pitch),
                 Math.sin(yaw) * cosPitch
-        );
-    }
-
-    private static Vec3d interpolate(Entity entity, float tickDelta) {
-        return new Vec3d(
-                entity.prevX + (entity.getX() - entity.prevX) * tickDelta,
-                entity.prevY + (entity.getY() - entity.prevY) * tickDelta,
-                entity.prevZ + (entity.getZ() - entity.prevZ) * tickDelta
         );
     }
 
