@@ -32,16 +32,13 @@ public class SliderComponent extends AbstractSettingComponent {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrix = context.getMatrices();
 
-        if (dragging && GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
-                GLFW.GLFW_MOUSE_BUTTON_LEFT) != GLFW.GLFW_PRESS) {
+        if (dragging && GLFW.glfwGetMouseButton(mc.getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) != GLFW.GLFW_PRESS) {
             dragging = false;
         }
 
         height = 28;
-
         String value = setting.isInteger() ? String.valueOf((int) setting.getValue()) : String.valueOf(setting.getValue());
         float valueW = Fonts.getSize(14, BOLD).getStringWidth(value);
-
         float nameX = x + 8;
         float nameY = y + 9f;
         float maxNameW = Math.max(0, (x + width - 9f - valueW - 6f) - nameX);
@@ -61,7 +58,6 @@ public class SliderComponent extends AbstractSettingComponent {
         float sliderX = x + 8;
         float sliderY = y + 22f;
         float sliderW = Math.max(40f, width - 17f);
-
         float diff = getDifference(mouseX, matrix, sliderX, sliderY, sliderW);
         changeValue(diff, sliderW);
     }
@@ -82,7 +78,7 @@ public class SliderComponent extends AbstractSettingComponent {
     }
 
     private float getDifference(int mouseX, MatrixStack matrix, float sliderX, float sliderY, float sliderW) {
-        float percentValue = sliderW * (setting.getValue() - setting.getMin()) / (setting.getMax() - setting.getMin());
+        float percentValue = (float) (sliderW * (setting.getValue() - setting.getMin()) / (setting.getMax() - setting.getMin()));
         float difference = MathHelper.clamp(mouseX - sliderX, 0, sliderW);
 
         animation = Calculate.interpolate((float) animation, percentValue);
@@ -96,14 +92,11 @@ public class SliderComponent extends AbstractSettingComponent {
         float v = MathHelper.clamp((float) (sliderX + animation), sliderX, sliderX + sliderW);
         blur.render(ShapeProperties.create(matrix, v - 3F, sliderY - 1F, 5, 5)
                 .round(3).softness(0).color(new Color(255, 255, 255, 220).getRGB()).build());
-
         return difference;
     }
 
     private void changeValue(float difference, float sliderW) {
-        BigDecimal bd = BigDecimal.valueOf((difference / sliderW) * (setting.getMax() - setting.getMin()) + setting.getMin())
-                .setScale(2, RoundingMode.HALF_UP);
-
+        BigDecimal bd = BigDecimal.valueOf((difference / sliderW) * (setting.getMax() - setting.getMin()) + setting.getMin()).setScale(2, RoundingMode.HALF_UP);
         if (dragging) {
             float value = difference == 0 ? (float) setting.getMin() : bd.floatValue();
             setting.setValue(snapValue(value));

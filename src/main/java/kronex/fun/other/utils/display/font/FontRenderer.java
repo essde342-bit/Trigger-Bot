@@ -19,22 +19,30 @@ public final class FontRenderer {
     }
 
     public void drawString(MatrixStack matrix, String text, float x, float y, int color) {
+        drawString(matrix, text, (double) x, (double) y, color);
+    }
+
+    public void drawString(MatrixStack matrix, String text, double x, double y, int color) {
         var context = kronex.fun.other.utils.display.GuiRenderContext.get();
         if (context == null) return;
         context.drawTextWithShadow(
                 MinecraftClient.getInstance().textRenderer,
                 net.minecraft.text.Text.literal(text == null ? "" : text),
-                Math.round(x),
-                Math.round(y),
+                (int) Math.round(x),
+                (int) Math.round(y),
                 color
         );
     }
 
     public void drawStringWithScroll(MatrixStack matrix, String text, float x, float y, float maxWidth, int color) {
-        drawString(matrix, text, x, y, color);
+        drawString(matrix, text, (double) x, (double) y, color);
     }
 
     public void drawGradientString(MatrixStack matrix, String text, float x, float y, int color1, int color2) {
+        drawGradientString(matrix, text, (double) x, (double) y, color1, color2);
+    }
+
+    public void drawGradientString(MatrixStack matrix, String text, double x, double y, int color1, int color2) {
         drawString(matrix, text, x, y, color1);
     }
 }
