@@ -67,7 +67,7 @@ public final class ClickGuiMain extends Screen {
     }
 
     @Override
-    public boolean isPauseScreen() {
+    public boolean shouldPause() {
         return false;
     }
 
@@ -160,8 +160,7 @@ public final class ClickGuiMain extends Screen {
                 );
 
                 if (enabled) {
-                    DrawableHelper.fill(
-                            context,
+                    context.fill(
                             listX + 7,
                             rowY,
                             listX + 10,
@@ -442,8 +441,7 @@ public final class ClickGuiMain extends Screen {
         int sliderY = y + 34;
         int sliderW = w - 18;
 
-        DrawableHelper.fill(
-                context,
+        context.fill(
                 sliderX,
                 sliderY,
                 sliderX + sliderW,
@@ -462,8 +460,7 @@ public final class ClickGuiMain extends Screen {
         int fill = (int) Math.round(sliderW * progress);
 
         if (fill > 0) {
-            DrawableHelper.fill(
-                    context,
+            context.fill(
                     sliderX,
                     sliderY,
                     sliderX + fill,
@@ -472,8 +469,7 @@ public final class ClickGuiMain extends Screen {
             );
         }
 
-        DrawableHelper.fill(
-                context,
+        context.fill(
                 sliderX + fill - 2,
                 sliderY - 3,
                 sliderX + fill + 3,
@@ -485,8 +481,7 @@ public final class ClickGuiMain extends Screen {
     private void drawSwitch(DrawContext context, int x, int y, boolean enabled) {
         box(context, x, y, 30, 17, enabled ? ACCENT_DARK : OFF);
 
-        DrawableHelper.fill(
-                context,
+        context.fill(
                 enabled ? x + 19 : x + 3,
                 y + 4,
                 enabled ? x + 26 : x + 10,
@@ -506,8 +501,7 @@ public final class ClickGuiMain extends Screen {
         );
 
         for (int offset : new int[]{1, 8, 15}) {
-            DrawableHelper.fill(
-                    context,
+            context.fill(
                     centerX - 1,
                     y + offset,
                     centerX + 2,
@@ -1119,8 +1113,7 @@ public final class ClickGuiMain extends Screen {
             int height,
             int color
     ) {
-        DrawableHelper.fill(
-                context,
+        context.fill(
                 x,
                 y,
                 x + width,
@@ -1138,8 +1131,7 @@ public final class ClickGuiMain extends Screen {
             int color
     ) {
         context.fill( x, y, x + width, y + 1, color);
-        DrawableHelper.fill(
-                context,
+        context.fill(
                 x,
                 y + height - 1,
                 x + width,
@@ -1147,8 +1139,7 @@ public final class ClickGuiMain extends Screen {
                 color
         );
         context.fill( x, y, x + 1, y + height, color);
-        DrawableHelper.fill(
-                context,
+        context.fill(
                 x + width - 1,
                 y,
                 x + width,
