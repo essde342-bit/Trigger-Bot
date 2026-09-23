@@ -178,10 +178,16 @@ public class CategoryComponent extends AbstractComponent {
                     .round(2.25F).thickness(2).outlineColor(outlineColor).color(bgColor).build());
         }
 
-        image.setTexture("textures/gui/categories/" + category.getTextureName() + ".png")
-                .render(ShapeProperties.create(matrix, x + 7, y + 4.5F, 8, 8).color(selectColor).build());
-
-        Fonts.getSize(14, Fonts.Type.BOLD).drawString(matrix, category.getReadableName(), (int) (x + 22), y + 7, selectColor);
+        String icon = switch (category) {
+            case COMBAT -> "⚔";
+            case MOVEMENT -> "✦";
+            case PLAYER -> "●";
+            case RENDER -> "◉";
+            case MISC -> "⚙";
+            case THEMES -> "◇";
+        };
+        Fonts.getSize(14, Fonts.Type.ICONS2).drawString(matrix, icon, x + 7, y + 5, selectColor);
+        Fonts.getSize(14, Fonts.Type.BOLD).drawString(matrix, category.getReadableName(), (int) (x + 22), y + 5, selectColor);
     }
 
     private int[] calculateOffsets() {
