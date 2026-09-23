@@ -41,9 +41,9 @@ public class BackgroundComponent extends AbstractComponent implements QuickImpor
                 .color(HudColorutility.getRectGradient(0.85F, 0.55F)).build());
 
         rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85, y, 0.5F, height)
-                .color(ColorAssist.getOutline(0.5F, 1)).build());
-        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85.5F, y + 28, width - 85.5F, 0.5F)
-                .color(ColorAssist.getOutline(0.5F, 1)).build());
+                .color(ColorAssist.applyOpacity(ColorAssist.getOutline(), 90)).build());
+        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85, y + 28, width - 85, 0.5F)
+                .color(ColorAssist.applyOpacity(ColorAssist.getOutline(), 70)).build());
 
         renderBrand(context, mouseX, mouseY);
         renderSocialButtons(context, mouseX, mouseY);
@@ -93,18 +93,18 @@ public class BackgroundComponent extends AbstractComponent implements QuickImpor
         bWidth = iconSize;
         bHeight = iconSize;
 
-        renderSocialButton(context, "A", aX, aY, aWidth, aHeight, isHoverA(mouseX, mouseY));
-        renderSocialButton(context, "B", bX, bY, bWidth, bHeight, isHoverB(mouseX, mouseY));
+        renderSocialButton(context, "◉", aX, aY, aWidth, aHeight, isHoverA(mouseX, mouseY));
+        renderSocialButton(context, "➤", bX, bY, bWidth, bHeight, isHoverB(mouseX, mouseY));
     }
 
     private void renderSocialButton(DrawContext context, String label, float buttonX, float buttonY, float buttonW, float buttonH, boolean hovered) {
         MatrixStack matrix = context.getMatrices();
 
-        float textW = Fonts.getSize(18, Fonts.Type.HUD).getStringWidth(label);
-        Fonts.getSize(18, Fonts.Type.HUD).drawString(matrix, label,
+        float textW = Fonts.getSize(15, Fonts.Type.ICONS2).getStringWidth(label);
+        Fonts.getSize(15, Fonts.Type.ICONS2).drawString(matrix, label,
                 buttonX + (buttonW - textW) / 2f,
-                buttonY + 11f,
-                hovered ? ColorAssist.getClientColor() : 0xFFD4D6E1);
+                buttonY + 10f,
+                hovered ? ColorAssist.getClientColor() : ColorAssist.getText());
     }
 
     @Override public void tick() {}
