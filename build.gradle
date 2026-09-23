@@ -25,52 +25,6 @@ dependencies {
     annotationProcessor "org.projectlombok:lombok:1.18.36"
 }
 
-def galahadFontDir = file("$buildDir/generated-resources/galahad")
-def galahadFont = file("$galahadFontDir/GalahadStd-Regular.otf")
-def galahadArchive = file("$buildDir/tmp/galahad/galahad-std.zip")
-def galahadUrl = "https://static.wfonts.com/download/data/2016/05/29/galahad-std/galahad-std.zip"
-
-tasks.register("downloadGalahadFont") {
-    outputs.file(galahadFont)
-
-    doLast {
-        if (galahadFont.exists() && galahadFont.length() > 0) {
-            return
-        }
-
-        galahadArchive.parentFile.mkdirs()
-        new URL(galahadUrl).withInputStream { input ->
-            galahadArchive.withOutputStream { output ->
-                output << input
-            }
-        }
-
-        galahadFontDir.mkdirs()
-        copy {
-            from zipTree(galahadArchive)
-            include "GalahadStd-Regular.otf"
-            into galahadFontDir
-        }
-
-        if (!galahadFont.exists()) {
-            throw new GradleException("GalahadStd-Regular.otf was not found in downloaded archive")
-        }
-    }
-}
-
-processResources {
-    dependsOn tasks.named("downloadGalahadFont")
-    from(galahadFontDir) {
-        into("assets/triggerbot/fonts")
-        include "GalahadStd-Regular.otf"
-    }
-
-    inputs.property "version", project.version
-    filesMatching("fabric.mod.json") {
-        expand "version": project.version
-    }
-}
-
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = "UTF-8"
     it.options.release = 21
