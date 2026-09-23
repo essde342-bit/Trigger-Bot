@@ -64,7 +64,9 @@ public class ModuleComponent extends AbstractComponent {
                     .round(5, 0, 5, 0).color(ColorAssist.applyOpacity(ColorAssist.getClientColor(), (int) (enableAnim * 100))).build());
         }
         rectangle.render(ShapeProperties.create(context.getMatrices(), x, y, width, height = getComponentHeight())
-                .round(5).softness(1).thickness(2.2F).outlineColor(0x902d2e41).color(0x002d2e41).build());
+                .round(5).softness(0.8F).thickness(1F)
+                .outlineColor(ColorAssist.applyOpacity(ColorAssist.getOutline(), 120))
+                .color(ColorAssist.getGuiRectColor(1)).build());
 
         Fonts.getSize(14, BOLD).drawString(context.getMatrices(), module.getVisibleName(), x + 10, y + 8, enableAnim > 0.5f ? 0xFFFFFFFF : 0xFFD4D6E1);
         drawBind(context);
@@ -148,8 +150,9 @@ public class ModuleComponent extends AbstractComponent {
     }
 
     private void drawBind(DrawContext context) {
-        float iconWidth = Fonts.getSize(16, Fonts.Type.HUD).getStringWidth("f");
-        Fonts.getSize(16, Fonts.Type.HUD).drawString(context.getMatrices(), "f", getBindX() + (getBindWidth() - iconWidth) / 2f, getBindY() + 4.2f, 0xFFFFFFFF);
+        float iconWidth = Fonts.getSize(13, Fonts.Type.ICONS2).getStringWidth("⚙");
+        Fonts.getSize(13, Fonts.Type.ICONS2).drawString(context.getMatrices(), "⚙",
+                getBindX() + (getBindWidth() - iconWidth) / 2f, getBindY() + 2.5f, ColorAssist.getText());
     }
 
     private float getBindX() { return x + width - 21f; }
