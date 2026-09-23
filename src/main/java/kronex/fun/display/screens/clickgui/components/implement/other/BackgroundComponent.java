@@ -7,9 +7,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Util;
 import kronex.fun.display.screens.clickgui.MenuScreen;
 import kronex.fun.display.screens.clickgui.components.AbstractComponent;
-import kronex.fun.features.impl.render.hud.utils.HudUtil;
 import kronex.fun.other.utils.display.color.ColorAssist;
-import kronex.fun.other.utils.display.color.HudColorutility;
 import kronex.fun.other.utils.display.font.Fonts;
 import kronex.fun.other.utils.display.interfaces.QuickImports;
 import kronex.fun.other.utils.display.other.animation.Animation;
@@ -33,12 +31,14 @@ public class BackgroundComponent extends AbstractComponent implements QuickImpor
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrix = context.getMatrices();
 
-        HudUtil.drawHudBlur(ShapeProperties.create(matrix, x, y, width, height).round(6).softness(1)
-                .thickness(0).color(HudColorutility.getRectGradient(0.85F, 0.55F)).build());
+        rectangle.render(ShapeProperties.create(matrix, x, y, width, height)
+                .round(6F).color(ColorAssist.BACKGROUND).build());
 
-        HudUtil.drawHudBlur(ShapeProperties.create(matrix, x + 85, y + 28, width - 85, height - 28)
-                .round(4f).softness(1).thickness(0)
-                .color(HudColorutility.getRectGradient(0.85F, 0.55F)).build());
+        rectangle.render(ShapeProperties.create(matrix, x + 85, y, width - 85, height)
+                .round(4F).color(ColorAssist.HEADER).build());
+
+        rectangle.render(ShapeProperties.create(matrix, x + 85, y + 28, width - 85, height - 28)
+                .round(4F).color(ColorAssist.PANEL).build());
 
         rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85, y, 0.5F, height)
                 .color(ColorAssist.applyOpacity(ColorAssist.getOutline(), 90)).build());
@@ -62,10 +62,6 @@ public class BackgroundComponent extends AbstractComponent implements QuickImpor
         textY = y + 14;
         textWidth = Fonts.getSize(18, Fonts.Type.BOLD).getStringWidth(kronexFunText);
         textHeight = 18;
-
-        HudUtil.drawHudBlur(ShapeProperties.create(matrix, textX - 4, textY - 2, textWidth + 8, 22)
-                .round(4).softness(1).thickness(0)
-                .color(HudColorutility.getRectGradient(0.85F, 0.55F)).build());
 
         boolean isHoverFun = isHoverFun(mouseX, mouseY);
         hoverAnimation.setDirection(isHoverFun ? Direction.FORWARDS : Direction.BACKWARDS);
