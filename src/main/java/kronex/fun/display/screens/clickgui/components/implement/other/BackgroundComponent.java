@@ -40,10 +40,6 @@ public class BackgroundComponent extends AbstractComponent implements QuickImpor
         rectangle.render(ShapeProperties.create(matrix, x + 85, y + 28, width - 85, height - 28)
                 .round(4F).color(ColorAssist.PANEL).build());
 
-        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85, y, 0.5F, height)
-                .color(ColorAssist.applyOpacity(ColorAssist.getOutline(), 90)).build());
-        rectangle.render(ShapeProperties.create(context.getMatrices(), x + 85, y + 28, width - 85, 0.5F)
-                .color(ColorAssist.applyOpacity(ColorAssist.getOutline(), 70)).build());
 
         renderBrand(context, mouseX, mouseY);
         renderSocialButtons(context, mouseX, mouseY);
