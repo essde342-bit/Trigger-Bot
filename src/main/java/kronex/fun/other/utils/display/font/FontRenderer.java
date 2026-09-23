@@ -170,8 +170,11 @@ public final class FontRenderer {
         }
 
         NativeImageBackedTexture texture = new NativeImageBackedTexture(nativeImage);
-        Identifier textureId = MinecraftClient.getInstance().getTextureManager()
-                .registerDynamicTexture("kronex_font", texture);
+        texture.setFilter(true, false);
+
+        Identifier textureId = Identifier.of("triggerbot", "kronex_font/" + Integer.toUnsignedString(
+                System.identityHashCode(texture), 36));
+        MinecraftClient.getInstance().getTextureManager().registerTexture(textureId, texture);
 
         return new CachedText(textureId, nativeImage, Math.max(1, image.getWidth() / RASTER_SCALE),
                 Math.max(1, image.getHeight() / RASTER_SCALE), image.getWidth(), image.getHeight());
