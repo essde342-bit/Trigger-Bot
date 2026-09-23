@@ -34,7 +34,6 @@ public final class FontRenderer {
                     if (client != null && client.getTextureManager() != null) {
                         client.getTextureManager().destroyTexture(eldest.getValue().texture);
                     }
-                    eldest.getValue().image.close();
                     return true;
                 }
             });
