@@ -37,7 +37,9 @@ public class SearchComponent extends AbstractComponent {
         height = 15;
 
         rectangle.render(ShapeProperties.create(matrix, x, y, width, height)
-                .round(2.5F).thickness(2).softness(0.5F).outlineColor(ColorAssist.getOutline()).color(ColorAssist.getGuiRectColor(0.5F)).build());
+                .round(3F).thickness(1F).softness(0.5F)
+                .outlineColor(ColorAssist.applyOpacity(ColorAssist.getOutline(), 150))
+                .color(ColorAssist.getGuiRectColor(0.72F)).build());
 
         String displayText = text.equalsIgnoreCase("") && !typing ? "Search" : text;
         ScissorAssist scissor = Kronex.getInstance().getScissorManager();
