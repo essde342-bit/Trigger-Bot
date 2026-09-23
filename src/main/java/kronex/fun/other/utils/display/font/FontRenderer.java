@@ -15,6 +15,9 @@ import java.awt.FontMetrics;
 import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.FontFormatException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.awt.image.BufferedImage;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -23,6 +26,8 @@ import java.util.Objects;
 
 public final class FontRenderer {
     private static final int RASTER_SCALE = 4;
+    private static final String FONT_RESOURCE = "/assets/triggerbot/fonts/GalahadStd Regular.otf";
+    private static final Font GALAHAD_FONT = loadGalahadFont();
     private static final int CACHE_LIMIT = 384;
 
     private static final Map<CacheKey, CachedText> CACHE =
@@ -186,12 +191,18 @@ public final class FontRenderer {
             default -> Font.PLAIN;
         };
 
-        String family = switch (type) {
-            case ICONS2 -> Font.SANS_SERIF;
-            default -> Font.SANS_SERIF;
-        };
+        return GALAHAD_FONT.deriveFont(style, Math.max(1F, pixelSize));
+    }
 
-        return new Font(family, style, Math.max(1, Math.round(pixelSize)));
+    private static Font loadGalahadFont() {
+        try (InputStream input = FontRenderer.class.getResourceAsStream(FONT_RESOURCE)) {
+            if (input == null) {
+                throw new IllegalStateException("Missing bundled Galahad font: " + FONT_RESOURCE);
+            }
+            return Font.createFont(Font.TRUETYPE_FONT, input);
+        } catch (FontFormatException | IOException e) {
+            throw new IllegalStateException("Unable to load bundled Galahad font: " + FONT_RESOURCE, e);
+        }
     }
 
     private static Graphics2D measureGraphics() {
