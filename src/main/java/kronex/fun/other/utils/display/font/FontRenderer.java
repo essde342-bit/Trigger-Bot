@@ -12,6 +12,8 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.io.IOException;
+import java.io.InputStream;
 import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -25,6 +27,7 @@ import java.util.Objects;
 public final class FontRenderer {
     private static final int RASTER_SCALE = 4;
     private static final int CACHE_LIMIT = 384;
+    private static final Font GALAHAD_FONT = loadGalahadFont();
     private static final Font GALAHAD_FONT = loadGalahadFont();
 
     private static final Map<CacheKey, CachedText> CACHE =
