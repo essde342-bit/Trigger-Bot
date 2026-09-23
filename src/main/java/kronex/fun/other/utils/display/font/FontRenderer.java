@@ -16,6 +16,10 @@ import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -24,6 +28,14 @@ import java.util.Objects;
 public final class FontRenderer {
     private static final int RASTER_SCALE = 4;
     private static final int CACHE_LIMIT = 384;
+    /*
+     * The supplied Galahad OTF is embedded as a small gzip/base64 resource set.
+     * Part 08 is intentionally stored before parts 05-07 on disk; this keeps
+     * the resource commits append-only while the loader reconstructs the exact
+     * original order here.
+     */
+    private static final int[] GALAHAD_PART_ORDER = {1, 2, 3, 4, 8, 5, 6, 7};
+    private static final Font GALAHAD_FONT = loadGalahadFont();
 
     private static final Map<CacheKey, CachedText> CACHE =
             Collections.synchronizedMap(new LinkedHashMap<>(256, 0.75F, true) {
@@ -186,12 +198,41 @@ public final class FontRenderer {
             default -> Font.PLAIN;
         };
 
-        String family = switch (type) {
-            case ICONS2 -> Font.SANS_SERIF;
-            default -> Font.SANS_SERIF;
-        };
+        if (type == Fonts.Type.ICONS2) {
+            return new Font(Font.SANS_SERIF, style, Math.max(1, Math.round(pixelSize)));
+        }
 
-        return new Font(family, style, Math.max(1, Math.round(pixelSize)));
+        return GALAHAD_FONT.deriveFont(style, Math.max(1F, pixelSize));
+    }
+
+    private static Font loadGalahadFont() {
+        StringBuilder encoded = new StringBuilder(59376);
+        ClassLoader loader = FontRenderer.class.getClassLoader();
+
+        try {
+            for (int part : GALAHAD_PART_ORDER) {
+                String suffix = part < 10 ? "0" + part : Integer.toString(part);
+                String resource = "assets/triggerbot/fonts/GalahadStd-Regular.otf.gz.b64.part" + suffix;
+
+                try (InputStream stream = loader.getResourceAsStream(resource)) {
+                    if (stream == null) {
+                        return fallbackFont();
+                    }
+                    encoded.append(new String(stream.readAllBytes(), StandardCharsets.US_ASCII));
+                }
+            }
+
+            byte[] compressed = Base64.getDecoder().decode(encoded.toString());
+            try (InputStream gzip = new java.util.zip.GZIPInputStream(new ByteArrayInputStream(compressed))) {
+                return Font.createFont(Font.TRUETYPE_FONT, gzip);
+            }
+        } catch (Exception ignored) {
+            return fallbackFont();
+        }
+    }
+
+    private static Font fallbackFont() {
+        return new Font(Font.SANS_SERIF, Font.PLAIN, 12);
     }
 
     private static Graphics2D measureGraphics() {
