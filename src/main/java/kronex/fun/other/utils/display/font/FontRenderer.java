@@ -12,13 +12,10 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
-import java.io.IOException;
-import java.io.InputStream;
 import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.InputStream;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -27,8 +24,6 @@ import java.util.Objects;
 public final class FontRenderer {
     private static final int RASTER_SCALE = 4;
     private static final int CACHE_LIMIT = 384;
-    private static final Font GALAHAD_FONT = loadGalahadFont();
-    private static final Font GALAHAD_FONT = loadGalahadFont();
 
     private static final Map<CacheKey, CachedText> CACHE =
             Collections.synchronizedMap(new LinkedHashMap<>(256, 0.75F, true) {
@@ -191,27 +186,12 @@ public final class FontRenderer {
             default -> Font.PLAIN;
         };
 
-        if (type == Fonts.Type.ICONS2) {
-            return new Font(Font.SANS_SERIF, style, Math.max(1, Math.round(pixelSize)));
-        }
+        String family = switch (type) {
+            case ICONS2 -> Font.SANS_SERIF;
+            default -> Font.SANS_SERIF;
+        };
 
-        return GALAHAD_FONT.deriveFont(style, Math.max(1F, pixelSize));
-    }
-
-    private static Font loadGalahadFont() {
-        try (InputStream stream = FontRenderer.class.getClassLoader()
-                .getResourceAsStream("assets/triggerbot/fonts/GalahadStd-Regular.otf")) {
-            if (stream == null) {
-                return fallbackFont();
-            }
-            return Font.createFont(Font.TRUETYPE_FONT, stream);
-        } catch (Exception ignored) {
-            return fallbackFont();
-        }
-    }
-
-    private static Font fallbackFont() {
-        return new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+        return new Font(family, style, Math.max(1, Math.round(pixelSize)));
     }
 
     private static Graphics2D measureGraphics() {
