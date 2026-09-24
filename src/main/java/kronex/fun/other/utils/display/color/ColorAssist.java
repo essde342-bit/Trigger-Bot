@@ -1,6 +1,5 @@
 package kronex.fun.other.utils.display.color;
 
-import java.awt.Color;
 
 public final class ColorAssist {
     public static final int BACKGROUND = rgba(16, 16, 18, 255);
@@ -61,7 +60,11 @@ public final class ColorAssist {
     }
 
     public static int rgba(int r, int g, int b, int a) {
-        return new Color(r, g, b, a).getRGB();
+        r = Math.max(0, Math.min(255, r));
+        g = Math.max(0, Math.min(255, g));
+        b = Math.max(0, Math.min(255, b));
+        a = Math.max(0, Math.min(255, a));
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     public static int applyOpacity(int color, int alpha) {
