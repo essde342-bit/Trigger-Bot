@@ -71,7 +71,7 @@ public abstract class GameRendererMixin {
             float tickDelta,
             CallbackInfo info
     ) {
-        if (TriggerBotClient.isNoHurtCamEnabled()) {
+        if (!TriggerBotClient.isGl4esRenderer() && TriggerBotClient.isNoHurtCamEnabled()) {
             info.cancel();
         }
     }
