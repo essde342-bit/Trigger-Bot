@@ -219,6 +219,26 @@ public class TriggerBotClient implements ClientModInitializer {
         return CONFIG.noHurtCam;
     }
 
+    /**
+     * Zalith/Pojav GL4ES uses a native OpenGL compatibility layer. Custom
+     * projection/camera hooks are deliberately treated as optional there so
+     * Astra never becomes the reason for a native renderer crash.
+     */
+    public static boolean isGl4esRenderer() {
+        String lwjglOpenGl = System.getProperty("org.lwjgl.opengl.libname", "");
+        String pojavRenderer = System.getenv("POJAV_RENDERER");
+
+        return containsIgnoreCase(lwjglOpenGl, "gl4es")
+                || containsIgnoreCase(pojavRenderer, "gl4es")
+                || containsIgnoreCase(pojavRenderer, "opengles");
+    }
+
+    private static boolean containsIgnoreCase(String value, String needle) {
+        return value != null && needle != null
+                && value.toLowerCase(java.util.Locale.ROOT)
+                .contains(needle.toLowerCase(java.util.Locale.ROOT));
+    }
+
     private static void applyVisualFeatures(MinecraftClient client) {
         if (client == null || client.options == null) return;
         if (CONFIG.fullbright) {
