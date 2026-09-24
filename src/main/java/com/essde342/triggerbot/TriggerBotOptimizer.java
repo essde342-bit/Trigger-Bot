@@ -1,5 +1,6 @@
 package com.essde342.triggerbot;
 
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.SimpleOption;
@@ -86,9 +87,9 @@ public final class TriggerBotOptimizer {
     }
 
     public static boolean isRendererOptimizationActive() {
-        // Renderer mixins are intentionally disabled on the 1.21.4 mobile build.
-        // Sodium/GL4ES already owns culling and chunk scheduling; custom injections
-        // can corrupt the native render state and crash the client.
+        // Renderer mixins stay disabled on the 1.21.4 mobile build.
+        // External render optimizers such as Sodium/ImmediatelyFast/MoreCulling
+        // must remain in control of the renderer.
         return false;
     }
 
@@ -158,6 +159,14 @@ public final class TriggerBotOptimizer {
         snapshotTaken = true;
     }
 
+    private static boolean hasExternalRendererOptimizer() {
+        FabricLoader loader = FabricLoader.getInstance();
+        return loader.isModLoaded("sodium")
+                || loader.isModLoaded("immediatelyfast")
+                || loader.isModLoaded("moreculling")
+                || loader.isModLoaded("entityculling");
+    }
+
     private static void apply(MinecraftClient client) {
         GameOptions options = client.options;
 
@@ -169,6 +178,11 @@ public final class TriggerBotOptimizer {
 
         SimpleOption<Double> entities = options.getEntityDistanceScaling();
         entities.setValue(Math.min(entities.getValue(), entityDistance));
+
+        // Let dedicated render optimizers manage renderer-specific options.
+        if (hasExternalRendererOptimizer()) {
+            return;
+        }
 
         options.getCloudRenderMode().setValue(CloudRenderMode.OFF);
         options.getGraphicsMode().setValue(GraphicsMode.FAST);
