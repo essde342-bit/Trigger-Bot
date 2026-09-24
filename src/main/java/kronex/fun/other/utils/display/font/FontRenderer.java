@@ -1,48 +1,28 @@
 package kronex.fun.other.utils.display.font;
 
+import kronex.fun.other.utils.display.GuiRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontFormatException;
-import java.awt.FontMetrics;
-import java.awt.GradientPaint;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 public final class FontRenderer {
-    private static final int RASTER_SCALE = 4;
-    private static final int ATLAS_SIZE = 1024;
-    private static final int ATLAS_PADDING = 2;
-    private static final int MAX_ATLAS_PAGES = 4;
-
-    private static final String FONT_RESOURCE =
-            "/assets/triggerbot/fonts/GalahadStd Regular.otf";
-    private static final Font GALAHAD_FONT = loadGalahadFont();
-
     /*
-     * GL4ES-safe design:
-     * keep a small number of persistent GPU textures and put all rendered
-     * strings into those atlases. The old implementation created and destroyed
-     * one OpenGL texture for every cache entry, which is unsafe on GL4ES.
+     * Keep GalahadStd as the actual font, but let Minecraft's native TTF font
+     * pipeline own glyph atlases and GPU uploads. This avoids the old
+     * NativeImageBackedTexture-per-string path that is fragile on GL4ES/Pojav.
+     *
+     * The bundled file itself is unchanged:
+     * assets/triggerbot/fonts/GalahadStd Regular.otf
      */
-    private static final Map<CacheKey, CachedText> CACHE = new HashMap<>();
-    private static final List<AtlasPage> ATLAS_PAGES = new ArrayList<>();
+    private static final Identifier GALAHAD_FONT =
+            Identifier.of("triggerbot", "galahad");
+
+    private static final float BASE_FONT_SIZE = 32.0F;
 
     private final float logicalSize;
     private final Fonts.Type type;
@@ -53,354 +33,231 @@ public final class FontRenderer {
     }
 
     public float getStringWidth(String text) {
-        if (text == null || text.isEmpty()) return 0F;
+        if (text == null || text.isEmpty()) {
+            return 0.0F;
+        }
 
-        Graphics2D graphics = measureGraphics();
-        Font font = createFont(logicalSize * RASTER_SCALE);
-        graphics.setFont(font);
-        FontMetrics metrics = graphics.getFontMetrics();
-        float width = metrics.stringWidth(text) / (float) RASTER_SCALE;
-        graphics.dispose();
-        return width;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.textRenderer == null) {
+            return text.length() * logicalSize * 0.5F;
+        }
+
+        float scale = getScale();
+        Text styled = styled(text, 0xFFFFFFFF);
+        return client.textRenderer.getWidth(styled) * scale;
     }
 
     public float getStringHeight(String text) {
-        Graphics2D graphics = measureGraphics();
-        Font font = createFont(logicalSize * RASTER_SCALE);
-        graphics.setFont(font);
-        float height = graphics.getFontMetrics().getHeight() / (float) RASTER_SCALE;
-        graphics.dispose();
-        return height;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.textRenderer == null) {
+            return logicalSize;
+        }
+
+        return client.textRenderer.fontHeight * getScale();
     }
 
-    public void drawString(net.minecraft.client.util.math.MatrixStack matrix,
-                           String text, float x, float y, int color) {
+    public void drawString(
+            net.minecraft.client.util.math.MatrixStack matrix,
+            String text,
+            float x,
+            float y,
+            int color
+    ) {
         drawString(matrix, text, (double) x, (double) y, color);
     }
 
-    public void drawString(net.minecraft.client.util.math.MatrixStack matrix,
-                           String text, double x, double y, int color) {
+    public void drawString(
+            net.minecraft.client.util.math.MatrixStack matrix,
+            String text,
+            double x,
+            double y,
+            int color
+    ) {
         drawText(text, x, y, color, color, false);
     }
 
-    public void drawCenteredString(net.minecraft.client.util.math.MatrixStack matrix,
-                                   String text, double centerX, double y, int color) {
-        drawString(matrix, text, centerX - getStringWidth(text) / 2.0, y, color);
+    public void drawCenteredString(
+            net.minecraft.client.util.math.MatrixStack matrix,
+            String text,
+            double centerX,
+            double y,
+            int color
+    ) {
+        drawString(
+                matrix,
+                text,
+                centerX - getStringWidth(text) / 2.0D,
+                y,
+                color
+        );
     }
 
-    public void drawStringWithScroll(net.minecraft.client.util.math.MatrixStack matrix,
-                                     String text, float x, float y,
-                                     float maxWidth, int color) {
-        if (text == null) return;
+    public void drawStringWithScroll(
+            net.minecraft.client.util.math.MatrixStack matrix,
+            String text,
+            float x,
+            float y,
+            float maxWidth,
+            int color
+    ) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
 
         String visible = text;
         while (!visible.isEmpty() && getStringWidth(visible) > maxWidth) {
-            visible = visible.substring(0, visible.length() - 1);
+            int end = visible.offsetByCodePoints(visible.length(), -1);
+            visible = visible.substring(0, end);
         }
 
         drawString(matrix, visible, x, y, color);
     }
 
-    public void drawGradientString(net.minecraft.client.util.math.MatrixStack matrix,
-                                   String text, float x, float y,
-                                   int color1, int color2) {
-        drawText(text, x, y, color1, color2, true);
+    public void drawGradientString(
+            net.minecraft.client.util.math.MatrixStack matrix,
+            String text,
+            float x,
+            float y,
+            int color1,
+            int color2
+    ) {
+        drawText(matrix, text, x, y, color1, color2);
     }
 
-    public void drawGradientString(net.minecraft.client.util.math.MatrixStack matrix,
-                                   String text, double x, double y,
-                                   int color1, int color2) {
-        drawText(text, x, y, color1, color2, true);
+    public void drawGradientString(
+            net.minecraft.client.util.math.MatrixStack matrix,
+            String text,
+            double x,
+            double y,
+            int color1,
+            int color2
+    ) {
+        drawText(matrix, text, x, y, color1, color2);
     }
 
-    private void drawText(String text, double x, double y,
-                          int color1, int color2, boolean gradient) {
-        if (text == null || text.isEmpty()) return;
+    private void drawText(
+            String text,
+            double x,
+            double y,
+            int color1,
+            int color2,
+            boolean gradient
+    ) {
+        drawText(null, text, x, y, color1, color2, gradient);
+    }
 
-        DrawContext context =
-                kronex.fun.other.utils.display.GuiRenderContext.get();
-        MinecraftClient client = MinecraftClient.getInstance();
+    private void drawText(
+            net.minecraft.client.util.math.MatrixStack matrix,
+            String text,
+            double x,
+            double y,
+            int color1,
+            int color2
+    ) {
+        drawText(matrix, text, x, y, color1, color2, true);
+    }
 
-        if (context == null || client == null || client.getTextureManager() == null) {
+    private void drawText(
+            net.minecraft.client.util.math.MatrixStack ignoredMatrix,
+            String text,
+            double x,
+            double y,
+            int color1,
+            int color2,
+            boolean gradient
+    ) {
+        if (text == null || text.isEmpty()) {
             return;
         }
 
-        CacheKey key = new CacheKey(
-                text,
-                Float.floatToIntBits(logicalSize),
-                type,
-                color1,
-                color2,
-                gradient
-        );
+        DrawContext context = GuiRenderContext.get();
+        MinecraftClient client = MinecraftClient.getInstance();
 
-        CachedText cached = CACHE.get(key);
-        if (cached == null) {
-            cached = rasterize(text, color1, color2, gradient, client);
-            if (cached == null) return;
-            CACHE.put(key, cached);
+        if (context == null || client == null || client.textRenderer == null) {
+            return;
         }
 
-        int drawX = (int) Math.round(x);
-        int drawY = (int) Math.round(y);
+        float scale = getScale();
+        MutableText styled = gradient
+                ? gradientText(text, color1, color2)
+                : styled(text, color1);
 
-        // Source region is 4x larger than the logical destination.
-        context.drawTexture(
-                RenderLayer::getGuiTextured,
-                cached.texture,
-                drawX,
-                drawY,
-                cached.u,
-                cached.v,
-                cached.drawWidth,
-                cached.drawHeight,
-                cached.imageWidth,
-                cached.imageHeight,
-                ATLAS_SIZE,
-                ATLAS_SIZE
-        );
-    }
-
-    private CachedText rasterize(String text, int color1, int color2,
-                                 boolean gradient, MinecraftClient client) {
-        int pixelSize = Math.max(1, Math.round(logicalSize * RASTER_SCALE));
-
-        BufferedImage measureImage =
-                new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D measure = measureImage.createGraphics();
-        configure(measure);
-
-        Font font = createFont(pixelSize);
-        measure.setFont(font);
-        FontMetrics metrics = measure.getFontMetrics();
-
-        int textWidth = Math.max(1, metrics.stringWidth(text));
-        int textHeight = Math.max(1, metrics.getHeight());
-        int padding = Math.max(2, RASTER_SCALE);
-
-        BufferedImage image = new BufferedImage(
-                textWidth + padding * 2,
-                textHeight + padding * 2,
-                BufferedImage.TYPE_INT_ARGB
-        );
-
-        Graphics2D graphics = image.createGraphics();
-        configure(graphics);
-        graphics.setFont(font);
-        graphics.setComposite(AlphaComposite.SrcOver);
-
-        Color first = new Color(
-                (color1 >>> 16) & 0xFF,
-                (color1 >>> 8) & 0xFF,
-                color1 & 0xFF,
-                (color1 >>> 24) & 0xFF
-        );
-
-        int argb2 = gradient ? color2 : color1;
-        Color second = new Color(
-                (argb2 >>> 16) & 0xFF,
-                (argb2 >>> 8) & 0xFF,
-                argb2 & 0xFF,
-                (argb2 >>> 24) & 0xFF
-        );
-
-        if (gradient) {
-            graphics.setPaint(
-                    new GradientPaint(
-                            0, 0, first,
-                            image.getWidth(), 0, second
-                    )
-            );
-        } else {
-            graphics.setColor(first);
-        }
-
-        int baseline = padding + metrics.getAscent();
-        graphics.drawString(text, padding, baseline);
-
-        graphics.dispose();
-        measure.dispose();
-
-        NativeImage nativeImage = new NativeImage(
-                NativeImage.Format.RGBA,
-                image.getWidth(),
-                image.getHeight(),
-                false
-        );
-
+        net.minecraft.client.util.math.MatrixStack matrices = context.getMatrices();
+        matrices.push();
         try {
-            for (int yy = 0; yy < image.getHeight(); yy++) {
-                for (int xx = 0; xx < image.getWidth(); xx++) {
-                    nativeImage.setColorArgb(xx, yy, image.getRGB(xx, yy));
-                }
-            }
+            matrices.scale(scale, scale, 1.0F);
 
-            AtlasPlacement placement = placeInAtlas(client, nativeImage);
-            if (placement == null) return null;
+            int drawX = (int) Math.round(x / scale);
+            int drawY = (int) Math.round(y / scale);
 
-            return new CachedText(
-                    placement.texture,
-                    placement.u,
-                    placement.v,
-                    Math.max(1, image.getWidth() / RASTER_SCALE),
-                    Math.max(1, image.getHeight() / RASTER_SCALE),
-                    image.getWidth(),
-                    image.getHeight()
+            // DrawContext/TextRenderer uses Minecraft's normal render pipeline,
+            // including the resource-pack TTF glyph atlas.
+            context.drawText(
+                    client.textRenderer,
+                    styled,
+                    drawX,
+                    drawY,
+                    gradient ? 0xFFFFFFFF : color1,
+                    false
             );
         } finally {
-            nativeImage.close();
+            matrices.pop();
         }
     }
 
-    private static AtlasPlacement placeInAtlas(MinecraftClient client,
-                                               NativeImage image) {
-        if (image.getWidth() + ATLAS_PADDING * 2 > ATLAS_SIZE
-                || image.getHeight() + ATLAS_PADDING * 2 > ATLAS_SIZE) {
-            return null;
+    private MutableText styled(String text, int color) {
+        Style style = baseStyle();
+
+        // Minecraft passes alpha separately to drawText. Keep the style color
+        // unset for normal text so the ARGB argument remains authoritative.
+        if ((color & 0x00FFFFFF) != 0x00FFFFFF) {
+            style = style.withColor(color & 0x00FFFFFF);
         }
 
-        for (AtlasPage page : ATLAS_PAGES) {
-            AtlasPlacement placement = page.tryAdd(image);
-            if (placement != null) return placement;
-        }
-
-        if (ATLAS_PAGES.size() >= MAX_ATLAS_PAGES) {
-            return null;
-        }
-
-        AtlasPage page = new AtlasPage(client, ATLAS_PAGES.size());
-        ATLAS_PAGES.add(page);
-        return page.tryAdd(image);
+        return Text.literal(text).setStyle(style);
     }
 
-    private Font createFont(float pixelSize) {
-        int style = switch (type) {
-            case BOLD, HUD -> Font.BOLD;
-            default -> Font.PLAIN;
-        };
+    private MutableText gradientText(String text, int color1, int color2) {
+        MutableText result = Text.empty();
 
-        return GALAHAD_FONT.deriveFont(
-                style,
-                Math.max(1F, pixelSize)
-        );
-    }
+        int[] codePoints = text.codePoints().toArray();
+        int count = Math.max(1, codePoints.length);
 
-    private static Font loadGalahadFont() {
-        try (InputStream input =
-                     FontRenderer.class.getResourceAsStream(FONT_RESOURCE)) {
-            if (input == null) {
-                throw new IllegalStateException(
-                        "Missing bundled Galahad font: " + FONT_RESOURCE
-                );
-            }
+        for (int i = 0; i < codePoints.length; i++) {
+            float t = count == 1 ? 0.0F : (float) i / (float) (count - 1);
 
-            return Font.createFont(Font.TRUETYPE_FONT, input);
-        } catch (FontFormatException | IOException e) {
-            throw new IllegalStateException(
-                    "Unable to load bundled Galahad font: " + FONT_RESOURCE,
-                    e
+            int a = lerpChannel((color1 >>> 24) & 0xFF, (color2 >>> 24) & 0xFF, t);
+            int r = lerpChannel((color1 >>> 16) & 0xFF, (color2 >>> 16) & 0xFF, t);
+            int g = lerpChannel((color1 >>> 8) & 0xFF, (color2 >>> 8) & 0xFF, t);
+            int b = lerpChannel(color1 & 0xFF, color2 & 0xFF, t);
+
+            int rgb = (r << 16) | (g << 8) | b;
+            String part = new String(Character.toChars(codePoints[i]));
+
+            result.append(
+                    Text.literal(part)
+                            .setStyle(baseStyle().withColor(rgb))
             );
         }
+
+        return result;
     }
 
-    private static Graphics2D measureGraphics() {
-        BufferedImage image =
-                new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = image.createGraphics();
-        configure(graphics);
-        return graphics;
-    }
+    private Style baseStyle() {
+        Style style = Style.EMPTY.withFont(GALAHAD_FONT);
 
-    private static void configure(Graphics2D graphics) {
-        graphics.setRenderingHint(
-                RenderingHints.KEY_TEXT_ANTIALIASING,
-                RenderingHints.VALUE_TEXT_ANTIALIAS_ON
-        );
-        graphics.setRenderingHint(
-                RenderingHints.KEY_FRACTIONALMETRICS,
-                RenderingHints.VALUE_FRACTIONALMETRICS_ON
-        );
-        graphics.setRenderingHint(
-                RenderingHints.KEY_RENDERING,
-                RenderingHints.VALUE_RENDER_QUALITY
-        );
-        graphics.setRenderingHint(
-                RenderingHints.KEY_STROKE_CONTROL,
-                RenderingHints.VALUE_STROKE_PURE
-        );
-        graphics.setStroke(new BasicStroke(1F));
-    }
-
-    private record CacheKey(String text, int sizeBits, Fonts.Type type,
-                            int color1, int color2, boolean gradient) {
-    }
-
-    private record CachedText(Identifier texture, int u, int v,
-                              int drawWidth, int drawHeight,
-                              int imageWidth, int imageHeight) {
-    }
-
-    private record AtlasPlacement(Identifier texture, int u, int v) {
-    }
-
-    private static final class AtlasPage {
-        private final Identifier textureId;
-        private final NativeImageBackedTexture texture;
-
-        private int cursorX = ATLAS_PADDING;
-        private int cursorY = ATLAS_PADDING;
-        private int rowHeight;
-
-        private AtlasPage(MinecraftClient client, int index) {
-            this.textureId = Identifier.of(
-                    "triggerbot",
-                    "kronex_font_atlas/page_" + index
-            );
-
-            this.texture = new NativeImageBackedTexture(
-                    ATLAS_SIZE,
-                    ATLAS_SIZE,
-                    false
-            );
-
-            // Deliberately avoid setFilter/setClamp here: those operations can
-            // touch GL state, so the atlas is only created from a render pass.
-            client.getTextureManager().registerTexture(textureId, texture);
+        if (type == Fonts.Type.BOLD || type == Fonts.Type.HUD) {
+            style = style.withBold(true);
         }
 
-        private AtlasPlacement tryAdd(NativeImage image) {
-            int width = image.getWidth();
-            int height = image.getHeight();
+        return style;
+    }
 
-            if (cursorX + width + ATLAS_PADDING > ATLAS_SIZE) {
-                cursorX = ATLAS_PADDING;
-                cursorY += rowHeight + ATLAS_PADDING;
-                rowHeight = 0;
-            }
+    private float getScale() {
+        return logicalSize / BASE_FONT_SIZE;
+    }
 
-            if (cursorY + height + ATLAS_PADDING > ATLAS_SIZE) {
-                return null;
-            }
-
-            texture.bindTexture();
-            image.upload(
-                    0,
-                    cursorX,
-                    cursorY,
-                    0,
-                    0,
-                    width,
-                    height,
-                    false
-            );
-
-            int u = cursorX;
-            int v = cursorY;
-
-            cursorX += width + ATLAS_PADDING;
-            rowHeight = Math.max(rowHeight, height);
-
-            return new AtlasPlacement(textureId, u, v);
-        }
+    private static int lerpChannel(int first, int second, float t) {
+        return Math.round(first + (second - first) * t);
     }
 }
