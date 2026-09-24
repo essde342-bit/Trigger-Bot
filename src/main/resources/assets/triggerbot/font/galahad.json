@@ -2,7 +2,7 @@
   "providers": [
     {
       "type": "ttf",
-      "file": "triggerbot:fonts/galahad_regular.ttf",
+      "file": "triggerbot:galahad_regular.ttf",
       "size": 32.0,
       "oversample": 2.0,
       "shift": [0.0, 0.0]
