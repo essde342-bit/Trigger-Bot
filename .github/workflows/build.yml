@@ -29,11 +29,11 @@ jobs:
           JAR="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-dev.jar' | head -n 1)"
           test -n "$JAR"
           echo "Checking $JAR"
-          jar tf "$JAR" | grep -Fx 'assets/triggerbot/fonts/galahad_regular.ttf'
+          jar tf "$JAR" | grep -Fx 'assets/triggerbot/font/galahad_regular.ttf'
           python - <<'PY'
           from pathlib import Path
           from fontTools.ttLib import TTFont
-          p = Path("build/resources/main/assets/triggerbot/fonts/galahad_regular.ttf")
+          p = Path("build/resources/main/assets/triggerbot/font/galahad_regular.ttf")
           font = TTFont(str(p), recalcBBoxes=False, recalcTimestamp=False)
           assert font.sfntVersion == "\x00\x01\x00\x00"
           assert "glyf" in font
