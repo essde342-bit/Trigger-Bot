@@ -16,7 +16,7 @@ repositories {
 }
 
 def galahadSource = file("src/main/resources/assets/triggerbot/fonts/GalahadStd Regular.otf")
-def galahadTarget = file("${buildDir}/generated-resources/assets/triggerbot/fonts/galahad_regular.ttf")
+def galahadTarget = file("${buildDir}/generated-resources/assets/triggerbot/font/galahad_regular.ttf")
 
 tasks.register("prepareGalahadFont", Exec) {
     inputs.file(galahadSource)
@@ -35,7 +35,7 @@ tasks.register("prepareGalahadFont", Exec) {
 processResources {
     dependsOn(tasks.named("prepareGalahadFont"))
     from(galahadTarget) {
-        into("assets/triggerbot/fonts")
+        into("assets/triggerbot/font")
     }
     inputs.property("version", project.version)
     filesMatching("fabric.mod.json") {
