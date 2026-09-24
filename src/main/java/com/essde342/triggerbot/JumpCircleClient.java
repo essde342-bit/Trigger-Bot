@@ -114,8 +114,13 @@ public final class JumpCircleClient implements ClientModInitializer {
         VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
         MatrixStack.Entry entry = matrices.peek();
 
-        drawRing(buffer, entry, x, y, z, radius + 0.09D, 135, 65, 255, alpha / 3);
-        drawRing(buffer, entry, x, y + 0.006D, z, radius, 190, 105, 255, alpha);
+        try {
+            drawRing(buffer, entry, x, y, z, radius + 0.09D, 135, 65, 255, alpha / 3);
+            drawRing(buffer, entry, x, y + 0.006D, z, radius, 190, 105, 255, alpha);
+        } catch (IllegalStateException ignored) {
+            // Some optimized render providers expose a different vertex format.
+            // Never let the optional jump-circle effect crash the render thread.
+        }
     }
 
     private static void drawRing(
@@ -141,7 +146,7 @@ public final class JumpCircleClient implements ClientModInitializer {
 
             buffer.vertex(entry.getPositionMatrix(), px, (float) y, pz)
                     .color(red, green, blue, alpha)
-                    .normal(entry, 0.0F, 1.0F, 0.0F);
+                    .normal(0.0F, 1.0F, 0.0F);
         }
     }
 
