@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: python -m pip install --disable-pip-version-check fonttools
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -18,6 +22,27 @@ jobs:
         with:
           gradle-version: "8.11.1"
       - run: gradle build --no-daemon
+      - name: Verify bundled Galahad font
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="$(ls build/libs/*.jar | head -n 1)"
+          echo "Checking $JAR"
+          jar tf "$JAR" | grep -Fx 'assets/triggerbot/fonts/galahad_regular.ttf'
+          python - <<'PY'
+          from pathlib import Path
+          from fontTools.ttLib import TTFont
+          p = Path("build/resources/main/assets/triggerbot/fonts/galahad_regular.ttf")
+          font = TTFont(str(p), recalcBBoxes=False, recalcTimestamp=False)
+          assert font.sfntVersion == "\x00\x01\x00\x00"
+          assert "glyf" in font
+          assert "CFF " not in font and "CFF2" not in font
+          assert font.getBestCmap()
+          print("Galahad TTF validation passed:", p, font.sfntVersion)
+          PY
+          if jar tf "$JAR" | grep -Fq 'assets/triggerbot/fonts/GalahadStd Regular.otf'; then
+            echo "Original user OTF is also kept in the JAR."
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Astra-Client-1.21.4
