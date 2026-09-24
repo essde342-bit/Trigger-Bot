@@ -218,13 +218,17 @@ public final class TriggerBotOptimizer {
         GameOptions options = client.options;
         options.getViewDistance().setValue(savedViewDistance);
         options.getEntityDistanceScaling().setValue(savedEntityDistance);
-        options.getCloudRenderMode().setValue(savedClouds);
-        options.getGraphicsMode().setValue(savedGraphics);
-        options.getAo().setValue(savedAo);
-        setParticlesValue(options, savedParticles);
-        options.getEntityShadows().setValue(savedEntityShadows);
-        options.getBiomeBlendRadius().setValue(savedBiomeBlend);
-        options.getMipmapLevels().setValue(savedMipmapLevels);
+
+        if (!hasExternalRendererOptimizer()) {
+            options.getCloudRenderMode().setValue(savedClouds);
+            options.getGraphicsMode().setValue(savedGraphics);
+            options.getAo().setValue(savedAo);
+            setParticlesValue(options, savedParticles);
+            options.getEntityShadows().setValue(savedEntityShadows);
+            options.getBiomeBlendRadius().setValue(savedBiomeBlend);
+            options.getMipmapLevels().setValue(savedMipmapLevels);
+        }
+
         options.write();
 
         active = false;
