@@ -2,7 +2,6 @@ package kronex.fun.other.utils.display.font;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
@@ -11,11 +10,11 @@ import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FontFormatException;
 import java.awt.FontMetrics;
 import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.FontFormatException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.awt.image.BufferedImage;
@@ -116,8 +115,14 @@ public final class FontRenderer {
 
         int drawX = (int) Math.round(x);
         int drawY = (int) Math.round(y);
+
+        /*
+         * GL4ES-safe path:
+         * use DrawContext's normal GUI texture pipeline instead of forcing a custom
+         * RenderLayer. The custom font remains exactly the same; only the final
+         * texture submission is changed.
+         */
         context.drawTexture(
-                RenderLayer::getGuiTextured,
                 cached.texture,
                 drawX,
                 drawY,
@@ -175,14 +180,25 @@ public final class FontRenderer {
         }
 
         NativeImageBackedTexture texture = new NativeImageBackedTexture(nativeImage);
-        texture.setFilter(true, false);
 
-        Identifier textureId = Identifier.of("triggerbot", "kronex_font/" + Integer.toUnsignedString(
-                System.identityHashCode(texture), 36));
+        // Nearest-neighbour avoids GL4ES texture filtering artefacts and keeps
+        // the bundled Galahad glyphs crisp on mobile renderers.
+        texture.setFilter(false, false);
+
+        Identifier textureId = Identifier.of(
+                "triggerbot",
+                "kronex_font/" + Integer.toUnsignedString(System.identityHashCode(texture), 36)
+        );
         MinecraftClient.getInstance().getTextureManager().registerTexture(textureId, texture);
 
-        return new CachedText(textureId, nativeImage, Math.max(1, image.getWidth() / RASTER_SCALE),
-                Math.max(1, image.getHeight() / RASTER_SCALE), image.getWidth(), image.getHeight());
+        return new CachedText(
+                textureId,
+                nativeImage,
+                Math.max(1, image.getWidth() / RASTER_SCALE),
+                Math.max(1, image.getHeight() / RASTER_SCALE),
+                image.getWidth(),
+                image.getHeight()
+        );
     }
 
     private Font createFont(float pixelSize) {
@@ -222,6 +238,12 @@ public final class FontRenderer {
 
     private record CacheKey(String text, int sizeBits, Fonts.Type type, int color1, int color2, boolean gradient) {}
 
-    private record CachedText(Identifier texture, NativeImage image, int drawWidth, int drawHeight,
-                              int imageWidth, int imageHeight) {}
+    private record CachedText(
+            Identifier texture,
+            NativeImage image,
+            int drawWidth,
+            int drawHeight,
+            int imageWidth,
+            int imageHeight
+    ) {}
 }
