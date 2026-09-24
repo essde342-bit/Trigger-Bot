@@ -15,7 +15,25 @@ repositories {
     maven { url = "https://maven.fabricmc.net/" }
 }
 
+def galahadSource = file("src/main/resources/assets/triggerbot/fonts/GalahadStd Regular.otf")
+def galahadTarget = file("src/main/resources/assets/triggerbot/fonts/galahad_regular.ttf")
+
+tasks.register("prepareGalahadFont", Exec) {
+    inputs.file(galahadSource)
+    outputs.file(galahadTarget)
+
+    doFirst {
+        def os = System.getProperty("os.name").toLowerCase(Locale.ROOT)
+        def python = os.contains("win") ? "py" : "python3"
+        commandLine python,
+                "scripts/convert_galahad_otf.py",
+                galahadSource.absolutePath,
+                galahadTarget.absolutePath
+    }
+}
+
 processResources {
+    dependsOn(tasks.named("prepareGalahadFont"))
     inputs.property("version", project.version)
     filesMatching("fabric.mod.json") {
         expand("version": project.version)
