@@ -86,7 +86,10 @@ public final class TriggerBotOptimizer {
     }
 
     public static boolean isRendererOptimizationActive() {
-        return TriggerBotClient.CONFIG.optimization;
+        // Renderer mixins are intentionally disabled on the 1.21.4 mobile build.
+        // Sodium/GL4ES already owns culling and chunk scheduling; custom injections
+        // can corrupt the native render state and crash the client.
+        return false;
     }
 
     public static long getChunkUpdateBudgetNanos() {
@@ -174,7 +177,6 @@ public final class TriggerBotOptimizer {
         options.getEntityShadows().setValue(false);
         options.getBiomeBlendRadius().setValue(0);
         options.getMipmapLevels().setValue(0);
-        client.chunkCullingEnabled = true;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
