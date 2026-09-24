@@ -226,7 +226,7 @@ public class TriggerBotClient implements ClientModInitializer {
                 savedGamma = client.options.getGamma().getValue();
                 fullbrightSnapshotTaken = true;
             }
-            client.options.getGamma().setValue(clampDouble(CONFIG.fullbrightGamma, 1.0D, 20.0D));
+            client.options.getGamma().setValue(clampDouble(CONFIG.fullbrightGamma, 0.0D, 1.0D));
         } else if (fullbrightSnapshotTaken) {
             restoreOriginalGamma(client);
         }
