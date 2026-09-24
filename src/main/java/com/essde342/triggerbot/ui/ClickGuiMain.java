@@ -7,6 +7,7 @@ import com.essde342.triggerbot.ui.imple.NumberSetting;
 import com.essde342.triggerbot.ui.modules.Category;
 import com.essde342.triggerbot.ui.modules.Module;
 import com.essde342.triggerbot.ui.modules.ModuleManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.gui.screen.Screen;
@@ -1069,6 +1070,13 @@ public final class ClickGuiMain extends Screen {
             int y,
             int color
     ) {
+        // Reset the text-related GL state before every glyph draw.
+        // This keeps the vanilla font atlas rendering correctly on 1.16.5,
+        // including GL4ES/Pojav-style backends.
+        RenderSystem.enableTexture();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
         mc.textRenderer.draw(matrices, text, x, y, color);
     }
 
