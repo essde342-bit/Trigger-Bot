@@ -18,7 +18,7 @@ public abstract class GameRendererMixin {
             float fovDegrees,
             CallbackInfoReturnable<Matrix4f> cir
     ) {
-        if (!TriggerBotClient.CONFIG.aspectRatioEnabled) {
+        if (TriggerBotClient.isGl4esRenderer() || !TriggerBotClient.CONFIG.aspectRatioEnabled) {
             return;
         }
 
@@ -56,7 +56,7 @@ public abstract class GameRendererMixin {
             float tickDelta,
             CallbackInfo info
     ) {
-        if (TriggerBotClient.isNoHurtCamEnabled()) {
+        if (!TriggerBotClient.isGl4esRenderer() && TriggerBotClient.isNoHurtCamEnabled()) {
             info.cancel();
         }
     }
