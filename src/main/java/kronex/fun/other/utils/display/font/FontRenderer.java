@@ -12,12 +12,9 @@ import java.util.Objects;
 
 public final class FontRenderer {
     /*
-     * Keep GalahadStd as the actual font, but let Minecraft's native TTF font
-     * pipeline own glyph atlases and GPU uploads. This avoids the old
-     * NativeImageBackedTexture-per-string path that is fragile on GL4ES/Pojav.
-     *
-     * The bundled file itself is unchanged:
-     * assets/triggerbot/fonts/GalahadStd Regular.otf
+     * The source asset is the user's GalahadStd Regular OTF.
+     * The build converts it to a TrueType glyf font because Minecraft 1.21.x
+     * loads GUI font providers through its TrueType pipeline.
      */
     private static final Identifier GALAHAD_FONT =
             Identifier.of("triggerbot", "galahad");
@@ -73,7 +70,7 @@ public final class FontRenderer {
             double y,
             int color
     ) {
-        drawText(text, x, y, color, color, false);
+        drawText(matrix, text, x, y, color, color, false);
     }
 
     public void drawCenteredString(
@@ -136,17 +133,6 @@ public final class FontRenderer {
     }
 
     private void drawText(
-            String text,
-            double x,
-            double y,
-            int color1,
-            int color2,
-            boolean gradient
-    ) {
-        drawText(null, text, x, y, color1, color2, gradient);
-    }
-
-    private void drawText(
             net.minecraft.client.util.math.MatrixStack matrix,
             String text,
             double x,
@@ -158,7 +144,7 @@ public final class FontRenderer {
     }
 
     private void drawText(
-            net.minecraft.client.util.math.MatrixStack ignoredMatrix,
+            net.minecraft.client.util.math.MatrixStack matrix,
             String text,
             double x,
             double y,
@@ -182,7 +168,9 @@ public final class FontRenderer {
                 ? gradientText(text, color1, color2)
                 : styled(text, color1);
 
-        net.minecraft.client.util.math.MatrixStack matrices = context.getMatrices();
+        net.minecraft.client.util.math.MatrixStack matrices =
+                matrix != null ? matrix : context.getMatrices();
+
         matrices.push();
         try {
             matrices.scale(scale, scale, 1.0F);
@@ -190,8 +178,8 @@ public final class FontRenderer {
             int drawX = (int) Math.round(x / scale);
             int drawY = (int) Math.round(y / scale);
 
-            // DrawContext/TextRenderer uses Minecraft's normal render pipeline,
-            // including the resource-pack TTF glyph atlas.
+            // The text uses Style.withFont(Galahad), so this is not Minecraft's
+            // default font as long as the bundled Galahad provider is valid.
             context.drawText(
                     client.textRenderer,
                     styled,
@@ -208,8 +196,6 @@ public final class FontRenderer {
     private MutableText styled(String text, int color) {
         Style style = baseStyle();
 
-        // Minecraft passes alpha separately to drawText. Keep the style color
-        // unset for normal text so the ARGB argument remains authoritative.
         if ((color & 0x00FFFFFF) != 0x00FFFFFF) {
             style = style.withColor(color & 0x00FFFFFF);
         }
@@ -226,7 +212,6 @@ public final class FontRenderer {
         for (int i = 0; i < codePoints.length; i++) {
             float t = count == 1 ? 0.0F : (float) i / (float) (count - 1);
 
-            int a = lerpChannel((color1 >>> 24) & 0xFF, (color2 >>> 24) & 0xFF, t);
             int r = lerpChannel((color1 >>> 16) & 0xFF, (color2 >>> 16) & 0xFF, t);
             int g = lerpChannel((color1 >>> 8) & 0xFF, (color2 >>> 8) & 0xFF, t);
             int b = lerpChannel(color1 & 0xFF, color2 & 0xFF, t);
