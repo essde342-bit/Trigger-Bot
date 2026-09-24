@@ -7,9 +7,6 @@
     "TitleScreenMixin",
     "MinecraftClientAccessor",
     "GameRendererMixin",
-    "WorldRendererMixin",
-    "EntityRenderDispatcherMixin",
-    "BlockEntityRenderDispatcherMixin"
   ],
   "injectors": {"defaultRequire": 0}
 }
