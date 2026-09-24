@@ -1,15 +1,43 @@
 package com.essde342.triggerbot;
 
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.SimpleOption;
 import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.option.GraphicsMode;
 
+import java.util.Set;
+
 public final class TriggerBotOptimizer {
     private static final long BALANCED_CHUNK_BUDGET = 6_000_000L;
     private static final long PERFORMANCE_CHUNK_BUDGET = 4_500_000L;
     private static final long EXTREME_CHUNK_BUDGET = 3_500_000L;
+
+    /*
+     * These mods already manage the client renderer, culling, frame pacing or
+     * graphics options. Astra stays passive when any of them is installed.
+     * This avoids two optimizers fighting over the same rendering state.
+     */
+    private static final Set<String> EXTERNAL_OPTIMIZATION_MODS = Set.of(
+            "sodium",
+            "sodium-extra",
+            "iris",
+            "immediatelyfast",
+            "entityculling",
+            "moreculling",
+            "nvidium",
+            "indium",
+            "vulkanmod",
+            "enhancedblockentities",
+            "scalablelux",
+            "dynamicfps",
+            "modernfix",
+            "ferritecore",
+            "lithium",
+            "c2me"
+    );
+
     private static boolean active = false;
     private static boolean snapshotTaken = false;
     private static int currentLevel = 1;
@@ -31,6 +59,17 @@ public final class TriggerBotOptimizer {
 
     public static void tick(MinecraftClient client) {
         if (client == null || client.options == null) {
+            return;
+        }
+
+        /*
+         * Compatibility first: when another optimization/rendering stack is
+         * present, restore any Astra-owned settings and leave the options alone.
+         */
+        if (isExternalOptimizationPresent()) {
+            if (active) {
+                restore(client);
+            }
             return;
         }
 
@@ -85,10 +124,21 @@ public final class TriggerBotOptimizer {
         }
     }
 
+    public static boolean isExternalOptimizationPresent() {
+        FabricLoader loader = FabricLoader.getInstance();
+        for (String modId : EXTERNAL_OPTIMIZATION_MODS) {
+            if (loader.isModLoaded(modId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean isRendererOptimizationActive() {
-        // Renderer mixins are intentionally disabled on the 1.21.4 mobile build.
-        // Sodium/GL4ES already owns culling and chunk scheduling; custom injections
-        // can corrupt the native render state and crash the client.
+        /*
+         * Renderer mixins remain disabled on the 1.21.4 build. Sodium/GL4ES
+         * and other renderer mods keep ownership of native render state.
+         */
         return false;
     }
 
@@ -128,7 +178,7 @@ public final class TriggerBotOptimizer {
     public static void setOptimization(MinecraftClient client, boolean enabled) {
         TriggerBotClient.CONFIG.optimization = enabled;
 
-        if (enabled) {
+        if (enabled && !isExternalOptimizationPresent()) {
             enable(client);
         } else {
             restore(client);
@@ -136,6 +186,11 @@ public final class TriggerBotOptimizer {
     }
 
     private static void enable(MinecraftClient client) {
+        if (isExternalOptimizationPresent()) {
+            active = false;
+            return;
+        }
+
         if (!snapshotTaken) {
             snapshot(client.options);
         }
@@ -159,6 +214,10 @@ public final class TriggerBotOptimizer {
     }
 
     private static void apply(MinecraftClient client) {
+        if (isExternalOptimizationPresent()) {
+            return;
+        }
+
         GameOptions options = client.options;
 
         int viewDistance = currentLevel == 2 ? 4 : (currentLevel == 1 ? 6 : 8);
@@ -198,6 +257,8 @@ public final class TriggerBotOptimizer {
     private static void restore(MinecraftClient client) {
         if (!snapshotTaken) {
             active = false;
+            timer = 0;
+            playerScanTimer = 0;
             return;
         }
 
