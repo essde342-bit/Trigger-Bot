@@ -1,4 +1,4 @@
-name: Build Trigger Bot
+name: Build Astra Client
 on:
   push:
     branches: ["main", "port/minecraft-1.21.4"]
@@ -20,5 +20,5 @@ jobs:
       - run: gradle build --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: trigger-bot-1.21.4
+          name: Astra-Client-1.21.4
           path: build/libs/*.jar

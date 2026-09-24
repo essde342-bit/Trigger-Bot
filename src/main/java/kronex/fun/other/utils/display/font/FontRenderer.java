@@ -2,6 +2,7 @@ package kronex.fun.other.utils.display.font;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
@@ -123,6 +124,7 @@ public final class FontRenderer {
          * texture submission is changed.
          */
         context.drawTexture(
+                RenderLayer::getGuiTextured,
                 cached.texture,
                 drawX,
                 drawY,
