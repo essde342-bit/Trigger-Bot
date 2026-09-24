@@ -89,8 +89,8 @@ public class MenuScreen extends Screen implements QuickImports {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         kronex.fun.other.utils.display.GuiRenderContext.set(context);
-
-        x = window.getScaledWidth() / 2 - 200;
+        try {
+            x = window.getScaledWidth() / 2 - 200;
         y = window.getScaledHeight() / 2 - 125;
         width = 400;
         height = 250;
@@ -126,7 +126,10 @@ public class MenuScreen extends Screen implements QuickImports {
             drawClickGuiBind(context);
             windowManager.render(context, mouseX, mouseY, delta);
         });
-        super.render(context, mouseX, mouseY, delta);
+            super.render(context, mouseX, mouseY, delta);
+        } finally {
+            kronex.fun.other.utils.display.GuiRenderContext.clear();
+        }
     }
 
     public void openGui() {
