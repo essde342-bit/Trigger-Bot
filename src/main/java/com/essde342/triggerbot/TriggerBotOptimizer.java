@@ -66,7 +66,7 @@ public final class TriggerBotOptimizer {
          * Compatibility first: when another optimization/rendering stack is
          * present, restore any Astra-owned settings and leave the options alone.
          */
-        if (isExternalOptimizationPresent()) {
+        if (TriggerBotClient.isGl4esRenderer() || isExternalOptimizationPresent()) {
             if (active) {
                 restore(client);
             }
@@ -178,7 +178,7 @@ public final class TriggerBotOptimizer {
     public static void setOptimization(MinecraftClient client, boolean enabled) {
         TriggerBotClient.CONFIG.optimization = enabled;
 
-        if (enabled && !isExternalOptimizationPresent()) {
+        if (enabled && !TriggerBotClient.isGl4esRenderer() && !isExternalOptimizationPresent()) {
             enable(client);
         } else {
             restore(client);
@@ -186,7 +186,7 @@ public final class TriggerBotOptimizer {
     }
 
     private static void enable(MinecraftClient client) {
-        if (isExternalOptimizationPresent()) {
+        if (TriggerBotClient.isGl4esRenderer() || isExternalOptimizationPresent()) {
             active = false;
             return;
         }
@@ -214,7 +214,7 @@ public final class TriggerBotOptimizer {
     }
 
     private static void apply(MinecraftClient client) {
-        if (isExternalOptimizationPresent()) {
+        if (TriggerBotClient.isGl4esRenderer() || isExternalOptimizationPresent()) {
             return;
         }
 
