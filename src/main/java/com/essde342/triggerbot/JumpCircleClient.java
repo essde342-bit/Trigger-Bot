@@ -85,7 +85,7 @@ public final class JumpCircleClient implements ClientModInitializer {
     }
 
     private static void render(WorldRenderContext context) {
-        if (!TriggerBotClient.CONFIG.jumpCircle || effectTime == 0L) {
+        if (TriggerBotClient.isGl4esRenderer() || !TriggerBotClient.CONFIG.jumpCircle || effectTime == 0L) {
             return;
         }
 
