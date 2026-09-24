@@ -114,8 +114,17 @@ public final class JumpCircleClient implements ClientModInitializer {
         VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
         MatrixStack.Entry entry = matrices.peek();
 
-        drawRing(buffer, entry, x, y, z, radius + 0.09D, 135, 65, 255, alpha / 3);
-        drawRing(buffer, entry, x, y + 0.006D, z, radius, 190, 105, 255, alpha);
+        try {
+            drawRing(buffer, entry, x, y, z, radius + 0.09D, 135, 65, 255, alpha / 3);
+            drawRing(buffer, entry, x, y + 0.006D, z, radius, 190, 105, 255, alpha);
+        } catch (IllegalStateException ignored) {
+            /*
+             * A renderer supplied by another mod/launcher can reject a
+             * temporary vertex state. Never take down the whole game for the
+             * cosmetic ring; just discard this effect instance.
+             */
+            effectTime = 0L;
+        }
     }
 
     private static void drawRing(
