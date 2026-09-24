@@ -94,9 +94,9 @@ public final class ModuleManager {
         fullbright.addSetting(new NumberSetting(
                 "Gamma",
                 c().fullbrightGamma,
+                0.0D,
                 1.0D,
-                20.0D,
-                1.0D,
+                0.05D,
                 value -> {
                     c().fullbrightGamma = value;
                     if (c().fullbright) {
