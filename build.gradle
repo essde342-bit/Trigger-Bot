@@ -32,10 +32,6 @@ tasks.register("prepareGalahadFont", Exec) {
     }
 }
 
-tasks.named("sourcesJar") {
-    dependsOn(tasks.named("prepareGalahadFont"))
-}
-
 processResources {
     dependsOn(tasks.named("prepareGalahadFont"))
     inputs.property("version", project.version)
