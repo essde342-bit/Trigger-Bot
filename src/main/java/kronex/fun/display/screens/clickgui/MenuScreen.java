@@ -12,6 +12,7 @@ import kronex.fun.other.utils.display.other.animation.Direction;
 import kronex.fun.other.utils.display.other.animation.implement.DecelerateAnimation;
 import kronex.fun.other.utils.display.shape.ShapeProperties;
 import kronex.fun.other.utils.client.sound.SoundManager;
+import kronex.fun.other.utils.math.MathUtil;
 import kronex.fun.other.utils.display.interfaces.QuickImports;
 import kronex.fun.other.utils.other.StringUtil;
 import kronex.fun.other.utils.display.font.Fonts;
