@@ -2,7 +2,6 @@ package kronex.fun.display.screens.clickgui.components.implement.category;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
-import org.joml.Matrix4f;
 import net.minecraft.util.math.MathHelper;
 import kronex.fun.features.module.Module;
 import kronex.fun.features.module.ModuleCategory;
@@ -12,7 +11,6 @@ import kronex.fun.other.utils.display.font.Fonts;
 import kronex.fun.other.utils.display.shape.ShapeProperties;
 import kronex.fun.other.utils.display.color.ColorAssist;
 import kronex.fun.other.utils.math.MathUtil;
-import kronex.fun.other.utils.display.scissor.ScissorAssist;
 import kronex.fun.Kronex;
 import kronex.fun.display.screens.clickgui.MenuScreen;
 import kronex.fun.display.screens.clickgui.components.AbstractComponent;
@@ -49,9 +47,6 @@ public class CategoryComponent extends AbstractComponent {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MenuScreen menuScreen = MenuScreen.INSTANCE;
         globalModuleComponents.clear();
-        Matrix4f positionMatrix = context.getMatrices().peek().getPositionMatrix();
-        ScissorAssist scissorManager = Kronex.getInstance().getScissorManager();
-
         drawCategoryTab(context, context.getMatrices());
 
         int[] offsets = calculateOffsets();
@@ -60,10 +55,14 @@ public class CategoryComponent extends AbstractComponent {
         int maxScroll = 0;
         float offsetX = 84, offsetY = 29;
 
-        scissorManager.push(positionMatrix, menuScreen.x + offsetX, menuScreen.y + offsetY,
-                menuScreen.width - offsetX, menuScreen.height - offsetY - 1);
-
-        for (int i = moduleComponents.size() - 1; i >= 0; i--) {
+        context.enableScissor(
+                Math.round(menuScreen.x + offsetX),
+                Math.round(menuScreen.y + offsetY),
+                Math.round(menuScreen.x + menuScreen.width),
+                Math.round(menuScreen.y + menuScreen.height - 1)
+        );
+        try {
+            for (int i = moduleComponents.size() - 1; i >= 0; i--) {
             ModuleComponent component = moduleComponents.get(i);
             if (shouldRenderComponent(component)) {
                 int componentHeight = component.getComponentHeight() + 9;
@@ -81,9 +80,10 @@ public class CategoryComponent extends AbstractComponent {
                 maxScroll = Math.max(maxScroll, offsets[column]);
                 column = (column + 1) % 2;
             }
+            }
+        } finally {
+            context.disableScissor();
         }
-
-        scissorManager.pop();
         int clamped = MathHelper.clamp(maxScroll - (menuScreen.height / 2 - 80), 0, maxScroll);
         scroll = MathHelper.clamp(scroll, -clamped, 0);
         smoothedScroll = MathUtil.interpolateSmooth(2, (float) smoothedScroll, (float) scroll);
@@ -96,23 +96,21 @@ public class CategoryComponent extends AbstractComponent {
         if (MathUtil.isHovered(mouseX, mouseY, x, y, width, height) && button == 0) {
             MenuScreen.INSTANCE.setCategory(category);
             MenuScreen.INSTANCE.setCosmeticsOpen(false);
+            return true;
         }
 
         float offsetX = 84, offsetY = 29;
         if (MathUtil.isHovered(mouseX, mouseY, menuScreen.x + offsetX, menuScreen.y + offsetY,
                 menuScreen.width - offsetX, menuScreen.height - offsetY)) {
-            boolean any = moduleComponents.stream()
-                    .anyMatch(moduleComponent -> moduleComponent.isHover(mouseX, mouseY));
-            if (any) {
-                moduleComponents.forEach(moduleComponent -> {
-                    if (shouldRenderComponent(moduleComponent) && moduleComponent.isHover(mouseX, mouseY)) {
-                        moduleComponent.mouseClicked(mouseX, mouseY, button);
-                    }
-                });
-                return super.mouseClicked(mouseX, mouseY, button);
+            for (ModuleComponent moduleComponent : moduleComponents) {
+                if (shouldRenderComponent(moduleComponent)
+                        && moduleComponent.isHover(mouseX, mouseY)
+                        && moduleComponent.mouseClicked(mouseX, mouseY, button)) {
+                    return true;
+                }
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return false;
     }
 
     @Override
