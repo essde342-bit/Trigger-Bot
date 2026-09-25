@@ -13,7 +13,6 @@ import kronex.fun.other.utils.display.other.animation.implement.DecelerateAnimat
 import kronex.fun.other.utils.display.shape.ShapeProperties;
 import kronex.fun.other.utils.client.sound.SoundManager;
 import kronex.fun.other.utils.display.interfaces.QuickImports;
-import kronex.fun.other.utils.math.MathUtil;
 import kronex.fun.other.utils.other.StringUtil;
 import kronex.fun.other.utils.display.font.Fonts;
 import kronex.fun.other.commands.defaults.BindCommand;
@@ -109,23 +108,21 @@ public class MenuScreen extends Screen implements QuickImports {
         searchComponent.position(x + 300, y + 6);
         categoryContainerComponent.position(x, y);
 
-        MathUtil.scale(context.getMatrices(), x + (float) width / 2, y + (float) height / 2, getScaleAnimation(), () -> {
-            backgroundComponent.render(context, mouseX, mouseY, delta);
-            userComponent.render(context, mouseX, mouseY, delta);
-            categoryContainerComponent.render(context, mouseX, mouseY, delta);
-            if (!cosmeticsOpen) {
-                searchComponent.render(context, mouseX, mouseY, delta);
-            }
-            cosmeticsButton.render(context, mouseX, mouseY, delta);
-            if (cosmeticsOpen) {
-                cosmeticsPanel.render(context, mouseX, mouseY, delta);
-            } else if (category == ModuleCategory.THEMES) {
-                themeComponent.position(x + 94, y + 38).size(width - 100, height - 48);
-                themeComponent.render(context, mouseX, mouseY, delta);
-            }
-            drawClickGuiBind(context);
-            windowManager.render(context, mouseX, mouseY, delta);
-        });
+        backgroundComponent.render(context, mouseX, mouseY, delta);
+        userComponent.render(context, mouseX, mouseY, delta);
+        categoryContainerComponent.render(context, mouseX, mouseY, delta);
+        if (!cosmeticsOpen) {
+            searchComponent.render(context, mouseX, mouseY, delta);
+        }
+        cosmeticsButton.render(context, mouseX, mouseY, delta);
+        if (cosmeticsOpen) {
+            cosmeticsPanel.render(context, mouseX, mouseY, delta);
+        } else if (category == ModuleCategory.THEMES) {
+            themeComponent.position(x + 94, y + 38).size(width - 100, height - 48);
+            themeComponent.render(context, mouseX, mouseY, delta);
+        }
+        drawClickGuiBind(context);
+        windowManager.render(context, mouseX, mouseY, delta);
             super.render(context, mouseX, mouseY, delta);
         } finally {
             kronex.fun.other.utils.display.GuiRenderContext.clear();
