@@ -9,6 +9,8 @@ import kronex.fun.other.utils.display.shape.ShapeProperties;
 import kronex.fun.other.utils.display.color.ColorAssist;
 import kronex.fun.other.utils.math.MathUtil;
 import kronex.fun.display.screens.clickgui.components.AbstractComponent;
+import static kronex.fun.other.utils.display.other.animation.Direction.BACKWARDS;
+import static kronex.fun.other.utils.display.other.animation.Direction.FORWARDS;
 
 
 @Setter
