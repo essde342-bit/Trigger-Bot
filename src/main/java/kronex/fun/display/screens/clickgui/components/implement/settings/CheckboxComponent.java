@@ -30,7 +30,6 @@ public class CheckboxComponent extends AbstractSettingComponent {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        checkComponent.mouseClicked(mouseX, mouseY, button);
-        return super.mouseClicked(mouseX, mouseY, button);
+        return checkComponent.mouseClicked(mouseX, mouseY, button);
     }
 }
