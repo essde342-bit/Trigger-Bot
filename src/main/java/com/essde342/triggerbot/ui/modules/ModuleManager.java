@@ -204,7 +204,12 @@ public final class ModuleManager {
 
         for (Module module : MODULES) {
             int bind = module.getBind();
-            boolean down = bind >= 0 && GLFW.glfwGetKey(handle, bind) == GLFW.GLFW_PRESS;
+            boolean down;
+            if (bind >= GLFW.GLFW_MOUSE_BUTTON_1 && bind <= GLFW.GLFW_MOUSE_BUTTON_LAST) {
+                down = GLFW.glfwGetMouseButton(handle, bind) == GLFW.GLFW_PRESS;
+            } else {
+                down = bind >= 0 && GLFW.glfwGetKey(handle, bind) == GLFW.GLFW_PRESS;
+            }
             boolean previous = KEY_STATES.containsKey(module)
                     && Boolean.TRUE.equals(KEY_STATES.get(module));
 
