@@ -45,8 +45,12 @@ public class CategoryContainerComponent extends AbstractComponent {
     }
 
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        categoryComponents.forEach(categoryComponent -> categoryComponent.mouseClicked(mouseX, mouseY, button));
-        return super.mouseClicked(mouseX, mouseY, button);
+        for (CategoryComponent categoryComponent : categoryComponents) {
+            if (categoryComponent.mouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
