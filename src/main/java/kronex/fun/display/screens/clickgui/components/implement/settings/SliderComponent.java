@@ -1,7 +1,5 @@
 package kronex.fun.display.screens.clickgui.components.implement.settings;
 
-import kronex.fun.Kronex;
-import kronex.fun.other.utils.display.scissor.ScissorAssist;
 import kronex.fun.other.utils.display.color.ColorAssist;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
@@ -10,7 +8,6 @@ import kronex.fun.features.module.setting.implement.SliderSettings;
 import kronex.fun.other.utils.display.font.Fonts;
 import kronex.fun.other.utils.display.shape.ShapeProperties;
 import kronex.fun.other.utils.math.calc.Calculate;
-import org.lwjgl.glfw.GLFW;
 import java.awt.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -32,10 +29,6 @@ public class SliderComponent extends AbstractSettingComponent {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MatrixStack matrix = context.getMatrices();
 
-        if (dragging && GLFW.glfwGetMouseButton(mc.getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) != GLFW.GLFW_PRESS) {
-            dragging = false;
-        }
-
         height = 28;
         String value = setting.isInteger() ? String.valueOf((int) setting.getValue()) : String.valueOf(setting.getValue());
         float valueW = Fonts.getSize(14, BOLD).getStringWidth(value);
@@ -45,10 +38,9 @@ public class SliderComponent extends AbstractSettingComponent {
 
         float nameWidth = Fonts.getSize(14, DEFAULT).getStringWidth(setting.getName());
         if (nameWidth > maxNameW) {
-            ScissorAssist scissor = Kronex.getInstance().getScissorManager();
-            scissor.push(matrix.peek().getPositionMatrix(), nameX, y + 3f, maxNameW, 14f);
-            Fonts.getSize(14, DEFAULT).drawStringWithScroll(matrix, get(setting.getName()), nameX, nameY, maxNameW, Color.WHITE.getRGB());
-            scissor.pop();
+            Fonts.getSize(14, DEFAULT).drawStringWithScroll(
+                    matrix, get(setting.getName()), nameX, nameY, maxNameW, Color.WHITE.getRGB()
+            );
         } else {
             Fonts.getSize(14, DEFAULT).drawString(matrix, get(setting.getName()), nameX, nameY, Color.WHITE.getRGB());
         }
