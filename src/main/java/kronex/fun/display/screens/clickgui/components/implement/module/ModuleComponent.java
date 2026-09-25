@@ -101,8 +101,12 @@ public class ModuleComponent extends AbstractComponent {
             module.switchState();
             return true;
         }
-        for (AbstractSettingComponent component : components) component.mouseClicked(mouseX, mouseY, button);
-        return super.mouseClicked(mouseX, mouseY, button);
+        for (AbstractSettingComponent component : components) {
+            if (component.mouseClicked(mouseX, mouseY, button)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override public boolean isHover(double mouseX, double mouseY) {
