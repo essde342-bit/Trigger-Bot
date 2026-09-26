@@ -43,7 +43,8 @@ public class CategoryComponent extends AbstractComponent {
         drawCategoryTab(context, context.getMatrices());
 
         int[] offsets = calculateOffsets();
-        int columnWidth = 137;
+        int availableWidth = Math.max(200, menuScreen.width - 105);
+        int columnWidth = Math.max(96, (availableWidth - 10) / 2);
         int column = 0;
         int maxScroll = 0;
         float offsetX = 84, offsetY = 29;
