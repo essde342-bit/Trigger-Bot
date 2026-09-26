@@ -90,10 +90,14 @@ public class MenuScreen extends Screen implements QuickImports {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         kronex.fun.other.utils.display.GuiRenderContext.set(context);
         try {
-            x = window.getScaledWidth() / 2 - 200;
-        y = window.getScaledHeight() / 2 - 125;
-        width = 400;
-        height = 250;
+            int screenWidth = window.getScaledWidth();
+        int screenHeight = window.getScaledHeight();
+
+        width = Math.min(400, Math.max(320, screenWidth - 10));
+        height = Math.min(250, Math.max(170, screenHeight - 10));
+
+        x = (screenWidth - width) / 2;
+        y = (screenHeight - height) / 2;
 
         rectangle.render(ShapeProperties.create(context.getMatrices(), 0, 0, window.getScaledWidth(), window.getScaledHeight())
                 .color(ColorAssist.applyOpacity(0xFF000000, 100 * getScaleAnimation())).build());
@@ -106,7 +110,7 @@ public class MenuScreen extends Screen implements QuickImports {
         cosmeticsButton.width = 73;
         cosmeticsButton.height = 17;
 
-        searchComponent.position(x + 300, y + 6);
+        searchComponent.position(Math.max(x + 210, x + width - 86), y + 6);
         categoryContainerComponent.position(x, y);
 
         backgroundComponent.render(context, mouseX, mouseY, delta);
@@ -124,7 +128,25 @@ public class MenuScreen extends Screen implements QuickImports {
         }
         drawClickGuiBind(context);
         windowManager.render(context, mouseX, mouseY, delta);
-            super.render(context, mouseX, mouseY, delta);
+
+        int sw = window.getScaledWidth();
+        int sh = window.getScaledHeight();
+        int overlay = ColorAssist.applyOpacity(0xFF000000, 100 * getScaleAnimation());
+
+        if (x > 0) {
+            context.fill(0, 0, x, sh, overlay);
+        }
+        if (x + width < sw) {
+            context.fill(x + width, 0, sw, sh, overlay);
+        }
+        if (y > 0) {
+            context.fill(x, 0, x + width, y, overlay);
+        }
+        if (y + height < sh) {
+            context.fill(x, y + height, x + width, sh, overlay);
+        }
+
+        super.render(context, mouseX, mouseY, delta);
         } finally {
             kronex.fun.other.utils.display.GuiRenderContext.clear();
         }
