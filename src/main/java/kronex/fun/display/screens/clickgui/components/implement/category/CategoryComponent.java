@@ -17,13 +17,10 @@ import kronex.fun.display.screens.clickgui.components.AbstractComponent;
 import kronex.fun.display.screens.clickgui.components.implement.module.ModuleComponent;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class CategoryComponent extends AbstractComponent {
     private final List<ModuleComponent> moduleComponents = new ArrayList<>();
-    private static final Set<ModuleComponent> globalModuleComponents = new HashSet<>();
     private final ModuleCategory category;
     private final kronex.fun.other.utils.display.other.animation.Animation alphaAnimation =
             new DecelerateAnimation().setMs(300).setValue(1);
@@ -31,10 +28,7 @@ public class CategoryComponent extends AbstractComponent {
     private void initialize() {
         List<Module> modules = Kronex.getInstance().getModuleRepository().modules();
         for (Module module : modules) {
-            ModuleComponent newComponent = new ModuleComponent(module);
-            if (globalModuleComponents.add(newComponent)) {
-                moduleComponents.add(newComponent);
-            }
+            moduleComponents.add(new ModuleComponent(module));
         }
     }
 
@@ -46,7 +40,6 @@ public class CategoryComponent extends AbstractComponent {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MenuScreen menuScreen = MenuScreen.INSTANCE;
-        globalModuleComponents.clear();
         drawCategoryTab(context, context.getMatrices());
 
         int[] offsets = calculateOffsets();
