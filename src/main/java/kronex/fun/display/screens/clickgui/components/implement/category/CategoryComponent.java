@@ -55,14 +55,9 @@ public class CategoryComponent extends AbstractComponent {
         int maxScroll = 0;
         float offsetX = 84, offsetY = 29;
 
-        context.enableScissor(
-                Math.round(menuScreen.x + offsetX),
-                Math.round(menuScreen.y + offsetY),
-                Math.round(menuScreen.x + menuScreen.width),
-                Math.round(menuScreen.y + menuScreen.height - 1)
-        );
-        try {
-            for (int i = moduleComponents.size() - 1; i >= 0; i--) {
+        final float contentTop = menuScreen.y + offsetY;
+        final float contentBottom = menuScreen.y + menuScreen.height - 1;
+        for (int i = moduleComponents.size() - 1; i >= 0; i--) {
             ModuleComponent component = moduleComponents.get(i);
             if (shouldRenderComponent(component)) {
                 int componentHeight = component.getComponentHeight() + 9;
@@ -71,8 +66,9 @@ public class CategoryComponent extends AbstractComponent {
                 component.y = (float) (menuScreen.y + 39 + offsets[column] - componentHeight + smoothedScroll);
                 component.width = columnWidth;
 
-                if (component.y > menuScreen.y - componentHeight
-                        && menuScreen.y + menuScreen.height + 5 > component.y) {
+                float componentBottom = component.y + componentHeight;
+                if (component.y >= contentTop
+                        && componentBottom <= contentBottom) {
                     component.render(context, mouseX, mouseY, delta);
                 }
 
@@ -80,9 +76,6 @@ public class CategoryComponent extends AbstractComponent {
                 maxScroll = Math.max(maxScroll, offsets[column]);
                 column = (column + 1) % 2;
             }
-            }
-        } finally {
-            context.disableScissor();
         }
         int clamped = MathHelper.clamp(maxScroll - (menuScreen.height / 2 - 80), 0, maxScroll);
         scroll = MathHelper.clamp(scroll, -clamped, 0);
