@@ -11,7 +11,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
 public final class AltManager {
@@ -146,24 +148,26 @@ public final class AltManager {
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.getSession() == null) {
+        if (client == null || client.getSession() == null || client.world != null) {
             return false;
         }
 
-        Session current = client.getSession();
-        UUID uuid = current.getUuidOrNull();
-
+        // Offline profiles must not inherit the active Microsoft/Mojang token.
+        UUID offlineUuid = UUID.nameUUIDFromBytes(
+                ("OfflinePlayer:" + normalized).getBytes(StandardCharsets.UTF_8)
+        );
         Session replacement = new Session(
                 normalized,
-                uuid,
-                current.getAccessToken(),
-                current.getXuid(),
-                current.getClientId(),
-                current.getAccountType()
+                offlineUuid,
+                "",
+                Optional.empty(),
+                Optional.empty(),
+                Session.AccountType.LEGACY
         );
 
         ((MinecraftClientAccessor) (Object) client).triggerBot$setSession(replacement);
-        return normalized.equals(client.getSession().getUsername());
+        return normalized.equals(client.getSession().getUsername())
+                && offlineUuid.equals(client.getSession().getUuidOrNull());
     }
 
     public static String currentNickname() {
