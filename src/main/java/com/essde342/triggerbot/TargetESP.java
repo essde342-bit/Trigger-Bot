@@ -141,12 +141,18 @@ public final class TargetESP {
             int blue,
             int alpha
     ) {
-        for (int i = 0; i <= SEGMENTS; i++) {
-            double angle = i * (Math.PI * 2.0D / SEGMENTS);
-            float px = (float) (x + Math.cos(angle) * radius);
-            float pz = (float) (z + Math.sin(angle) * radius);
+        for (int i = 0; i < SEGMENTS; i++) {
+            double a0 = i * (Math.PI * 2.0D / SEGMENTS);
+            double a1 = (i + 1) * (Math.PI * 2.0D / SEGMENTS);
+            float x0 = (float) (x + Math.cos(a0) * radius);
+            float z0 = (float) (z + Math.sin(a0) * radius);
+            float x1 = (float) (x + Math.cos(a1) * radius);
+            float z1 = (float) (z + Math.sin(a1) * radius);
 
-            buffer.vertex(entry.getPositionMatrix(), px, (float) y, pz)
+            buffer.vertex(entry.getPositionMatrix(), x0, (float) y, z0)
+                    .color(red, green, blue, alpha)
+                    .normal(entry, 0.0F, 1.0F, 0.0F);
+            buffer.vertex(entry.getPositionMatrix(), x1, (float) y, z1)
                     .color(red, green, blue, alpha)
                     .normal(entry, 0.0F, 1.0F, 0.0F);
         }
