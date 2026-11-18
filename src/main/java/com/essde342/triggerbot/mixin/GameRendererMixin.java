@@ -18,7 +18,7 @@ public abstract class GameRendererMixin {
             float fovDegrees,
             CallbackInfoReturnable<Matrix4f> cir
     ) {
-        if (TriggerBotClient.isGl4esRenderer() || !TriggerBotClient.CONFIG.aspectRatioEnabled) {
+        if (!TriggerBotClient.CONFIG.aspectRatioEnabled) {
             return;
         }
 
@@ -41,7 +41,7 @@ public abstract class GameRendererMixin {
         float actualAspect = (float) width / (float) height;
         float correction = actualAspect / desiredAspect;
 
-        Matrix4f projection = cir.getReturnValue();
+        Matrix4f projection = new Matrix4f(cir.getReturnValue());
         projection.scale(correction, 1.0F, 1.0F);
         cir.setReturnValue(projection);
     }
@@ -56,23 +56,9 @@ public abstract class GameRendererMixin {
             float tickDelta,
             CallbackInfo info
     ) {
-        if (!TriggerBotClient.isGl4esRenderer() && TriggerBotClient.isNoHurtCamEnabled()) {
+        if (TriggerBotClient.isNoHurtCamEnabled()) {
             info.cancel();
         }
     }
 
-    @Inject(
-            method = "bobView(Lnet/minecraft/client/util/math/MatrixStack;F)V",
-            at = @At("HEAD"),
-            cancellable = true
-    )
-    private void triggerBot$disableHurtBob(
-            MatrixStack matrices,
-            float tickDelta,
-            CallbackInfo info
-    ) {
-        if (!TriggerBotClient.isGl4esRenderer() && TriggerBotClient.isNoHurtCamEnabled()) {
-            info.cancel();
-        }
-    }
 }
