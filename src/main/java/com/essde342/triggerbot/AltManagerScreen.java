@@ -116,7 +116,7 @@ public final class AltManagerScreen extends Screen {
         }
 
         if (AltManager.apply(name)) {
-            status = "Applied: " + name;
+            status = "Offline profile selected: " + name;
             nicknameField.setText(name);
             nicknameField.setCursorToEnd(false);
         } else {
@@ -204,7 +204,7 @@ public final class AltManagerScreen extends Screen {
 
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
-                Text.literal("Saved: " + alts.size()),
+                Text.literal("Offline profiles · Saved: " + alts.size()),
                 center,
                 28,
                 0xAAAAAA
