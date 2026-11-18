@@ -53,6 +53,7 @@ public class TriggerBotClient implements ClientModInitializer {
         ));
 
         TargetESP.register();
+        LightningESP.register();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) {
@@ -65,9 +66,7 @@ public class TriggerBotClient implements ClientModInitializer {
             ModuleManager.handleKeyBinds(client);
             applyVisualFeatures(client);
 
-            if (client.player != null && client.world != null) {
-                TriggerBotOptimizer.tick(client);
-            }
+            TriggerBotOptimizer.tick(client);
 
             if (client.player != null && client.world != null) {
                 if (CONFIG.aimAssist) {
