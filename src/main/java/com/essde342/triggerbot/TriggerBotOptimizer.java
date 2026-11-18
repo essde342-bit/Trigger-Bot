@@ -31,11 +31,7 @@ public final class TriggerBotOptimizer {
             "vulkanmod",
             "enhancedblockentities",
             "scalablelux",
-            "dynamicfps",
-            "modernfix",
-            "ferritecore",
-            "lithium",
-            "c2me"
+            "modernfix"
     );
 
     private static boolean active = false;
@@ -219,7 +215,7 @@ public final class TriggerBotOptimizer {
     }
 
     private static void apply(MinecraftClient client) {
-        if (TriggerBotClient.isGl4esRenderer() || isExternalOptimizationPresent()) {
+        if (isExternalOptimizationPresent()) {
             return;
         }
 
