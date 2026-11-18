@@ -43,6 +43,8 @@ public final class TriggerBotOptimizer {
     private static int currentLevel = 1;
     private static int timer = 0;
     private static int playerScanTimer = 0;
+    private static boolean crowdedServer = false;
+    private static boolean adaptiveMode = false;
 
     private static int savedViewDistance;
     private static double savedEntityDistance;
@@ -62,18 +64,15 @@ public final class TriggerBotOptimizer {
             return;
         }
 
-        /*
-         * Compatibility first: when another optimization/rendering stack is
-         * present, restore any Astra-owned settings and leave the options alone.
-         */
-        if (TriggerBotClient.isGl4esRenderer() || isExternalOptimizationPresent()) {
+        if (client.player == null || client.world == null) {
             if (active) {
                 restore(client);
             }
             return;
         }
 
-        if (!TriggerBotClient.CONFIG.optimization) {
+        // Do not compete with another optimization mod that owns these settings.
+        if (isExternalOptimizationPresent() || !TriggerBotClient.CONFIG.optimization) {
             if (active) {
                 restore(client);
             }
@@ -84,42 +83,47 @@ public final class TriggerBotOptimizer {
             enable(client);
         }
 
-        if (++timer < 120) {
-            return;
-        }
-        timer = 0;
-
-        if (TriggerBotClient.CONFIG.adaptiveOptimization) {
-            int fps = readFps(client);
-            int target = TriggerBotClient.CONFIG.targetFps;
-
-            if (fps > 0 && fps < target - 5 && currentLevel < 2) {
-                currentLevel++;
-                apply(client);
-            } else if (fps >= target + 12 && currentLevel > TriggerBotClient.CONFIG.optimizationLevel) {
-                currentLevel--;
-                apply(client);
-            }
-        } else if (currentLevel != TriggerBotClient.CONFIG.optimizationLevel) {
-            currentLevel = clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2);
+        boolean requestedAdaptive = TriggerBotClient.CONFIG.adaptiveOptimization;
+        if (requestedAdaptive != adaptiveMode) {
+            adaptiveMode = requestedAdaptive;
+            currentLevel = adaptiveMode ? 0 : clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2);
             apply(client);
+        }
+
+        if (++timer >= 120) {
+            timer = 0;
+            if (adaptiveMode) {
+                int fps = readFps(client);
+                int target = TriggerBotClient.CONFIG.targetFps;
+                if (fps > 0 && fps < target - 5 && currentLevel < 2) {
+                    currentLevel++;
+                    apply(client);
+                } else if (fps >= target + 12 && currentLevel > 0) {
+                    currentLevel--;
+                    apply(client);
+                }
+            } else {
+                int requestedLevel = clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2);
+                if (currentLevel != requestedLevel) {
+                    currentLevel = requestedLevel;
+                    apply(client);
+                }
+            }
         }
 
         if (++playerScanTimer >= 120) {
             playerScanTimer = 0;
-            if (client.player != null && client.world != null) {
-                int nearbyPlayers = 0;
-                for (net.minecraft.entity.player.PlayerEntity other : client.world.getPlayers()) {
-                    if (other != client.player
-                            && other.squaredDistanceTo(client.player) <= 32.0D * 32.0D) {
-                        nearbyPlayers++;
-                    }
+            int nearbyPlayers = 0;
+            for (net.minecraft.entity.player.PlayerEntity other : client.world.getPlayers()) {
+                if (other != client.player
+                        && other.squaredDistanceTo(client.player) <= 32.0D * 32.0D) {
+                    nearbyPlayers++;
                 }
-                if (nearbyPlayers >= 8) {
-                    client.options.getEntityDistanceScaling().setValue(
-                            Math.min(client.options.getEntityDistanceScaling().getValue(), 0.35D)
-                    );
-                }
+            }
+            boolean nextCrowdedState = nearbyPlayers >= 8;
+            if (nextCrowdedState != crowdedServer) {
+                crowdedServer = nextCrowdedState;
+                apply(client);
             }
         }
     }
@@ -178,7 +182,7 @@ public final class TriggerBotOptimizer {
     public static void setOptimization(MinecraftClient client, boolean enabled) {
         TriggerBotClient.CONFIG.optimization = enabled;
 
-        if (enabled && !TriggerBotClient.isGl4esRenderer() && !isExternalOptimizationPresent()) {
+        if (enabled && !isExternalOptimizationPresent()) {
             enable(client);
         } else {
             restore(client);
@@ -186,7 +190,7 @@ public final class TriggerBotOptimizer {
     }
 
     private static void enable(MinecraftClient client) {
-        if (TriggerBotClient.isGl4esRenderer() || isExternalOptimizationPresent()) {
+        if (isExternalOptimizationPresent()) {
             active = false;
             return;
         }
@@ -195,7 +199,8 @@ public final class TriggerBotOptimizer {
             snapshot(client.options);
         }
 
-        currentLevel = clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2);
+        adaptiveMode = TriggerBotClient.CONFIG.adaptiveOptimization;
+        currentLevel = adaptiveMode ? 0 : clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2);
         active = true;
         apply(client);
     }
@@ -224,10 +229,11 @@ public final class TriggerBotOptimizer {
         double entityDistance = currentLevel == 2 ? 0.35D : (currentLevel == 1 ? 0.55D : 0.75D);
 
         SimpleOption<Integer> view = options.getViewDistance();
-        view.setValue(Math.min(view.getValue(), viewDistance));
+        view.setValue(Math.min(savedViewDistance, viewDistance));
 
         SimpleOption<Double> entities = options.getEntityDistanceScaling();
-        entities.setValue(Math.min(entities.getValue(), entityDistance));
+        double effectiveEntityDistance = crowdedServer ? Math.min(entityDistance, 0.35D) : entityDistance;
+        entities.setValue(Math.min(savedEntityDistance, effectiveEntityDistance));
 
         options.getCloudRenderMode().setValue(CloudRenderMode.OFF);
         options.getGraphicsMode().setValue(GraphicsMode.FAST);
@@ -276,6 +282,9 @@ public final class TriggerBotOptimizer {
 
         active = false;
         snapshotTaken = false;
+        crowdedServer = false;
+        adaptiveMode = false;
+        currentLevel = clamp(TriggerBotClient.CONFIG.optimizationLevel, 0, 2);
         timer = 0;
         playerScanTimer = 0;
     }
