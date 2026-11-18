@@ -142,13 +142,22 @@ public final class ModuleManager {
         ));
         link(aspect);
 
-        link(new Module(
+        Module optimization = new Module(
                 "Optimization",
                 Category.OTHER,
-                "Mobile performance profile.",
+                "Applies a graphics profile for performance.",
                 c().optimization,
                 value -> c().optimization = value
+        );
+        optimization.addSetting(new NumberSetting(
+                "Optimization Level",
+                c().optimizationLevel,
+                0.0D,
+                2.0D,
+                1.0D,
+                value -> c().optimizationLevel = (int) Math.round(value)
         ));
+        link(optimization);
 
         Module fps = new Module(
                 "Adaptive FPS",
