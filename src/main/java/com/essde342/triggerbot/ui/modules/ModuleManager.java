@@ -74,6 +74,14 @@ public final class ModuleManager {
         ));
 
         link(new Module(
+                "Lightning ESP",
+                Category.VISUALS,
+                "Marks recent lightning strike locations.",
+                c().lightningEsp,
+                value -> c().lightningEsp = value
+        ));
+
+        link(new Module(
                 "Jump Circle",
                 Category.VISUALS,
                 "Animated circle when jumping and landing.",
@@ -228,6 +236,7 @@ public final class ModuleManager {
         setBind("TriggerBot", c().bindTriggerBot);
         setBind("Aim Assist", c().bindAimAssist);
         setBind("Target ESP", c().bindTargetEsp);
+        setBind("Lightning ESP", c().bindLightningEsp);
         setBind("Jump Circle", c().bindJumpCircle);
         setBind("Fullbright", c().bindFullbright);
         setBind("No Hurt Cam", c().bindNoHurtCam);
@@ -240,6 +249,7 @@ public final class ModuleManager {
         c().bindTriggerBot = getBind("TriggerBot");
         c().bindAimAssist = getBind("Aim Assist");
         c().bindTargetEsp = getBind("Target ESP");
+        c().bindLightningEsp = getBind("Lightning ESP");
         c().bindJumpCircle = getBind("Jump Circle");
         c().bindFullbright = getBind("Fullbright");
         c().bindNoHurtCam = getBind("No Hurt Cam");
