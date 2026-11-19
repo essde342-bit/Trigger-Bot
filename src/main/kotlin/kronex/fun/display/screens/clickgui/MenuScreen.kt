@@ -458,11 +458,11 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             if (group.second.isEmpty()) drawText(context, "Нет модулей", card.x + 10, card.y + 45, 0xFF66666C.toInt())
         }
 
-        if (desktopSettingsOpen && selectedModule != null) {
+        if ((desktopSettingsOpen || mobileSettingsOpen) && selectedModule != null) {
             context.fill(px, py, px + panelWidth, py + panelHeight, 0x99000000.toInt())
             val popupW = 330.coerceAtMost(panelWidth - 20)
             val popup = Rect(px + (panelWidth - popupW) / 2, py + 48, popupW, (panelHeight - 70).coerceAtLeast(130))
-            drawModuleDetails(context, selectedModule!!, popup, mouseX, mouseY, compact = false)
+            drawModuleDetails(context, selectedModule!!, popup, mouseX, mouseY, compact = width < 720)
         }
     }
     private fun drawModuleDetails(
@@ -927,7 +927,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             }
 
             Page.GAME -> {
-                if (width >= 760 && desktopSettingsOpen && detailsCloseButton.contains(mouseX, mouseY)) {
+                if (desktopSettingsOpen && detailsCloseButton.contains(mouseX, mouseY)) {
                     desktopSettingsOpen = false
                     return true
                 }
@@ -941,7 +941,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                     return true
                 }
 
-                if (width < 760 && mobileSettingsOpen && accountsBackButton.contains(mouseX, mouseY)) {
+                if (width < 720 && mobileSettingsOpen && accountsBackButton.contains(mouseX, mouseY)) {
                     mobileSettingsOpen = false
                     return true
                 }
