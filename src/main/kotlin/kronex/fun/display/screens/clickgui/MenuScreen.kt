@@ -49,6 +49,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         Category.MISC to "Разное"
     )
     private val galahadFont = Identifier.of("triggerbot", "galahad")
+    private val menuFont = Identifier.of("triggerbot", "pt_sans")
 
     private val background = 0xF20B0B0D.toInt()
     private val sidebarBackground = 0xFF0D0D0F.toInt()
@@ -189,7 +190,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         val value = searchField.getText().ifBlank {
             if (accountsPage) "Ник 3–16 символов" else "Поиск модулей"
         }
-        val styled = Text.literal(value).setStyle(Style.EMPTY.withFont(galahadFont))
+        val styled = Text.literal(value).setStyle(Style.EMPTY.withFont(menuFont))
         context.drawText(textRenderer, styled, searchField.x + 5, searchField.y + 6, secondaryText, false)
     }
 
@@ -627,7 +628,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     }
 
     private fun drawText(context: DrawContext, value: String, x: Int, y: Int, color: Int) {
-        val styled = Text.literal(value).setStyle(Style.EMPTY.withFont(galahadFont))
+        val styled = Text.literal(value).setStyle(Style.EMPTY.withFont(menuFont))
         context.drawText(textRenderer, styled, x, y, color, false)
     }
 
