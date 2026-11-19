@@ -43,8 +43,10 @@ public final class Kronex {
         private ModuleCategory mapCategory(com.essde342.triggerbot.ui.modules.Category category) {
             return switch (category) {
                 case COMBAT -> ModuleCategory.COMBAT;
-                case VISUALS -> ModuleCategory.RENDER;
-                case OTHER -> ModuleCategory.MISC;
+                case MOVEMENT -> ModuleCategory.MOVEMENT;
+                case PLAYER -> ModuleCategory.PLAYER;
+                case RENDER -> ModuleCategory.RENDER;
+                case MISC -> ModuleCategory.MISC;
             };
         }
     }
