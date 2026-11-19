@@ -74,6 +74,12 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         MinecraftClient.getInstance().setScreen(this)
     }
 
+    @JvmStatic
+    fun openAccounts() {
+        changePage(Page.ACCOUNTS)
+        MinecraftClient.getInstance().setScreen(this)
+    }
+
     private fun animationDirectionReset() {
         waitingForBind = null
         draggingSlider = null
