@@ -1,6 +1,5 @@
 package com.essde342.triggerbot.ui.modules;
 
-import com.essde342.triggerbot.AltManagerScreen;
 import com.essde342.triggerbot.TriggerBotClient;
 import com.essde342.triggerbot.TriggerBotConfig;
 import com.essde342.triggerbot.ui.imple.BooleanSetting;
