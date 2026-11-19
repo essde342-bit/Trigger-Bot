@@ -66,7 +66,7 @@ public final class ModuleManager {
 
         link(new Module(
                 "Target ESP",
-                Category.VISUALS,
+                Category.RENDER,
                 "Visible glow around the selected target.",
                 c().targetEsp,
                 value -> c().targetEsp = value
@@ -74,7 +74,7 @@ public final class ModuleManager {
 
         link(new Module(
                 "Lightning ESP",
-                Category.VISUALS,
+                Category.RENDER,
                 "Marks recent lightning strike locations.",
                 c().lightningEsp,
                 value -> c().lightningEsp = value
@@ -82,7 +82,7 @@ public final class ModuleManager {
 
         link(new Module(
                 "Jump Circle",
-                Category.VISUALS,
+                Category.RENDER,
                 "Animated circle when jumping and landing.",
                 c().jumpCircle,
                 value -> c().jumpCircle = value
@@ -90,7 +90,7 @@ public final class ModuleManager {
 
         Module fullbright = new Module(
                 "Fullbright",
-                Category.VISUALS,
+                Category.RENDER,
                 "Raises gamma in dark areas.",
                 c().fullbright,
                 value -> {
@@ -118,7 +118,7 @@ public final class ModuleManager {
 
         link(new Module(
                 "No Hurt Cam",
-                Category.VISUALS,
+                Category.RENDER,
                 "Disables damage camera shake.",
                 c().noHurtCam,
                 value -> c().noHurtCam = value
@@ -126,7 +126,7 @@ public final class ModuleManager {
 
         Module aspect = new Module(
                 "Aspect Ratio",
-                Category.VISUALS,
+                Category.RENDER,
                 "Changes the camera projection ratio.",
                 c().aspectRatioEnabled,
                 value -> c().aspectRatioEnabled = value
@@ -143,7 +143,7 @@ public final class ModuleManager {
 
         Module optimization = new Module(
                 "Optimization",
-                Category.OTHER,
+                Category.MISC,
                 "Applies a graphics profile for performance.",
                 c().optimization,
                 value -> c().optimization = value
@@ -160,7 +160,7 @@ public final class ModuleManager {
 
         Module fps = new Module(
                 "Adaptive FPS",
-                Category.OTHER,
+                Category.MISC,
                 "Adaptive target FPS for the mobile profile.",
                 c().adaptiveOptimization,
                 value -> c().adaptiveOptimization = value
@@ -177,7 +177,7 @@ public final class ModuleManager {
 
         link(new Module(
                 "Alt Manager",
-                Category.OTHER,
+                Category.PLAYER,
                 "Opens the local nickname manager.",
                 false,
                 value -> {}
