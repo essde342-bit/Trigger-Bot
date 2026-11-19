@@ -634,7 +634,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             rect.x + 11, rect.y + 6, textMuted)
 
         val inputX = rect.x + 10
-        val inputY = rect.y + 23
+        val inputY = rect.y + 17
         val inputWidth = (rect.w - 20).coerceIn(90, 280)
         if (::nicknameInput.isInitialized) {
             nicknameInput.setPosition(inputX, inputY)
@@ -644,7 +644,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             nicknameInput.active = true
         }
 
-        val buttonsY = inputY + 21
+        val buttonsY = inputY + 19
         val buttonGap = 5
         val buttonWidth = ((rect.w - 25) / 2).coerceAtLeast(60)
         accountApplyButton = Rect(rect.x + 10, buttonsY, buttonWidth, 19)
@@ -654,9 +654,9 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         drawButton(context, accountSaveButton, "СОХРАНИТЬ", false,
             accountSaveButton.contains(mouseX.toDouble(), mouseY.toDouble()))
 
-        val listTop = buttonsY + 21
+        val listTop = buttonsY + 18
         drawText(context, "СОХРАНЁННЫЕ ОФЛАЙН-НИКИ", rect.x + 11, listTop, textMuted)
-        val rowsTop = listTop + 11
+        val rowsTop = listTop + 10
         val rowHeight = if (width < 760) 17 else 21
         val visibleHeight = (rect.y + rect.h - rowsTop - 5).coerceAtLeast(0)
         val visibleRows = (visibleHeight / rowHeight).coerceAtLeast(0)
