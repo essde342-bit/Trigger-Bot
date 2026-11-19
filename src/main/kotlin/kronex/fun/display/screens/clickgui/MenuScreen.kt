@@ -128,7 +128,9 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     @JvmStatic
     fun openGui() {
-        page = Page.HOME
+        page = Page.GAME
+        category = Category.COMBAT
+        selectedModule = modulesForCategory(Category.COMBAT).firstOrNull()
         waitingForBind = null
         mobileSettingsOpen = false
         desktopSettingsOpen = false
@@ -224,20 +226,21 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         ModuleManager.getByCategory(value)
 
     override fun render(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
-        // Minecraft's own panorama remains in the background, like the live
-        // rotating scene on Arbuz's main screen. The overlay darkens it evenly.
-        renderBackground(context, mouseX, mouseY, delta)
-        context.fill(0, 0, width, height, 0x72030A08)
-
-        drawAtmosphere(context)
-
-        drawHeader(context, mouseX, mouseY)
+        // Keep the live Minecraft world visible around the floating Click GUI.
+        // The Click GUI must not inherit the vanilla title-screen blur.
+        if (page == Page.GAME) {
+            context.fill(0, 0, width, height, 0x18000000)
+            drawGame(context, mouseX, mouseY)
+        } else {
+            renderBackground(context, mouseX, mouseY, delta)
+            drawHeader(context, mouseX, mouseY)
+        }
         when (page) {
             Page.HOME -> drawHome(context, mouseX, mouseY)
-            Page.GAME -> drawGame(context, mouseX, mouseY)
+            Page.GAME -> Unit
             Page.ACCOUNTS -> drawAccounts(context, mouseX, mouseY)
         }
-        drawFooter(context, mouseX, mouseY)
+        if (page != Page.GAME) drawFooter(context, mouseX, mouseY)
 
         if (page == Page.ACCOUNTS && altHeld) {
             drawFavoriteServerWheel(context)
