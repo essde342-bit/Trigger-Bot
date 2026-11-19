@@ -1,6 +1,6 @@
 package com.essde342.triggerbot.mixin;
 
-import com.essde342.triggerbot.AltManagerScreen;
+import kronex.fun.display.screens.clickgui.MenuScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -20,7 +20,7 @@ public abstract class TitleScreenMixin extends Screen {
     private void triggerBot$addAltManagerButton(CallbackInfo info) {
         this.addDrawableChild(ButtonWidget.builder(Text.literal("Alt Manager"), button -> {
                     if (this.client != null) {
-                        this.client.setScreen(AltManagerScreen.create((Screen) (Object) this));
+                        MenuScreen.openAccounts();
                     }
                 })
                 .dimensions(this.width - 110, 8, 102, 20)
