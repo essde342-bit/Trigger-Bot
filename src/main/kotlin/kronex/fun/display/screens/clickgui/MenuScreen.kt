@@ -70,11 +70,14 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     private var selectedModule: Module? = null
     private var mobileSettingsOpen = false
+    private var desktopSettingsOpen = false
     private var waitingForBind: Module? = null
     private var draggingSlider: SliderHit? = null
     private var altHeld = false
 
     private var moduleScroll = 0
+    private val columnScrolls = mutableMapOf<Category, Int>()
+    private val desktopColumnHits = mutableListOf<Pair<Category, Rect>>()
     private var settingsScroll = 0
     private var accountScroll = 0
     private var serverScroll = 0
@@ -98,6 +101,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     private var detailsModuleToggle = Rect(0, 0, 0, 0)
     private var detailsBindButton = Rect(0, 0, 0, 0)
+    private var detailsCloseButton = Rect(0, 0, 0, 0)
 
     private var volumeButton = Rect(0, 0, 0, 0)
     private var volumeSlider = Rect(0, 0, 0, 0)
@@ -127,6 +131,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         page = Page.HOME
         waitingForBind = null
         mobileSettingsOpen = false
+        desktopSettingsOpen = false
         MinecraftClient.getInstance().setScreen(this)
     }
 
@@ -354,18 +359,18 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             val angle = Math.toRadians(52.0 + index * (256.0 / 46.0))
             val px = centerX + (cos(angle) * radius).roundToInt()
             val py = centerY + (sin(angle) * radius).roundToInt()
-            context.fill(px, py, px + 2, py + 2, accentBright)
+            context.fill(px, py, px + 2, py + 2, 0xFFFFFFFF.toInt())
         }
 
         // Letter C is a quiet watermark inside the crescent.
         val watermark = Text.literal("C").setStyle(Style.EMPTY.withFont(galahad))
         context.drawCenteredTextWithShadow(textRenderer, watermark, centerX + 1, centerY - 15, 0xCCFFFFFF.toInt())
 
-        for (index in 0 until 38) {
+        for (index in 0 until 116) {
             val px = centerX + ((index * 29 + 7) % 78) - 39
             val py = centerY + ((index * 17 + 3) % 54) - 27
             if (kotlin.math.abs(px - centerX) > 30 || kotlin.math.abs(py - centerY) > 22) {
-                context.fill(px, py, px + 2, py + 2, 0xCCECFFF7.toInt())
+                context.fill(px, py, px + 2, py + 2, 0xFFFFFFFF.toInt())
             }
         }
 
@@ -386,39 +391,131 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         moduleHits.clear()
         booleanHits.clear()
         sliderHits.clear()
+        desktopColumnHits.clear()
 
-        val compact = width < 760
-        if (!compact) {
-            drawText(context, "НАСТРОЙКИ ИГРЫ", 16, 43, textMain)
-            drawText(context, "Модули и параметры Astra Client", 16, 56, textMuted)
+        if (width >= 760) {
+            drawDesktopGame(context, mouseX, mouseY)
+        } else {
+            drawCompactGame(context, mouseX, mouseY)
         }
+    }
 
-        val gap = 4
-        val left = 16
-        val tabsY = if (compact) 42 else 70
-        val tabsWidth = (width - left * 2 - gap * 4).coerceAtLeast(120)
-        val tabWidth = tabsWidth / 5
-        categoryTabs.forEachIndexed { index, entry ->
-            val rect = Rect(left + index * (tabWidth + gap), tabsY, tabWidth, 21)
-            categoryHits.add(entry.first to rect)
-            val active = category == entry.first
-            drawPanel(
-                context,
-                rect,
-                if (active) 0xB3266B56.toInt() else 0x9A0A1512.toInt(),
-                if (active) 0xAA73D9B7.toInt() else border
-            )
-            val labelWidth = textRenderer.getWidth(entry.second)
+    /**
+     * Arbuz-style desktop layout: all five module groups are visible at once.
+     * A selected module opens its settings as a centered overlay, leaving the
+     * five-column overview visible behind it.
+     */
+    private fun drawDesktopGame(context: DrawContext, mouseX: Int, mouseY: Int) {
+        drawText(context, "МОДУЛИ", 16, 42, textMain)
+        drawText(context, "Выбери функцию, чтобы открыть её параметры", 16, 55, textMuted)
+
+        val contentTop = 70
+        val contentBottom = height - 23
+        val contentHeight = (contentBottom - contentTop).coerceAtLeast(80)
+        val outerMargin = 16
+        val gap = 7
+        val columnWidth = ((width - outerMargin * 2 - gap * 4) / 5).coerceAtLeast(100)
+        val rowHeight = 28
+        val headerHeight = 25
+
+        categoryTabs.forEachIndexed { columnIndex, entry ->
+            val x = outerMargin + columnIndex * (columnWidth + gap)
+            val column = Rect(x, contentTop, columnWidth, contentHeight)
+            desktopColumnHits.add(entry.first to column)
+
+            drawPanel(context, column, panel, border)
+            context.fill(column.x + 1, column.y + 1, column.x + column.w - 1, column.y + 3,
+                if (entry.first == category) accent else 0x443D9B7B)
             drawText(
                 context,
                 entry.second,
-                rect.x + (rect.w - labelWidth) / 2,
-                rect.y + 7,
-                if (active) textMain else textMuted
+                column.x + 9,
+                column.y + 9,
+                if (entry.first == category) accentBright else textMain
+            )
+
+            val modules = modulesForCategory(entry.first)
+            val listTop = column.y + headerHeight
+            val listBottom = column.y + column.h - 5
+            val viewport = (listBottom - listTop).coerceAtLeast(0)
+            val totalHeight = modules.size * rowHeight
+            val maxScroll = (totalHeight - viewport).coerceAtLeast(0)
+            val scroll = (columnScrolls[entry.first] ?: 0).coerceIn(0, maxScroll)
+            columnScrolls[entry.first] = scroll
+
+            context.enableScissor(column.x + 3, listTop, column.x + column.w - 3, listBottom)
+            modules.forEachIndexed { index, module ->
+                val rowY = listTop + index * rowHeight - scroll
+                val row = Rect(column.x + 5, rowY, column.w - 10, rowHeight - 2)
+                if (row.y + row.h < listTop || row.y > listBottom) return@forEachIndexed
+
+                val toggle = Rect(row.x + row.w - 27, row.y + 7, 22, 11)
+                moduleHits.add(ModuleHit(module, row, toggle))
+                val selected = module === selectedModule
+                drawPanel(
+                    context,
+                    row,
+                    if (selected) panelSelected else panelSoft,
+                    if (selected) 0x8873D9B7.toInt() else 0x223D9B7B
+                )
+
+                val textWidth = (row.w - 42).coerceAtLeast(28)
+                drawText(
+                    context,
+                    textRenderer.trimToWidth(module.name, textWidth),
+                    row.x + 6,
+                    row.y + 8,
+                    if (module.isEnabled) textMain else textMuted
+                )
+                drawSwitch(context, toggle, module.isEnabled)
+            }
+            context.disableScissor()
+
+            if (modules.isEmpty()) {
+                drawText(context, "Пусто", column.x + 9, listTop + 9, textDim)
+            }
+            if (maxScroll > 0) {
+                val trackX = column.x + column.w - 4
+                context.fill(trackX, listTop, trackX + 1, listBottom, 0x554A7063)
+                val thumbHeight = (viewport.toDouble() * viewport / totalHeight).roundToInt().coerceAtLeast(12)
+                val thumbY = listTop + ((viewport - thumbHeight).toDouble() * scroll / maxScroll).roundToInt()
+                context.fill(trackX, thumbY, trackX + 1, thumbY + thumbHeight, accent)
+            }
+        }
+
+        if (desktopSettingsOpen && selectedModule != null) {
+            context.fill(0, 0, width, height, 0x78010908)
+            val popupWidth = 330.coerceAtMost(width - 36)
+            val popupHeight = (height - 76).coerceAtMost(330).coerceAtLeast(150)
+            val popup = Rect((width - popupWidth) / 2, (height - popupHeight) / 2, popupWidth, popupHeight)
+            drawModuleDetails(context, selectedModule!!, popup, mouseX, mouseY, compact = false)
+        }
+    }
+
+    /**
+     * Phone layout: keep the category strip compact, then show either the list
+     * or the selected module's settings as a full-width page.
+     */
+    private fun drawCompactGame(context: DrawContext, mouseX: Int, mouseY: Int) {
+        val tabsY = 42
+        val gap = 3
+        val left = 10
+        val tabsWidth = (width - left * 2 - gap * 4).coerceAtLeast(120)
+        val tabWidth = tabsWidth / 5
+
+        categoryTabs.forEachIndexed { index, entry ->
+            val rect = Rect(left + index * (tabWidth + gap), tabsY, tabWidth, 21)
+            categoryHits.add(entry.first to rect)
+            drawButton(
+                context,
+                rect,
+                entry.second,
+                category == entry.first,
+                rect.contains(mouseX.toDouble(), mouseY.toDouble())
             )
         }
 
-        val contentTop = tabsY + 29
+        val contentTop = tabsY + 28
         val footerTop = height - 21
         val contentHeight = (footerTop - contentTop).coerceAtLeast(36)
         val modules = modulesForCategory(category)
@@ -427,66 +524,43 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             selectedModule = modules.firstOrNull()
         }
 
-        if (compact && mobileSettingsOpen && selectedModule != null) {
-            val detailRect = Rect(16, contentTop, width - 32, contentHeight)
+        if (mobileSettingsOpen && selectedModule != null) {
+            val detailRect = Rect(12, contentTop, width - 24, contentHeight)
             drawModuleDetails(context, selectedModule!!, detailRect, mouseX, mouseY, compact = true)
             return
         }
 
-        val modulePanelWidth = if (compact) width - 32 else (width * 0.38f).roundToInt().coerceIn(280, 360)
-        val modulePanel = Rect(16, contentTop, modulePanelWidth, contentHeight)
+        val modulePanel = Rect(12, contentTop, width - 24, contentHeight)
         drawPanel(context, modulePanel, panel, border)
-        drawText(context, categoryTabs.first { it.first == category }.second, modulePanel.x + 11, modulePanel.y + 9, textMuted)
+        drawText(context, categoryTabs.first { it.first == category }.second, modulePanel.x + 9, modulePanel.y + 8, textMuted)
 
-        val rowHeight = if (compact) 29 else 35
-        val listTop = modulePanel.y + 27
-        val listHeight = (modulePanel.h - 31).coerceAtLeast(0)
-        val contentListHeight = modules.size * rowHeight
-        val maxScroll = (contentListHeight - listHeight).coerceAtLeast(0)
+        val rowHeight = 30
+        val listTop = modulePanel.y + 25
+        val listBottom = modulePanel.y + modulePanel.h - 4
+        val listHeight = (listBottom - listTop).coerceAtLeast(0)
+        val totalHeight = modules.size * rowHeight
+        val maxScroll = (totalHeight - listHeight).coerceAtLeast(0)
         moduleScroll = moduleScroll.coerceIn(0, maxScroll)
 
-        context.enableScissor(modulePanel.x + 2, listTop, modulePanel.x + modulePanel.w - 2, modulePanel.y + modulePanel.h - 2)
+        context.enableScissor(modulePanel.x + 2, listTop, modulePanel.x + modulePanel.w - 2, listBottom)
         modules.forEachIndexed { index, module ->
             val rowY = listTop + index * rowHeight - moduleScroll
-            val row = Rect(modulePanel.x + 7, rowY, modulePanel.w - 14, rowHeight - 3)
-            if (row.y + row.h < listTop || row.y > modulePanel.y + modulePanel.h) return@forEachIndexed
+            val row = Rect(modulePanel.x + 6, rowY, modulePanel.w - 12, rowHeight - 2)
+            if (row.y + row.h < listTop || row.y > listBottom) return@forEachIndexed
 
-            val toggle = Rect(row.x + row.w - 35, row.y + 7, 26, 12)
+            val toggle = Rect(row.x + row.w - 31, row.y + 8, 24, 12)
             moduleHits.add(ModuleHit(module, row, toggle))
-            val selected = module === selectedModule
-            drawPanel(
-                context,
-                row,
-                if (selected) panelSelected else panelSoft,
-                if (selected) 0x8873D9B7.toInt() else 0x223D9B7B
-            )
-            val nameMaxWidth = (row.w - 83).coerceAtLeast(36)
-            drawText(context, textRenderer.trimToWidth(module.name, nameMaxWidth), row.x + 9, row.y + 6, textMain)
+            drawPanel(context, row, if (module === selectedModule) panelSelected else panelSoft,
+                if (module === selectedModule) 0x8873D9B7.toInt() else 0x223D9B7B)
+            drawText(context, textRenderer.trimToWidth(module.name, row.w - 44), row.x + 8, row.y + 8, textMain)
             drawSwitch(context, toggle, module.isEnabled)
-            val description = textRenderer.trimToWidth(module.desc, (row.w - 14).coerceAtLeast(30))
-            drawText(context, description, row.x + 9, row.y + 18, textDim)
         }
         context.disableScissor()
 
         if (modules.isEmpty()) {
-            drawText(context, "В этой категории пока нет модулей.", modulePanel.x + 12, listTop + 12, textMuted)
+            drawText(context, "В этой категории пока нет модулей.", modulePanel.x + 10, listTop + 10, textMuted)
         }
-
-        if (!compact) {
-            val detailX = modulePanel.x + modulePanel.w + 10
-            val detailRect = Rect(detailX, contentTop, width - detailX - 16, contentHeight)
-            selectedModule?.let { module ->
-                drawModuleDetails(context, module, detailRect, mouseX, mouseY, compact = false)
-            }
-        } else {
-            drawTextCentered(
-                context,
-                "Нажми на модуль, чтобы открыть его настройки",
-                width / 2,
-                footerTop - 11,
-                textDim
-            )
-        }
+        drawTextCentered(context, "Нажми на модуль для настроек", width / 2, footerTop - 11, textDim)
     }
 
     private fun drawModuleDetails(
@@ -498,6 +572,11 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         compact: Boolean
     ) {
         drawPanel(context, rect, panel, border)
+
+        if (!compact) {
+            detailsCloseButton = Rect(rect.x + rect.w - 21, rect.y + 7, 14, 14)
+            drawText(context, "×", detailsCloseButton.x + 4, detailsCloseButton.y + 3, textMuted)
+        }
 
         if (compact) {
             accountsBackButton = Rect(rect.x + 8, rect.y + 7, 62, 19)
@@ -791,7 +870,8 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
         val hoveredButton = volumeButton.contains(mouseX.toDouble(), mouseY.toDouble())
         val hoveredSlider = volumeSlider.contains(mouseX.toDouble(), mouseY.toDouble())
-        volumeOpen = hoveredButton || hoveredSlider || draggingVolume
+        val hoveredPopup = volumePopup.contains(mouseX.toDouble(), mouseY.toDouble())
+        volumeOpen = hoveredButton || hoveredSlider || hoveredPopup || draggingVolume
 
         if (volumeOpen) {
             volumePopup = Rect((width - 184).coerceAtLeast(8), height - 53, 148, 27)
@@ -945,6 +1025,11 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             }
 
             Page.GAME -> {
+                if (width >= 760 && desktopSettingsOpen && detailsCloseButton.contains(mouseX, mouseY)) {
+                    desktopSettingsOpen = false
+                    return true
+                }
+
                 categoryHits.firstOrNull { it.second.contains(mouseX, mouseY) }?.let {
                     category = it.first
                     selectedModule = modulesForCategory(category).firstOrNull()
@@ -995,6 +1080,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                     selectedModule = it.module
                     settingsScroll = 0
                     if (width < 760) mobileSettingsOpen = true
+                    else desktopSettingsOpen = true
                     return true
                 }
             }
@@ -1130,6 +1216,26 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             }
 
             Page.GAME -> {
+                if (width >= 760 && desktopSettingsOpen && selectedModule != null) {
+                    val total = selectedModule!!.settings.fold(0) { sum, setting ->
+                        sum + if (setting is NumberSetting) 42 else 28
+                    }
+                    val viewport = (height - 160).coerceAtLeast(30)
+                    settingsScroll = (settingsScroll + direction * 24).coerceIn(0, (total - viewport).coerceAtLeast(0))
+                    return true
+                }
+                if (width >= 760) {
+                    val selectedColumn = desktopColumnHits.firstOrNull { it.second.contains(mouseX, mouseY) }?.first
+                        ?: Category.COMBAT
+                    val modulesInColumn = modulesForCategory(selectedColumn)
+                    val rowHeight = 28
+                    val viewport = (height - 120).coerceAtLeast(30)
+                    val total = modulesInColumn.size * rowHeight
+                    val maxScroll = (total - viewport).coerceAtLeast(0)
+                    columnScrolls[selectedColumn] = ((columnScrolls[selectedColumn] ?: 0) + direction * 24)
+                        .coerceIn(0, maxScroll)
+                    return true
+                }
                 val modules = modulesForCategory(category)
                 if (width < 760 && mobileSettingsOpen) {
                     val module = selectedModule
