@@ -617,7 +617,8 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     }
 
     private fun drawText(context: DrawContext, value: String, x: Int, y: Int, color: Int) {
-        context.drawText(textRenderer, value, x, y, color, false)
+        val styled = Text.literal(value).setStyle(Style.EMPTY.withFont(galahadFont))
+        context.drawText(textRenderer, styled, x, y, color, false)
     }
 
     private fun formatNumber(value: Double, step: Double): String =
