@@ -1,5 +1,6 @@
 package kronex.`fun`.display.screens.clickgui
 
+import com.essde342.triggerbot.AltManager
 import com.essde342.triggerbot.TriggerBotClient
 import com.essde342.triggerbot.ui.imple.BooleanSetting
 import com.essde342.triggerbot.ui.imple.NumberSetting
@@ -38,6 +39,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     private data class ModuleHit(val module: Module, val row: Rect, val toggle: Rect, val settings: Rect)
     private data class BooleanHit(val setting: BooleanSetting, val toggle: Rect)
     private data class SliderHit(val setting: NumberSetting, val track: Rect)
+    private data class AccountHit(val index: Int, val name: String, val row: Rect, val delete: Rect)
 
     private val categoryItems = listOf(
         Category.COMBAT to "Бой",
@@ -62,6 +64,9 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     private val switchKnob = 0xFFE8E5E5.toInt()
 
     private var selectedCategory = Category.COMBAT
+    private var accountsPage = false
+    private var accountsScroll = 0
+    private var accountsStatus = ""
     private var selectedModule: Module? = null
     private var settingsOpen = false
     private var waitingForBind: Module? = null
@@ -76,6 +81,11 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     private val moduleHits = mutableListOf<ModuleHit>()
     private val booleanHits = mutableListOf<BooleanHit>()
     private val sliderHits = mutableListOf<SliderHit>()
+    private val accountHits = mutableListOf<AccountHit>()
+    private var accountsNavHit = Rect(0, 0, 0, 0)
+    private var accountsSaveHit = Rect(0, 0, 0, 0)
+    private var accountsApplyHit = Rect(0, 0, 0, 0)
+    private var accountsListViewport = Rect(0, 0, 0, 0)
 
     private var settingsPanel = Rect(0, 0, 0, 0)
     private var settingsClose = Rect(0, 0, 0, 0)
@@ -87,14 +97,30 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     @JvmStatic
     fun openAccounts() {
-        openGui()
-        selectedCategory = Category.PLAYER
+        ModuleManager.moduleRegister()
+        AltManager.load()
+        accountsPage = true
+        accountsStatus = ""
+        accountsScroll = 0
+        settingsOpen = false
+        waitingForBind = null
+        if (::searchField.isInitialized) {
+            searchField.setText(AltManager.currentNickname())
+            searchField.setSuggestion("Ник 3–16 символов")
+        }
+        MinecraftClient.getInstance().setScreen(this)
     }
 
     @JvmStatic
     fun openGui() {
         ModuleManager.moduleRegister()
         selectedCategory = Category.COMBAT
+        accountsPage = false
+        accountsStatus = ""
+        if (::searchField.isInitialized) {
+            searchField.setText("")
+            searchField.setSuggestion("Поиск модулей")
+        }
         selectedModule = null
         settingsOpen = false
         waitingForBind = null
@@ -115,7 +141,8 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             Text.literal("Поиск")
         )
         searchField.setMaxLength(48)
-        searchField.setSuggestion("Поиск модулей")
+        searchField.setSuggestion(if (accountsPage) "Ник 3–16 символов" else "Поиск модулей")
+        if (accountsPage) searchField.setText(AltManager.currentNickname())
         searchField.setDrawsBackground(false)
         addDrawableChild(searchField)
     }
@@ -145,8 +172,12 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         drawWindow(context, layout)
         drawSidebar(context, layout, mouseX, mouseY)
         drawHeader(context, layout)
-        drawModuleCards(context, layout, mouseX, mouseY)
-        if (settingsOpen && selectedModule != null) {
+        if (accountsPage) {
+            drawAccountsPage(context, layout, mouseX, mouseY)
+        } else {
+            drawModuleCards(context, layout, mouseX, mouseY)
+        }
+        if (!accountsPage && settingsOpen && selectedModule != null) {
             drawSettings(context, layout, selectedModule!!, mouseX, mouseY)
         }
         super.render(context, mouseX, mouseY, delta)
@@ -182,7 +213,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             val rect = Rect(layout.x + 8, itemStart + index * itemHeight,
                 layout.sidebar - 16, itemHeight - 3)
             categoryHits.add(item.first to rect)
-            val active = selectedCategory == item.first && searchField.getText().isBlank()
+            val active = !accountsPage && selectedCategory == item.first && searchField.getText().isBlank()
             if (active) {
                 drawRounded(context, rect.x, rect.y, rect.w, rect.h, 6, 0xFF211719.toInt())
                 context.drawBorder(rect.x, rect.y, rect.w, rect.h, 0xFF5C3438.toInt())
@@ -195,6 +226,28 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             val labelW = (rect.w - (labelX - rect.x) - 4).coerceAtLeast(12)
             drawText(context, textRenderer.trimToWidth(item.second, labelW),
                 labelX, rect.y + 8, if (active) accent else primaryText)
+        }
+
+        val manageY = itemStart + categoryItems.size * itemHeight + 7
+        accountsNavHit = Rect(0, 0, 0, 0)
+        if (layout.h >= 350) {
+            drawText(context, "УПРАВЛЕНИЕ", layout.x + 17, manageY, mutedText)
+            accountsNavHit = Rect(layout.x + 8, manageY + 17, layout.sidebar - 16, 28)
+            if (accountsPage) {
+                drawRounded(context, accountsNavHit.x, accountsNavHit.y,
+                    accountsNavHit.w, accountsNavHit.h, 6, 0xFF211719.toInt())
+                context.drawBorder(accountsNavHit.x, accountsNavHit.y,
+                    accountsNavHit.w, accountsNavHit.h, 0xFF5C3438.toInt())
+            } else if (accountsNavHit.contains(mouseX.toDouble(), mouseY.toDouble())) {
+                drawRounded(context, accountsNavHit.x, accountsNavHit.y,
+                    accountsNavHit.w, accountsNavHit.h, 6, rowHover)
+            }
+            drawText(context, "♙", accountsNavHit.x + 9, accountsNavHit.y + 8,
+                if (accountsPage) accent else secondaryText)
+            if (layout.sidebar >= 120) {
+                drawText(context, "Аккаунты", accountsNavHit.x + 32,
+                    accountsNavHit.y + 8, if (accountsPage) accent else primaryText)
+            }
         }
 
         val footerY = layout.y + layout.h - 37
@@ -220,7 +273,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         val searchW = (layout.contentW - 26).coerceAtLeast(40)
         drawRounded(context, searchX, layout.y + 13, searchW, 25, 6, 0xFF101012.toInt())
         context.drawBorder(searchX, layout.y + 13, searchW, 25, border)
-        drawText(context, "⌕", layout.contentX + 23, layout.y + 19, mutedText)
+        drawText(context, if (accountsPage) "@" else "⌕", layout.contentX + 23, layout.y + 19, mutedText)
         val menuX = layout.x + layout.w - 39
         drawRounded(context, menuX, layout.y + 14, 25, 23, 5, 0xFF151517.toInt())
         context.drawBorder(menuX, layout.y + 14, 25, 23, border)
@@ -266,6 +319,97 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     private fun categoryLabel(category: Category): String =
         categoryItems.firstOrNull { it.first == category }?.second?.uppercase() ?: "МОДУЛИ"
+
+    private fun drawAccountsPage(context: DrawContext, layout: WindowLayout, mouseX: Int, mouseY: Int) {
+        accountHits.clear()
+        val left = layout.contentX + 18
+        val top = layout.contentY + 14
+        val bodyW = layout.contentW - 36
+        drawText(context, "АККАУНТЫ", left, top, primaryText)
+        drawText(context, "Локальные офлайн-профили", left, top + 15, mutedText)
+
+        val currentCard = Rect(left, top + 34, bodyW, 66)
+        drawRounded(context, currentCard.x, currentCard.y, currentCard.w, currentCard.h, 7, cardBackground)
+        context.drawBorder(currentCard.x, currentCard.y, currentCard.w, currentCard.h, border)
+        drawText(context, "ТЕКУЩИЙ ПРОФИЛЬ", currentCard.x + 12, currentCard.y + 10, mutedText)
+        drawText(context, textRenderer.trimToWidth(AltManager.currentNickname(), currentCard.w - 24),
+            currentCard.x + 12, currentCard.y + 29, primaryText)
+
+        val buttonY = currentCard.y + currentCard.h + 10
+        val buttonGap = 8
+        val buttonW = ((bodyW - buttonGap) / 2).coerceAtLeast(40)
+        accountsSaveHit = Rect(left, buttonY, buttonW, 24)
+        accountsApplyHit = Rect(left + buttonW + buttonGap, buttonY, buttonW, 24)
+        drawAccountButton(context, accountsSaveHit, "СОХРАНИТЬ", accountsSaveHit.contains(mouseX.toDouble(), mouseY.toDouble()))
+        drawAccountButton(context, accountsApplyHit, "ПРИМЕНИТЬ", accountsApplyHit.contains(mouseX.toDouble(), mouseY.toDouble()))
+
+        val listTop = buttonY + 36
+        drawText(context, "СОХРАНЁННЫЕ НИКИ", left, listTop, secondaryText)
+        val viewportTop = listTop + 17
+        val viewportBottom = layout.y + layout.h - 17
+        accountsListViewport = Rect(left, viewportTop, bodyW, max(0, viewportBottom - viewportTop))
+        val names = AltManager.getAll()
+        val rowH = 32
+        val maxOffset = (names.size * rowH - accountsListViewport.h).coerceAtLeast(0)
+        accountsScroll = accountsScroll.coerceIn(0, maxOffset)
+
+        context.enableScissor(
+            accountsListViewport.x, accountsListViewport.y,
+            accountsListViewport.x + accountsListViewport.w,
+            accountsListViewport.y + accountsListViewport.h
+        )
+        names.forEachIndexed { index, name ->
+            val rowY = viewportTop + index * rowH - accountsScroll
+            val row = Rect(left, rowY, bodyW, rowH - 2)
+            val delete = Rect(left + bodyW - 28, rowY + 3, 22, 22)
+            if (row.contains(mouseX.toDouble(), mouseY.toDouble())) {
+                drawRounded(context, row.x, row.y, row.w, row.h, 4, rowHover)
+            }
+            drawText(context, name, row.x + 10, row.y + 8, primaryText)
+            drawText(context, "×", delete.x + 7, delete.y + 6, secondaryText)
+            accountHits.add(AccountHit(index, name, row, delete))
+        }
+        context.disableScissor()
+
+        if (names.isEmpty()) {
+            drawText(context, "Список пуст. Введи ник в поле поиска сверху и нажми «СОХРАНИТЬ».",
+                left, viewportTop + 7, mutedText)
+        }
+        if (accountsStatus.isNotEmpty()) {
+            drawText(context, textRenderer.trimToWidth(accountsStatus, bodyW),
+                left, layout.y + layout.h - 11, accent)
+        }
+    }
+
+    private fun drawAccountButton(context: DrawContext, rect: Rect, label: String, hovered: Boolean) {
+        drawRounded(context, rect.x, rect.y, rect.w, rect.h, 5,
+            if (hovered) 0xFF44282B.toInt() else 0xFF211719.toInt())
+        context.drawBorder(rect.x, rect.y, rect.w, rect.h,
+            if (hovered) accent else 0xFF5C3438.toInt())
+        drawText(context, label, rect.x + 10, rect.y + 8, if (hovered) primaryText else accent)
+    }
+
+    private fun saveAccount() {
+        val name = searchField.getText().trim()
+        if (!AltManager.isValidName(name)) {
+            accountsStatus = "Ник: 3–16 латинских букв, цифр или _"
+        } else {
+            accountsStatus = if (AltManager.add(name)) "Профиль сохранён" else "Такой ник уже есть"
+        }
+    }
+
+    private fun applyAccount() {
+        val name = searchField.getText().trim()
+        if (!AltManager.isValidName(name)) {
+            accountsStatus = "Некорректный ник"
+        } else {
+            accountsStatus = if (AltManager.apply(name)) {
+                "Выбран офлайн-профиль: " + name
+            } else {
+                "Сменить ник можно только вне игрового мира"
+            }
+        }
+    }
 
     private fun drawModuleCards(context: DrawContext, layout: WindowLayout, mouseX: Int, mouseY: Int) {
         moduleHits.clear()
@@ -541,9 +685,36 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         }
 
         categoryHits.firstOrNull { it.second.contains(mouseX, mouseY) }?.let {
+            accountsPage = false
+            searchField.setText("")
+            searchField.setSuggestion("Поиск модулей")
             selectedCategory = it.first
             contentScroll = 0
             return true
+        }
+        if (accountsNavHit.contains(mouseX, mouseY)) {
+            openAccounts()
+            return true
+        }
+        if (accountsPage) {
+            if (accountsSaveHit.contains(mouseX, mouseY)) {
+                saveAccount()
+                return true
+            }
+            if (accountsApplyHit.contains(mouseX, mouseY)) {
+                applyAccount()
+                return true
+            }
+            accountHits.firstOrNull { it.delete.contains(mouseX, mouseY) }?.let {
+                AltManager.remove(it.index)
+                accountsStatus = "Профиль удалён"
+                return true
+            }
+            accountHits.firstOrNull { it.row.contains(mouseX, mouseY) }?.let {
+                searchField.setText(it.name)
+                return true
+            }
+            return super.mouseClicked(mouseX, mouseY, button)
         }
         moduleHits.firstOrNull { it.settings.contains(mouseX, mouseY) }?.let {
             if (it.module.name == "Alt Manager") {
@@ -557,6 +728,10 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             return true
         }
         moduleHits.firstOrNull { it.toggle.contains(mouseX, mouseY) }?.let {
+            if (it.module.name == "Alt Manager") {
+                openAccounts()
+                return true
+            }
             it.module.toggled()
             TriggerBotClient.saveConfig()
             return true
@@ -587,6 +762,12 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         mouseX: Double, mouseY: Double, horizontalAmount: Double, verticalAmount: Double
     ): Boolean {
         val direction = if (verticalAmount < 0) 1 else -1
+        if (accountsPage) {
+            val names = AltManager.getAll()
+            val maxOffset = (names.size * 32 - accountsListViewport.h).coerceAtLeast(0)
+            accountsScroll = (accountsScroll + direction * 28).coerceIn(0, maxOffset)
+            return true
+        }
         if (settingsOpen) {
             settingsScroll = (settingsScroll + direction * 28).coerceIn(0, settingsMaxScroll)
         } else {
@@ -610,6 +791,10 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             TriggerBotClient.saveConfig()
             return true
         }
+        if (accountsPage && keyCode == GLFW.GLFW_KEY_ENTER) {
+            applyAccount()
+            return true
+        }
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             close()
             return true
@@ -621,8 +806,10 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     override fun close() {
         settingsOpen = false
+        accountsPage = false
         waitingForBind = null
         draggingSlider = null
+        AltManager.save()
         TriggerBotClient.saveConfig()
         super.close()
     }
