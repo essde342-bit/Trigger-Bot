@@ -86,6 +86,12 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         get() = runCatching { MinecraftClient.getInstance().session.username }.getOrDefault("Player")
 
     @JvmStatic
+    fun openAccounts() {
+        openGui()
+        selectedCategory = Category.PLAYER
+    }
+
+    @JvmStatic
     fun openGui() {
         ModuleManager.moduleRegister()
         selectedCategory = Category.COMBAT
@@ -116,8 +122,8 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     private fun calculateLayout(): WindowLayout {
         val margin = if (width < 500) 7 else 20
-        val panelW = min(1040, max(220, width - margin * 2))
-        val panelH = min(690, max(180, height - margin * 2))
+        val panelW = min(860, max(220, width - margin * 2))
+        val panelH = min(550, max(180, height - margin * 2))
         val panelX = (width - panelW) / 2
         val panelY = (height - panelH) / 2
         val sidebarW = when {
@@ -210,7 +216,6 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     }
 
     private fun drawHeader(context: DrawContext, layout: WindowLayout) {
-        drawText(context, "МОДУЛИ", layout.contentX + 18, layout.y + 20, primaryText)
         val searchX = layout.contentX + 13
         val searchW = (layout.contentW - 26).coerceAtLeast(40)
         drawRounded(context, searchX, layout.y + 13, searchW, 25, 6, 0xFF101012.toInt())
@@ -238,7 +243,12 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
         val selected = allModules.filter { it.category == selectedCategory }
         return when (selectedCategory) {
-            Category.COMBAT -> listOf(ModuleGroup("ДРАКА", selected))
+            Category.COMBAT -> {
+                val aim = selected.filter { it.name == "Aim Assist" }
+                val fight = selected.filter { it.name != "Aim Assist" }
+                listOf(ModuleGroup("ДРАКА", fight), ModuleGroup("НАВЕДЕНИЕ", aim))
+                    .filter { it.modules.isNotEmpty() }
+            }
             Category.MOVEMENT -> listOf(ModuleGroup("ДВИЖЕНИЕ", selected))
             Category.PLAYER -> listOf(ModuleGroup("ИГРОК", selected))
             Category.MISC -> listOf(ModuleGroup("ИНСТРУМЕНТЫ", selected))
@@ -536,6 +546,10 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             return true
         }
         moduleHits.firstOrNull { it.settings.contains(mouseX, mouseY) }?.let {
+            if (it.module.name == "Alt Manager") {
+                openAccounts()
+                return true
+            }
             selectedModule = it.module
             settingsScroll = 0
             settingsOpen = true
