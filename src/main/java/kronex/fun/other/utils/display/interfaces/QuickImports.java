@@ -1,18 +1,18 @@
 package kronex.fun.other.utils.display.interfaces;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import kronex.fun.display.screens.clickgui.components.implement.window.AbstractWindow;
-import kronex.fun.display.screens.clickgui.components.implement.window.WindowManager;
 import kronex.fun.other.utils.display.GuiRenderContext;
 import kronex.fun.other.utils.display.shape.ShapeProperties;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.Window;
 
+/**
+ * Legacy rendering helpers retained for non-menu code.
+ * The old Java window system has been removed; Astra's active menu is Kotlin.
+ */
 public interface QuickImports {
     MinecraftClient mc = MinecraftClient.getInstance();
     Window window = mc.getWindow();
-    GuiWindowManager windowManager = new GuiWindowManager();
 
     PrimitiveRenderer rectangle = new PrimitiveRenderer(false);
     PrimitiveRenderer blur = new PrimitiveRenderer(true);
@@ -61,50 +61,28 @@ public interface QuickImports {
         }
 
         public void render(ShapeProperties p) {
-            // The archive's texture calls are retained; Trigger-Bot has no matching
-            // Kronex texture pack, so unsupported textures are intentionally skipped.
+            // Unsupported legacy texture calls are intentionally ignored.
         }
     }
 
+    /**
+     * Source-compatibility shim. It deliberately does not render or store
+     * Java windows; all live UI is owned by MenuScreen.kt.
+     */
     final class GuiWindowManager {
-        private WindowManager delegate;
-
-        private WindowManager delegate() {
-            if (delegate == null) delegate = new WindowManager();
-            return delegate;
+        public void add(Object window) {}
+        public java.util.List<Object> getWindows() {
+            return java.util.Collections.emptyList();
         }
-
-        public void add(AbstractWindow window) { delegate().add(window); }
-        public java.util.List<AbstractWindow> getWindows() { return delegate().getWindows(); }
-        public void delete(AbstractWindow window) { delegate().delete(window); }
-
+        public void delete(Object window) {}
         public void render(DrawContext context, int mouseX, int mouseY, float delta) {
             GuiRenderContext.set(context);
-            delegate().render(context, mouseX, mouseY, delta);
         }
-
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return delegate().mouseClicked(mouseX, mouseY, button);
-        }
-
-        public void mouseReleased(double mouseX, double mouseY, int button) {
-            delegate().mouseReleased(mouseX, mouseY, button);
-        }
-
-        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-            return delegate().mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
-        }
-
-        public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-            return delegate().mouseScrolled(mouseX, mouseY, amount);
-        }
-
-        public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-            return delegate().keyPressed(keyCode, scanCode, modifiers);
-        }
-
-        public boolean charTyped(char chr, int modifiers) {
-            return delegate().charTyped(chr, modifiers);
-        }
+        public boolean mouseClicked(double mouseX, double mouseY, int button) { return false; }
+        public void mouseReleased(double mouseX, double mouseY, int button) {}
+        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) { return false; }
+        public boolean mouseScrolled(double mouseX, double mouseY, double amount) { return false; }
+        public boolean keyPressed(int keyCode, int scanCode, int modifiers) { return false; }
+        public boolean charTyped(char chr, int modifiers) { return false; }
     }
 }
