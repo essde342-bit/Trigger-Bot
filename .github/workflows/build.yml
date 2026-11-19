@@ -52,5 +52,5 @@ jobs:
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: Astra-Client-1.2.0
+          name: Astra-Client-1.2.1
           path: build/libs/*.jar
