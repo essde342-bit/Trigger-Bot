@@ -1,7 +1,7 @@
 name: Build Astra Client
 on:
   push:
-    branches: ["main", "port/minecraft-1.21.4"]
+    branches: ["**"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -27,20 +27,21 @@ jobs:
         with:
           gradle-version: "8.11.1"
       - run: gradle build --no-daemon
-      - name: Verify bundled Galahad font
+      - name: Verify Kotlin menu and Galahad font
         shell: bash
         run: |
           set -euo pipefail
           JAR="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-dev.jar' | head -n 1)"
           test -n "$JAR"
           echo "Checking $JAR"
+          jar tf "$JAR" | grep -Fx 'kronex/fun/display/screens/clickgui/MenuScreen.class'
           jar tf "$JAR" | grep -Fx 'assets/triggerbot/font/galahad_regular.ttf'
           python - <<'PY'
           from pathlib import Path
           from fontTools.ttLib import TTFont
           p = Path("build/resources/main/assets/triggerbot/font/galahad_regular.ttf")
           font = TTFont(str(p), recalcBBoxes=False, recalcTimestamp=False)
-          assert font.sfntVersion == "\x00\x01\x00\x00"
+          assert font.sfntVersion == "\\x00\\x01\\x00\\x00"
           assert "glyf" in font
           assert "CFF " not in font and "CFF2" not in font
           assert font.getBestCmap()
@@ -51,5 +52,5 @@ jobs:
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: Astra-Client-1.21.4
+          name: Astra-Client-1.2.0
           path: build/libs/*.jar
