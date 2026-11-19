@@ -17,10 +17,10 @@ public abstract class TitleScreenMixin extends Screen {
     }
 
     @Inject(method = "init", at = @At("TAIL"))
-    private void triggerBot$addAltManagerButton(CallbackInfo info) {
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Alt Manager"), button -> {
+    private void triggerBot$addAstraMenuButton(CallbackInfo info) {
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("Astra Client"), button -> {
                     if (this.client != null) {
-                        MenuScreen.openAccounts();
+                        MenuScreen.openGui();
                     }
                 })
                 .dimensions(this.width - 110, 8, 102, 20)
