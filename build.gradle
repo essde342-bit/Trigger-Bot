@@ -1,5 +1,6 @@
 plugins {
     id 'fabric-loom' version '1.9.2'
+    id 'org.jetbrains.kotlin.jvm' version '2.1.20'
     id 'maven-publish'
 }
 
@@ -15,6 +16,7 @@ repositories {
     maven { url = "https://maven.fabricmc.net/" }
 }
 
+def kotlinVersion = "2.1.20"
 def galahadSource = file("src/main/resources/assets/triggerbot/fonts/GalahadStd Regular.otf")
 def galahadTarget = file("${buildDir}/generated-resources/assets/triggerbot/font/galahad_regular.ttf")
 
@@ -49,8 +51,22 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:" + project.loader_version
     modImplementation "net.fabricmc.fabric-api:fabric-api:" + project.fabric_version
 
+    // Bundle the Kotlin runtime inside Astra; users do not need another mod.
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}"
+    include "org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}"
+
     compileOnly "org.projectlombok:lombok:1.18.36"
     annotationProcessor "org.projectlombok:lombok:1.18.36"
+}
+
+kotlin {
+    jvmToolchain(21)
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
