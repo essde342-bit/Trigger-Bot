@@ -1,6 +1,5 @@
 package kronex.fun.features.module;
 
-import com.essde342.triggerbot.AltManagerScreen;
 import com.essde342.triggerbot.TriggerBotClient;
 import com.essde342.triggerbot.ui.ISetting;
 import com.essde342.triggerbot.ui.imple.NumberSetting;
@@ -51,8 +50,7 @@ public final class Module {
 
     public void switchState() {
         if ("Alt Manager".equals(backend.getName())) {
-            var client = net.minecraft.client.MinecraftClient.getInstance();
-            client.setScreen(AltManagerScreen.create(MenuScreen.INSTANCE));
+            MenuScreen.openAccounts();
             return;
         }
 
