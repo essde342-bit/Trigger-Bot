@@ -1,4 +1,4 @@
-package kronex.\`fun\`.display.screens.clickgui
+package kronex.`fun`.display.screens.clickgui
 
 import com.essde342.triggerbot.TriggerBotClient
 import com.essde342.triggerbot.ui.imple.BooleanSetting
