@@ -1,4 +1,4 @@
-package kronex.fun.display.screens.clickgui
+package kronex.`fun`.display.screens.clickgui
 
 import com.essde342.triggerbot.AltManager
 import com.essde342.triggerbot.TriggerBotClient
@@ -89,7 +89,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             22,
             Text.literal("Nickname")
         )
-        nicknameInput.maxLength = 16
+        nicknameInput.setMaxLength(16)
         nicknameInput.setSuggestion("Никнейм: 3–16 символов")
         nicknameInput.setText(AltManager.currentNickname())
         addDrawableChild(nicknameInput)
@@ -601,7 +601,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                     }
                     accountHits.firstOrNull { it.row.contains(mouseX, mouseY) }?.let {
                         selectedAccount = it.index
-                        nicknameInput.text = AltManager.get(it.index)
+                        nicknameInput.setText(AltManager.get(it.index))
                         return true
                     }
                 }
@@ -612,7 +612,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     }
 
     private fun saveAccount() {
-        val name = nicknameInput.text.trim()
+        val name = nicknameInput.getText().trim()
         if (!AltManager.isValidName(name)) {
             accountStatus = "Ник должен содержать 3–16 латинских букв, цифр или _"
             return
