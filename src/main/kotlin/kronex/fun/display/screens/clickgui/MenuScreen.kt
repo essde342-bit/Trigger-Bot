@@ -189,8 +189,8 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         nicknameInput.setSuggestion("Ник 3–16 символов")
         nicknameInput.setText(AltManager.currentNickname())
         nicknameInput.setDrawsBackground(false)
-        nicknameInput.visible = false
-        nicknameInput.active = false
+        nicknameInput.visible = page == Page.ACCOUNTS && accountTab == AccountTab.PROFILES
+        nicknameInput.active = nicknameInput.visible
         addDrawableChild(nicknameInput)
     }
 
@@ -313,7 +313,12 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         drawTextCentered(context, date, centerX, dateY, textMuted)
         drawTextCentered(context, time, centerX, dateY + 15, textMain, scaleHint = true)
 
-        val logoY = (height * 0.53f).roundToInt().coerceIn(78, height - 63)
+        val compact = height < 280
+        val logoY = if (compact) {
+            (height * 0.40f).roundToInt().coerceIn(52, (height - 100).coerceAtLeast(52))
+        } else {
+            (height * 0.48f).roundToInt().coerceIn(90, (height - 120).coerceAtLeast(90))
+        }
         drawAstraEmblem(context, centerX, logoY)
 
         drawTextCentered(context, "ASTRA CLIENT", centerX, logoY + 35, textMain, useGalahad = true)
@@ -321,15 +326,17 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             context,
             "Клиент, собранный вокруг твоего игрового стиля",
             centerX,
-            logoY + 49,
+            logoY + 48,
             textMuted
         )
 
         val buttonWidth = 106
         val buttonHeight = 22
+        val buttonY = if (compact) (height - 42).coerceAtLeast(logoY + 57)
+        else (height * 0.70f).roundToInt()
         val button = Rect(
             centerX - buttonWidth / 2,
-            (height * 0.82f).roundToInt().coerceIn(logoY + 60, height - 31),
+            buttonY.coerceAtMost((height - 30).coerceAtLeast(0)),
             buttonWidth,
             buttonHeight
         )
@@ -379,12 +386,15 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         booleanHits.clear()
         sliderHits.clear()
 
-        drawText(context, "НАСТРОЙКИ ИГРЫ", 16, 43, textMain)
-        drawText(context, "Модули и параметры Astra Client", 16, 56, textMuted)
+        val compact = width < 760
+        if (!compact) {
+            drawText(context, "НАСТРОЙКИ ИГРЫ", 16, 43, textMain)
+            drawText(context, "Модули и параметры Astra Client", 16, 56, textMuted)
+        }
 
         val gap = 4
         val left = 16
-        val tabsY = 70
+        val tabsY = if (compact) 42 else 70
         val tabsWidth = (width - left * 2 - gap * 4).coerceAtLeast(120)
         val tabWidth = tabsWidth / 5
         categoryTabs.forEachIndexed { index, entry ->
@@ -416,7 +426,6 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             selectedModule = modules.firstOrNull()
         }
 
-        val compact = width < 760
         if (compact && mobileSettingsOpen && selectedModule != null) {
             val detailRect = Rect(16, contentTop, width - 32, contentHeight)
             drawModuleDetails(context, selectedModule!!, detailRect, mouseX, mouseY, compact = true)
@@ -493,21 +502,31 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                 accountsBackButton.contains(mouseX.toDouble(), mouseY.toDouble()))
         }
 
-        val titleY = if (compact) rect.y + 34 else rect.y + 12
-        drawText(context, "НАСТРОЙКИ МОДУЛЯ", rect.x + 12, titleY, textMuted)
-        drawText(context, textRenderer.trimToWidth(module.name, rect.w - 92), rect.x + 12, titleY + 16, textMain)
-        drawText(
-            context,
-            textRenderer.trimToWidth(module.desc, (rect.w - 24).coerceAtLeast(40)),
-            rect.x + 12,
-            titleY + 31,
-            textMuted
-        )
+        val titleY = if (compact) rect.y + 5 else rect.y + 12
+        if (compact) {
+            drawText(context, textRenderer.trimToWidth(module.name, rect.w - 124),
+                rect.x + 78, titleY + 5, textMain)
+        } else {
+            drawText(context, "НАСТРОЙКИ МОДУЛЯ", rect.x + 12, titleY, textMuted)
+            drawText(context, textRenderer.trimToWidth(module.name, rect.w - 92), rect.x + 12, titleY + 16, textMain)
+            drawText(
+                context,
+                textRenderer.trimToWidth(module.desc, (rect.w - 24).coerceAtLeast(40)),
+                rect.x + 12,
+                titleY + 31,
+                textMuted
+            )
+        }
 
-        detailsModuleToggle = Rect(rect.x + rect.w - 48, titleY + 12, 34, 16)
+        detailsModuleToggle = if (compact) {
+            Rect(rect.x + rect.w - 42, titleY + 5, 30, 15)
+        } else {
+            Rect(rect.x + rect.w - 48, titleY + 12, 34, 16)
+        }
         drawSwitch(context, detailsModuleToggle, module.isEnabled)
 
-        detailsBindButton = Rect(rect.x + 12, titleY + 47, rect.w - 24, 20)
+        detailsBindButton = Rect(rect.x + 12, if (compact) titleY + 26 else titleY + 47,
+            rect.w - 24, if (compact) 17 else 20)
         val bindText = if (waitingForBind === module) "НАЖМИ КЛАВИШУ..." else "БИНД: ${formatBind(module.bind)}"
         drawButton(
             context,
@@ -517,7 +536,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             detailsBindButton.contains(mouseX.toDouble(), mouseY.toDouble())
         )
 
-        val settingsTop = titleY + 76
+        val settingsTop = if (compact) titleY + 48 else titleY + 76
         val visibleHeight = (rect.y + rect.h - settingsTop - 7).coerceAtLeast(0)
         val settings = module.settings
         val totalHeight = settings.sumOf { if (it is NumberSetting) 42 else 28 }
@@ -567,10 +586,13 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     private fun drawAccounts(context: DrawContext, mouseX: Int, mouseY: Int) {
         accountHits.clear()
         serverHits.clear()
-        drawText(context, "АККАУНТЫ", 16, 43, textMain)
-        drawText(context, "Профили и быстрый выбор сохранённых серверов", 16, 56, textMuted)
+        val compact = width < 760
+        if (!compact) {
+            drawText(context, "АККАУНТЫ", 16, 43, textMain)
+            drawText(context, "Профили и быстрый выбор сохранённых серверов", 16, 56, textMuted)
+        }
 
-        val tabsY = 70
+        val tabsY = if (compact) 42 else 70
         val tabWidth = 92
         val profileTab = Rect(16, tabsY, tabWidth, 21)
         val serversTab = Rect(16 + tabWidth + 5, tabsY, tabWidth, 21)
@@ -598,7 +620,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                 context,
                 textRenderer.trimToWidth(accountStatus, width - 36),
                 18,
-                height - 12,
+                height - 29,
                 accent
             )
         }
@@ -608,13 +630,11 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     private fun drawProfiles(context: DrawContext, rect: Rect, mouseX: Int, mouseY: Int) {
         val currentName = AltManager.currentNickname()
-        drawText(context, "ТЕКУЩИЙ АККАУНТ ЛАУНЧЕРА", rect.x + 11, rect.y + 8, textMuted)
-        drawText(context, textRenderer.trimToWidth(currentName, rect.w - 24), rect.x + 11, rect.y + 21, textMain)
-
-        drawText(context, "ОФЛАЙН-ПРОФИЛЬ", rect.x + 11, rect.y + 39, textMuted)
+        drawText(context, "АККАУНТ: " + textRenderer.trimToWidth(currentName, rect.w - 82),
+            rect.x + 11, rect.y + 6, textMuted)
 
         val inputX = rect.x + 10
-        val inputY = rect.y + 53
+        val inputY = rect.y + 23
         val inputWidth = (rect.w - 20).coerceIn(90, 280)
         if (::nicknameInput.isInitialized) {
             nicknameInput.setPosition(inputX, inputY)
@@ -624,7 +644,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             nicknameInput.active = true
         }
 
-        val buttonsY = inputY + 23
+        val buttonsY = inputY + 21
         val buttonGap = 5
         val buttonWidth = ((rect.w - 25) / 2).coerceAtLeast(60)
         accountApplyButton = Rect(rect.x + 10, buttonsY, buttonWidth, 19)
@@ -634,10 +654,10 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         drawButton(context, accountSaveButton, "СОХРАНИТЬ", false,
             accountSaveButton.contains(mouseX.toDouble(), mouseY.toDouble()))
 
-        val listTop = buttonsY + 26
+        val listTop = buttonsY + 21
         drawText(context, "СОХРАНЁННЫЕ ОФЛАЙН-НИКИ", rect.x + 11, listTop, textMuted)
-        val rowsTop = listTop + 15
-        val rowHeight = 21
+        val rowsTop = listTop + 11
+        val rowHeight = if (width < 760) 17 else 21
         val visibleHeight = (rect.y + rect.h - rowsTop - 5).coerceAtLeast(0)
         val visibleRows = (visibleHeight / rowHeight).coerceAtLeast(0)
         val names = AltManager.getAll()
@@ -676,9 +696,9 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         drawText(context, "СОХРАНЁННЫЕ СЕРВЕРЫ", rect.x + 11, rect.y + 8, textMuted)
         drawText(context, "Нажми ★, чтобы добавить сервер в быстрое колесо Alt.", rect.x + 11, rect.y + 21, textDim)
 
-        val rowsTop = rect.y + 39
-        val rowHeight = 26
-        val footerSpace = 25
+        val rowsTop = rect.y + 26
+        val rowHeight = if (width < 760) 20 else 26
+        val footerSpace = 23
         val visibleHeight = (rect.y + rect.h - rowsTop - footerSpace - 4).coerceAtLeast(0)
         val visibleRows = (visibleHeight / rowHeight).coerceAtLeast(0)
         val maxScroll = (servers.size - visibleRows).coerceAtLeast(0)
@@ -731,7 +751,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             return
         }
 
-        favoriteServerIndex = favoriteServerIndex.coerceIn(0, favorites.lastIndex)
+        favoriteServerIndex = favoriteServerIndex.coerceIn(0, minOf(favorites.lastIndex, 4))
         favorites.take(5).forEachIndexed { index, server ->
             val row = Rect(rect.x + 7, rect.y + 23 + index * rowHeight, rect.w - 14, rowHeight - 1)
             favoriteServerHits.add(server to row)
