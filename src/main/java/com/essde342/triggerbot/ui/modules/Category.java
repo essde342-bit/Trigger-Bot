@@ -2,8 +2,10 @@ package com.essde342.triggerbot.ui.modules;
 
 public enum Category {
     COMBAT("Combat"),
-    VISUALS("Visuals"),
-    OTHER("Other");
+    MOVEMENT("Movement"),
+    PLAYER("Player"),
+    RENDER("Render"),
+    MISC("Misc");
 
     private final String displayName;
 
