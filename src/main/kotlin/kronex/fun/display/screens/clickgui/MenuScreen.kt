@@ -14,7 +14,7 @@ import net.minecraft.client.gui.screen.multiplayer.ConnectScreen
 import net.minecraft.client.gui.widget.TextFieldWidget
 import net.minecraft.client.network.ServerAddress
 import net.minecraft.client.network.ServerInfo
-import net.minecraft.client.option.ServerList
+import net.minecraft.client.network.ServerList
 import net.minecraft.sound.SoundCategory
 import net.minecraft.text.Style
 import net.minecraft.text.Text
