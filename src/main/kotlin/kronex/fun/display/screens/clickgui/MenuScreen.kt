@@ -377,7 +377,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         val settingTop = popupY + 103
         val settingBottom = popupY + popupH - 10
         val settingViewport = max(0, settingBottom - settingTop)
-        val totalSettingsHeight = module.settings.sumOf { if (it is NumberSetting) 48 else 34 }
+        val totalSettingsHeight = module.settings.fold(0) { total, setting -> total + if (setting is NumberSetting) 48 else 34 }
         settingsMaxScroll = (totalSettingsHeight - settingViewport).coerceAtLeast(0)
         settingsScroll = settingsScroll.coerceIn(0, settingsMaxScroll)
         booleanHits.clear()
