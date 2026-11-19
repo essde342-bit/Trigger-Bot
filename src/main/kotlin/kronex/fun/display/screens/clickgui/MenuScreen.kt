@@ -71,6 +71,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     private var selectedModule: Module? = null
     private var mobileSettingsOpen = false
     private var waitingForBind: Module? = null
+    private var draggingSlider: SliderHit? = null
     private var altHeld = false
 
     private var moduleScroll = 0
@@ -474,7 +475,9 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         if (!compact) {
             val detailX = modulePanel.x + modulePanel.w + 10
             val detailRect = Rect(detailX, contentTop, width - detailX - 16, contentHeight)
-            drawModuleDetails(context, selectedModule, detailRect, mouseX, mouseY, compact = false)
+            selectedModule?.let { module ->
+                drawModuleDetails(context, module, detailRect, mouseX, mouseY, compact = false)
+            }
         } else {
             drawTextCentered(
                 context,
@@ -539,7 +542,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         val settingsTop = if (compact) titleY + 48 else titleY + 76
         val visibleHeight = (rect.y + rect.h - settingsTop - 7).coerceAtLeast(0)
         val settings = module.settings
-        val totalHeight = settings.sumOf { if (it is NumberSetting) 42 else 28 }
+        val totalHeight = settings.fold(0) { total, setting -> total + if (setting is NumberSetting) 42 else 28 }
         val maxScroll = (totalHeight - visibleHeight).coerceAtLeast(0)
         settingsScroll = settingsScroll.coerceIn(0, maxScroll)
 
@@ -1131,7 +1134,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                 if (width < 760 && mobileSettingsOpen) {
                     val module = selectedModule
                     if (module != null) {
-                        val total = module.settings.sumOf { if (it is NumberSetting) 42 else 28 }
+                        val total = module.settings.fold(0) { total, setting -> total + if (setting is NumberSetting) 42 else 28 }
                         val viewport = (height - 142).coerceAtLeast(24)
                         settingsScroll = (settingsScroll + direction * 24).coerceIn(0, (total - viewport).coerceAtLeast(0))
                     }
