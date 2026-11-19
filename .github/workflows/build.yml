@@ -41,7 +41,7 @@ jobs:
           from fontTools.ttLib import TTFont
           p = Path("build/resources/main/assets/triggerbot/font/galahad_regular.ttf")
           font = TTFont(str(p), recalcBBoxes=False, recalcTimestamp=False)
-          assert font.sfntVersion == "\\x00\\x01\\x00\\x00"
+          assert font.sfntVersion == "\x00\x01\x00\x00"
           assert "glyf" in font
           assert "CFF " not in font and "CFF2" not in font
           assert font.getBestCmap()
