@@ -1,6 +1,5 @@
-package kronex.`fun`.display.screens.clickgui
+package kronex.\`fun\`.display.screens.clickgui
 
-import com.essde342.triggerbot.AltManager
 import com.essde342.triggerbot.TriggerBotClient
 import com.essde342.triggerbot.ui.imple.BooleanSetting
 import com.essde342.triggerbot.ui.imple.NumberSetting
@@ -10,548 +9,403 @@ import com.essde342.triggerbot.ui.modules.ModuleManager
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.gui.screen.multiplayer.ConnectScreen
 import net.minecraft.client.gui.widget.TextFieldWidget
-import net.minecraft.client.network.ServerAddress
-import net.minecraft.client.network.ServerInfo
-import net.minecraft.client.option.ServerList
-import net.minecraft.sound.SoundCategory
 import net.minecraft.text.Style
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import org.lwjgl.glfw.GLFW
-import java.io.File
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import kotlin.math.PI
-import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /**
- * Astra Client's Kotlin menu.
- *
- * UI is rendered here; gameplay modules, settings and config persistence remain
- * in the existing Java model. The layout is deliberately responsive because
- * the client is also used on low-resolution Android displays.
+ * Astra Click GUI.
+ * The interface is Kotlin-rendered over the live world; it does not use the
+ * vanilla background blur. Existing module objects remain the backend model.
  */
 object MenuScreen : Screen(Text.literal("Astra Client")) {
-    private enum class Page { HOME, GAME, ACCOUNTS }
-    private enum class AccountTab { PROFILES, SERVERS }
-
     private data class Rect(val x: Int, val y: Int, val w: Int, val h: Int) {
         fun contains(px: Double, py: Double): Boolean =
             w > 0 && h > 0 && px >= x && py >= y && px < x + w && py < y + h
     }
 
-    private data class ModuleHit(val module: Module, val row: Rect, val toggle: Rect)
-    private data class BooleanHit(val setting: BooleanSetting, val bounds: Rect)
-    private data class SliderHit(
-        val setting: NumberSetting,
-        val bounds: Rect,
-        val trackX: Int,
-        val trackWidth: Int
+    private data class WindowLayout(
+        val x: Int, val y: Int, val w: Int, val h: Int,
+        val sidebar: Int, val contentX: Int, val contentY: Int,
+        val contentW: Int, val contentH: Int
     )
-    private data class AccountHit(val index: Int, val row: Rect, val delete: Rect)
-    private data class ServerHit(val server: ServerInfo, val row: Rect, val favorite: Rect)
+    private data class ModuleGroup(val title: String, val modules: List<Module>)
+    private data class ModuleHit(val module: Module, val row: Rect, val toggle: Rect, val settings: Rect)
+    private data class BooleanHit(val setting: BooleanSetting, val toggle: Rect)
+    private data class SliderHit(val setting: NumberSetting, val track: Rect)
 
-    private val pages = Page.values().toList()
-    private val categoryTabs = listOf(
-        Category.COMBAT to "COMBAT",
-        Category.MOVEMENT to "MOVE",
-        Category.PLAYER to "PLAYER",
-        Category.RENDER to "RENDER",
-        Category.MISC to "MISC"
+    private val categoryItems = listOf(
+        Category.COMBAT to "Бой",
+        Category.MOVEMENT to "Движение",
+        Category.RENDER to "Визуалы",
+        Category.PLAYER to "Игрок",
+        Category.MISC to "Разное"
     )
+    private val galahadFont = Identifier.of("triggerbot", "galahad")
 
-    private var page = Page.HOME
-    private var category = Category.COMBAT
-    private var accountTab = AccountTab.PROFILES
+    private val background = 0xF20B0B0D.toInt()
+    private val sidebarBackground = 0xFF0D0D0F.toInt()
+    private val cardBackground = 0xFF101012.toInt()
+    private val rowHover = 0xFF191719.toInt()
+    private val border = 0xFF252326.toInt()
+    private val accent = 0xFFE47E82.toInt()
+    private val primaryText = 0xFFF0EEEE.toInt()
+    private val secondaryText = 0xFF929092.toInt()
+    private val mutedText = 0xFF626064.toInt()
+    private val switchOff = 0xFF343336.toInt()
+    private val switchOn = 0xFF9F555B.toInt()
+    private val switchKnob = 0xFFE8E5E5.toInt()
 
+    private var selectedCategory = Category.COMBAT
     private var selectedModule: Module? = null
-    private var mobileSettingsOpen = false
-    private var desktopSettingsOpen = false
+    private var settingsOpen = false
     private var waitingForBind: Module? = null
     private var draggingSlider: SliderHit? = null
-    private var altHeld = false
-
-    private var moduleScroll = 0
-    private val columnScrolls = mutableMapOf<Category, Int>()
-    private val desktopColumnHits = mutableListOf<Pair<Category, Rect>>()
+    private var contentScroll = 0
     private var settingsScroll = 0
-    private var accountScroll = 0
-    private var serverScroll = 0
-    private var favoriteServerIndex = 0
-    private var accountStatus = ""
+    private var contentMaxScroll = 0
+    private var settingsMaxScroll = 0
+    private lateinit var searchField: TextFieldWidget
 
-    private val navHits = mutableMapOf<Page, Rect>()
     private val categoryHits = mutableListOf<Pair<Category, Rect>>()
     private val moduleHits = mutableListOf<ModuleHit>()
     private val booleanHits = mutableListOf<BooleanHit>()
     private val sliderHits = mutableListOf<SliderHit>()
-    private val accountHits = mutableListOf<AccountHit>()
-    private val serverHits = mutableListOf<ServerHit>()
-    private val favoriteServerHits = mutableListOf<Pair<ServerInfo, Rect>>()
 
-    private lateinit var nicknameInput: TextFieldWidget
-    private var accountsBackButton = Rect(0, 0, 0, 0)
-    private var serverJoinButton = Rect(0, 0, 0, 0)
-    private var accountApplyButton = Rect(0, 0, 0, 0)
-    private var accountSaveButton = Rect(0, 0, 0, 0)
+    private var settingsPanel = Rect(0, 0, 0, 0)
+    private var settingsClose = Rect(0, 0, 0, 0)
+    private var settingsModuleSwitch = Rect(0, 0, 0, 0)
+    private var settingsBind = Rect(0, 0, 0, 0)
 
-    private var detailsModuleToggle = Rect(0, 0, 0, 0)
-    private var detailsBindButton = Rect(0, 0, 0, 0)
-    private var detailsCloseButton = Rect(0, 0, 0, 0)
-
-    private var volumeButton = Rect(0, 0, 0, 0)
-    private var volumeSlider = Rect(0, 0, 0, 0)
-    private var volumePopup = Rect(0, 0, 0, 0)
-    private var volumeOpen = false
-    private var draggingVolume = false
-    private var previousVolume = 0.55
-
-    private var serverList: ServerList? = null
-    private var savedServers: List<ServerInfo> = emptyList()
-    private val favoriteAddresses = linkedSetOf<String>()
-    private var favoritesLoaded = false
-
-    private val accent = 0xFF73D9B7.toInt()
-    private val accentBright = 0xFFB5FCE3.toInt()
-    private val textMain = 0xFFF0F7F3.toInt()
-    private val textMuted = 0xFF9AAEA7.toInt()
-    private val textDim = 0xFF637970.toInt()
-    private val panel = 0xC9081110.toInt()
-    private val panelSoft = 0xB80B1714.toInt()
-    private val panelSelected = 0xE3122721.toInt()
-    private val border = 0x553D9B7B
-    private val galahad = Identifier.of("triggerbot", "galahad")
+    private val username: String
+        get() = runCatching { MinecraftClient.getInstance().session.username }.getOrDefault("Player")
 
     @JvmStatic
     fun openGui() {
-        page = Page.GAME
-        category = Category.COMBAT
-        selectedModule = modulesForCategory(Category.COMBAT).firstOrNull()
+        ModuleManager.moduleRegister()
+        selectedCategory = Category.COMBAT
+        selectedModule = null
+        settingsOpen = false
         waitingForBind = null
-        mobileSettingsOpen = false
-        desktopSettingsOpen = false
+        contentScroll = 0
+        settingsScroll = 0
         MinecraftClient.getInstance().setScreen(this)
-    }
-
-    @JvmStatic
-    fun openAccounts() {
-        page = Page.ACCOUNTS
-        accountTab = AccountTab.PROFILES
-        accountStatus = ""
-        loadAccountsData()
-        MinecraftClient.getInstance().setScreen(this)
-    }
-
-    private fun loadAccountsData() {
-        loadFavorites()
-        val client = MinecraftClient.getInstance()
-        val list = ServerList(client)
-        list.loadFile()
-        serverList = list
-        savedServers = (0 until list.size()).mapNotNull { index ->
-            runCatching { list.get(index) }.getOrNull()
-        }
-        accountScroll = 0
-        serverScroll = 0
-    }
-
-    private fun loadFavorites() {
-        if (favoritesLoaded) return
-        favoritesLoaded = true
-        favoriteAddresses.clear()
-        val file = favoriteFile()
-        if (!file.exists()) return
-        runCatching {
-            file.readLines(Charsets.UTF_8)
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .forEach { favoriteAddresses.add(it) }
-        }
-    }
-
-    private fun favoriteFile(): File =
-        File(MinecraftClient.getInstance().runDirectory, "config/astra-server-favorites.txt")
-
-    private fun saveFavorites() {
-        val file = favoriteFile()
-        val parent = file.parentFile
-        if (!parent.exists() && !parent.mkdirs()) return
-        runCatching { file.writeText(favoriteAddresses.joinToString("\n"), Charsets.UTF_8) }
     }
 
     override fun init() {
         super.init()
-        nicknameInput = TextFieldWidget(
+        val layout = calculateLayout()
+        searchField = TextFieldWidget(
             textRenderer,
-            16,
-            16,
-            160,
-            19,
-            Text.literal("Nickname")
+            layout.contentX + 54,
+            layout.y + 15,
+            (layout.contentW - 112).coerceAtLeast(54),
+            20,
+            Text.literal("Поиск")
         )
-        nicknameInput.setMaxLength(16)
-        nicknameInput.setSuggestion("Ник 3–16 символов")
-        nicknameInput.setText(AltManager.currentNickname())
-        nicknameInput.setDrawsBackground(false)
-        nicknameInput.visible = page == Page.ACCOUNTS && accountTab == AccountTab.PROFILES
-        nicknameInput.active = nicknameInput.visible
-        addDrawableChild(nicknameInput)
+        searchField.setMaxLength(48)
+        searchField.setSuggestion("Поиск модулей")
+        searchField.setDrawsBackground(false)
+        addDrawableChild(searchField)
     }
 
-    private fun changePage(next: Page) {
-        page = next
-        waitingForBind = null
-        draggingVolume = false
-        moduleScroll = 0
-        settingsScroll = 0
-        if (next == Page.GAME) {
-            val modules = modulesForCategory(category)
-            if (selectedModule == null || modules.none { it === selectedModule }) {
-                selectedModule = modules.firstOrNull()
-            }
-            mobileSettingsOpen = false
+    private fun calculateLayout(): WindowLayout {
+        val margin = if (width < 500) 7 else 20
+        val panelW = min(1040, max(220, width - margin * 2))
+        val panelH = min(690, max(180, height - margin * 2))
+        val panelX = (width - panelW) / 2
+        val panelY = (height - panelH) / 2
+        val sidebarW = when {
+            panelW < 360 -> 86
+            panelW < 520 -> 112
+            else -> 176
         }
-        if (next == Page.ACCOUNTS) loadAccountsData()
-        if (::nicknameInput.isInitialized) {
-            nicknameInput.visible = next == Page.ACCOUNTS && accountTab == AccountTab.PROFILES
-            nicknameInput.active = nicknameInput.visible
-        }
+        return WindowLayout(
+            panelX, panelY, panelW, panelH, sidebarW,
+            panelX + sidebarW, panelY + 58,
+            panelW - sidebarW, panelH - 72
+        )
     }
-
-    private fun modulesForCategory(value: Category): List<Module> =
-        ModuleManager.getByCategory(value)
 
     override fun render(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
-        // Keep the live Minecraft world visible around the floating Click GUI.
-        // The Click GUI must not inherit the vanilla title-screen blur.
-        if (page == Page.GAME) {
-            context.fill(0, 0, width, height, 0x18000000)
-            drawGame(context, mouseX, mouseY)
-        } else {
-            renderBackground(context, mouseX, mouseY, delta)
-            drawHeader(context, mouseX, mouseY)
+        // Keep the 3D world visible. Do not call renderBackground(): it blurs the world.
+        context.fill(0, 0, width, height, 0x26000000)
+        val layout = calculateLayout()
+        drawWindow(context, layout)
+        drawSidebar(context, layout, mouseX, mouseY)
+        drawHeader(context, layout)
+        drawModuleCards(context, layout, mouseX, mouseY)
+        if (settingsOpen && selectedModule != null) {
+            drawSettings(context, layout, selectedModule!!, mouseX, mouseY)
         }
-        when (page) {
-            Page.HOME -> drawHome(context, mouseX, mouseY)
-            Page.GAME -> Unit
-            Page.ACCOUNTS -> drawAccounts(context, mouseX, mouseY)
-        }
-        if (page != Page.GAME) drawFooter(context, mouseX, mouseY)
-
-        if (page == Page.ACCOUNTS && altHeld) {
-            drawFavoriteServerWheel(context)
-        }
-
         super.render(context, mouseX, mouseY, delta)
     }
 
-    private fun drawAtmosphere(context: DrawContext) {
-        // Subtle water-like tint and soft horizon. It uses only DrawContext
-        // primitives, so it works on GL4ES without custom shaders.
-        context.fill(0, height / 2, width, height, 0x160A6D58)
-        context.fill(0, height - 3, width, height - 2, 0x553D9678)
-        for (index in 0 until 30) {
-            val x = ((index * 71 + 19) % width.coerceAtLeast(1))
-            val y = ((index * 37 + 11) % height.coerceAtLeast(1))
-            context.fill(x, y, x + 2, y + 2, 0x5537A98A)
+    private fun drawWindow(context: DrawContext, layout: WindowLayout) {
+        drawRounded(context, layout.x, layout.y, layout.w, layout.h, 11, background)
+        context.drawBorder(layout.x, layout.y, layout.w, layout.h, border)
+        drawRounded(
+            context, layout.x + 1, layout.y + 1, layout.sidebar - 1,
+            layout.h - 2, 9, sidebarBackground
+        )
+        context.fill(layout.x + layout.sidebar, layout.y + 1,
+            layout.x + layout.sidebar + 1, layout.y + layout.h - 1, border)
+        context.fill(layout.contentX, layout.y + 56,
+            layout.x + layout.w - 1, layout.y + 57, border)
+        context.fill(layout.x + 1, layout.y + layout.h - 43,
+            layout.x + layout.sidebar - 1, layout.y + layout.h - 42, border)
+    }
+
+    private fun drawSidebar(context: DrawContext, layout: WindowLayout, mouseX: Int, mouseY: Int) {
+        categoryHits.clear()
+        val logoX = layout.x + if (layout.sidebar < 120) 13 else 24
+        val logo = Text.literal("ASTRA").setStyle(Style.EMPTY.withFont(galahadFont))
+        context.drawText(textRenderer, logo, logoX, layout.y + 17, primaryText, false)
+
+        val sectionY = layout.y + 78
+        drawText(context, "ФУНКЦИИ", layout.x + 17, sectionY, mutedText)
+        val itemStart = sectionY + 19
+        val itemHeight = if (layout.sidebar < 120) 31 else 36
+
+        categoryItems.forEachIndexed { index, item ->
+            val rect = Rect(layout.x + 8, itemStart + index * itemHeight,
+                layout.sidebar - 16, itemHeight - 3)
+            categoryHits.add(item.first to rect)
+            val active = selectedCategory == item.first && searchField.getText().isBlank()
+            if (active) {
+                drawRounded(context, rect.x, rect.y, rect.w, rect.h, 6, 0xFF211719.toInt())
+                context.drawBorder(rect.x, rect.y, rect.w, rect.h, 0xFF5C3438.toInt())
+            } else if (rect.contains(mouseX.toDouble(), mouseY.toDouble())) {
+                drawRounded(context, rect.x, rect.y, rect.w, rect.h, 6, rowHover)
+            }
+            drawText(context, categoryMarker(index), rect.x + 9, rect.y + 8,
+                if (active) accent else secondaryText)
+            val labelX = rect.x + if (layout.sidebar < 120) 25 else 32
+            val labelW = (rect.w - (labelX - rect.x) - 4).coerceAtLeast(12)
+            drawText(context, textRenderer.trimToWidth(item.second, labelW),
+                labelX, rect.y + 8, if (active) accent else primaryText)
+        }
+
+        val footerY = layout.y + layout.h - 37
+        drawRounded(context, layout.x + 13, footerY - 2, 25, 25, 12, 0xFF242326.toInt())
+        drawText(context, "?", layout.x + 22, footerY + 6, secondaryText)
+        if (layout.sidebar >= 120) {
+            drawText(context, textRenderer.trimToWidth(username, layout.sidebar - 62),
+                layout.x + 46, footerY + 2, primaryText)
+            drawText(context, "Astra Client", layout.x + 46, footerY + 13, mutedText)
         }
     }
 
-    private fun drawHeader(context: DrawContext, mouseX: Int, mouseY: Int) {
-        navHits.clear()
-        val headerY = 8
-        drawText(context, "ASTRA", 16, headerY + 7, textMain, useGalahad = true)
-
-        val labels = listOf(
-            Page.HOME to "МЕНЮ",
-            Page.GAME to "ИГРА",
-            Page.ACCOUNTS to "АККАУНТЫ"
-        )
-        val widths = listOf(48, 42, 66)
-        val gap = 5
-        val groupWidth = widths.sum() + gap * (widths.size - 1)
-        val navStart = ((width - groupWidth) / 2).coerceAtLeast(72)
-
-        labels.forEachIndexed { index, item ->
-            val rect = Rect(
-                navStart + widths.take(index).sum() + index * gap,
-                headerY,
-                widths[index],
-                24
-            )
-            navHits[item.first] = rect
-            drawNavItem(context, rect, item.second, page == item.first)
-        }
-
-        val username = runCatching {
-            MinecraftClient.getInstance().session.username
-        }.getOrDefault("Player")
-        val safeWidth = (width - navStart - groupWidth - 24).coerceAtLeast(42)
-        val profileText = textRenderer.trimToWidth(username, safeWidth.coerceAtMost(84))
-        val profileWidth = textRenderer.getWidth(profileText)
-        val profileX = (width - profileWidth - 18).coerceAtLeast(navStart + groupWidth + 8)
-        context.fill(profileX - 10, headerY + 9, profileX - 4, headerY + 15, accent)
-        drawText(context, profileText, profileX, headerY + 7, textMuted)
+    private fun categoryMarker(index: Int): String = when (index) {
+        0 -> "✣"
+        1 -> "↕"
+        2 -> "◎"
+        3 -> "♙"
+        else -> "⌘"
     }
 
-    private fun drawNavItem(context: DrawContext, rect: Rect, label: String, selected: Boolean) {
-        if (selected) {
-            context.fill(rect.x + 3, rect.y + rect.h - 2, rect.x + rect.w - 3, rect.y + rect.h, accent)
-            context.fill(rect.x, rect.y + 2, rect.x + rect.w, rect.y + rect.h - 3, 0x1E65C7A4)
-        }
-        val labelWidth = textRenderer.getWidth(label)
-        drawText(
-            context,
-            label,
-            rect.x + (rect.w - labelWidth) / 2,
-            rect.y + 8,
-            if (selected) textMain else textMuted
-        )
+    private fun drawHeader(context: DrawContext, layout: WindowLayout) {
+        drawText(context, "МОДУЛИ", layout.contentX + 18, layout.y + 20, primaryText)
+        val searchX = layout.contentX + 13
+        val searchW = (layout.contentW - 26).coerceAtLeast(40)
+        drawRounded(context, searchX, layout.y + 13, searchW, 25, 6, 0xFF101012.toInt())
+        context.drawBorder(searchX, layout.y + 13, searchW, 25, border)
+        drawText(context, "⌕", layout.contentX + 23, layout.y + 19, mutedText)
+        val menuX = layout.x + layout.w - 39
+        drawRounded(context, menuX, layout.y + 14, 25, 23, 5, 0xFF151517.toInt())
+        context.drawBorder(menuX, layout.y + 14, 25, 23, border)
+        drawText(context, "≡", menuX + 8, layout.y + 19, secondaryText)
     }
 
-    private fun drawHome(context: DrawContext, mouseX: Int, mouseY: Int) {
-        val centerX = width / 2
-        val date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-        val time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
-
-        val dateY = (height * 0.19f).roundToInt().coerceAtLeast(37)
-        drawTextCentered(context, date, centerX, dateY, textMuted)
-        drawTextCentered(context, time, centerX, dateY + 15, textMain, scaleHint = true)
-
-        val compact = height < 280
-        val logoY = if (compact) {
-            (height * 0.40f).roundToInt().coerceIn(52, (height - 100).coerceAtLeast(52))
-        } else {
-            (height * 0.48f).roundToInt().coerceIn(90, (height - 120).coerceAtLeast(90))
-        }
-        drawAstraEmblem(context, centerX, logoY)
-
-        drawTextCentered(context, "ASTRA CLIENT", centerX, logoY + 35, textMain, useGalahad = true)
-        drawTextCentered(
-            context,
-            "Клиент, собранный вокруг твоего игрового стиля",
-            centerX,
-            logoY + 48,
-            textMuted
-        )
-
-        val buttonWidth = 106
-        val buttonHeight = 22
-        val buttonY = if (compact) (height - 42).coerceAtLeast(logoY + 57)
-        else (height * 0.70f).roundToInt()
-        val button = Rect(
-            centerX - buttonWidth / 2,
-            buttonY.coerceAtMost((height - 30).coerceAtLeast(0)),
-            buttonWidth,
-            buttonHeight
-        )
-        drawButton(context, button, "ВОЙТИ", true, button.contains(mouseX.toDouble(), mouseY.toDouble()))
-        homeLoginButton = button
-    }
-
-    private var homeLoginButton = Rect(0, 0, 0, 0)
-
-    private fun drawAstraEmblem(context: DrawContext, centerX: Int, centerY: Int) {
-        // Original Astra crescent-and-stars mark; every star/dot is the same size.
-        val radius = 24.0
-        for (index in 0..46) {
-            val angle = Math.toRadians(52.0 + index * (256.0 / 46.0))
-            val px = centerX + (cos(angle) * radius).roundToInt()
-            val py = centerY + (sin(angle) * radius).roundToInt()
-            context.fill(px, py, px + 2, py + 2, 0xFFFFFFFF.toInt())
+    private fun groupsForView(): List<ModuleGroup> {
+        val allModules = ModuleManager.getModules().toList()
+        val query = searchField.getText().trim()
+        if (query.isNotEmpty()) {
+            val matches = allModules.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                    it.desc.contains(query, ignoreCase = true)
+            }
+            return matches.groupBy { it.category }
+                .entries
+                .sortedBy { entry -> categoryItems.indexOfFirst { item -> item.first == entry.key } }
+                .map { entry -> ModuleGroup(categoryLabel(entry.key), entry.value) }
         }
 
-        // Letter C is a quiet watermark inside the crescent.
-        val watermark = Text.literal("C").setStyle(Style.EMPTY.withFont(galahad))
-        context.drawCenteredTextWithShadow(textRenderer, watermark, centerX + 1, centerY - 15, 0xCCFFFFFF.toInt())
-
-        for (index in 0 until 116) {
-            val px = centerX + ((index * 29 + 7) % 78) - 39
-            val py = centerY + ((index * 17 + 3) % 54) - 27
-            if (kotlin.math.abs(px - centerX) > 30 || kotlin.math.abs(py - centerY) > 22) {
-                context.fill(px, py, px + 2, py + 2, 0xFFFFFFFF.toInt())
+        val selected = allModules.filter { it.category == selectedCategory }
+        return when (selectedCategory) {
+            Category.COMBAT -> listOf(ModuleGroup("ДРАКА", selected))
+            Category.MOVEMENT -> listOf(ModuleGroup("ДВИЖЕНИЕ", selected))
+            Category.PLAYER -> listOf(ModuleGroup("ИГРОК", selected))
+            Category.MISC -> listOf(ModuleGroup("ИНСТРУМЕНТЫ", selected))
+            Category.RENDER -> {
+                val cameraNames = setOf("Fullbright", "No Hurt Cam", "Aspect Ratio")
+                val visual = selected.filter { !cameraNames.contains(it.name) }
+                val camera = selected.filter { cameraNames.contains(it.name) }
+                listOf(
+                    ModuleGroup("ВИЗУАЛЫ", visual),
+                    ModuleGroup("КАМЕРА", camera)
+                ).filter { it.modules.isNotEmpty() }
             }
         }
+    }
 
-        for (line in 0 until 5) {
-            val spread = 10 + line * 7
-            context.fill(
-                centerX - spread,
-                centerY + 29 + line * 3,
-                centerX + spread,
-                centerY + 30 + line * 3,
-                0x1F73D9B7
-            )
+    private fun categoryLabel(category: Category): String =
+        categoryItems.firstOrNull { it.first == category }?.second?.uppercase() ?: "МОДУЛИ"
+
+    private fun drawModuleCards(context: DrawContext, layout: WindowLayout, mouseX: Int, mouseY: Int) {
+        moduleHits.clear()
+        val groups = groupsForView()
+        val x = layout.contentX + 15
+        val y = layout.contentY + 10
+        val availableW = layout.contentW - 30
+        val gap = 12
+        val columns = if (availableW >= 470) 2 else 1
+        val columnW = ((availableW - gap * (columns - 1)) / columns).coerceAtLeast(70)
+        val bottoms = IntArray(columns) { 0 }
+        val rowHeight = if (layout.contentW < 300) 38 else 43
+        val viewport = Rect(layout.contentX + 4, layout.contentY,
+            layout.contentW - 8, layout.contentH - 4)
+
+        val cards = if (groups.isEmpty()) {
+            listOf(ModuleGroup(if (searchField.getText().isNotBlank()) "ПОИСК" else categoryLabel(selectedCategory), emptyList()))
+        } else groups
+
+        context.enableScissor(viewport.x, viewport.y, viewport.x + viewport.w, viewport.y + viewport.h)
+        cards.forEach { group ->
+            val targetColumn = bottoms.indices.minByOrNull { bottoms[it] } ?: 0
+            val cardX = x + targetColumn * (columnW + gap)
+            val cardY = y + bottoms[targetColumn] - contentScroll
+            val cardH = 42 + max(1, group.modules.size) * rowHeight
+            val card = Rect(cardX, cardY, columnW, cardH)
+
+            drawRounded(context, card.x, card.y, card.w, card.h, 8, cardBackground)
+            context.drawBorder(card.x, card.y, card.w, card.h, border)
+            drawText(context, textRenderer.trimToWidth(group.title, card.w - 30),
+                card.x + 12, card.y + 12, accent)
+            drawText(context, "◆", card.x + card.w - 19, card.y + 12, accent)
+            context.fill(card.x + 1, card.y + 35, card.x + card.w - 1, card.y + 36, 0xFF1D1B1E.toInt())
+
+            if (group.modules.isEmpty()) {
+                val empty = if (searchField.getText().isNotBlank()) "Ничего не найдено" else "Пока нет модулей"
+                drawText(context, empty, card.x + 12, card.y + 55, mutedText)
+            } else {
+                group.modules.forEachIndexed { index, module ->
+                    val rowY = card.y + 43 + index * rowHeight
+                    val row = Rect(card.x + 5, rowY, card.w - 10, rowHeight - 1)
+                    if (row.contains(mouseX.toDouble(), mouseY.toDouble())) {
+                        drawRounded(context, row.x, row.y, row.w, row.h, 4, rowHover)
+                    }
+                    val toggle = Rect(row.x + row.w - 34, row.y + (row.h - 15) / 2, 30, 15)
+                    val settings = Rect(row.x + row.w - 67, row.y + 3, 25, row.h - 7)
+                    moduleHits.add(ModuleHit(module, row, toggle, settings))
+                    val textW = (row.w - 108).coerceAtLeast(16)
+                    drawText(context, textRenderer.trimToWidth(module.name, textW),
+                        row.x + 8, row.y + (row.h - 8) / 2,
+                        if (module.isEnabled) primaryText else secondaryText)
+                    drawText(context, "•••", settings.x + 4, settings.y + 7, secondaryText)
+                    drawSwitch(context, toggle, module.isEnabled)
+                    if (index < group.modules.lastIndex) {
+                        context.fill(row.x + 7, row.y + row.h,
+                            row.x + row.w - 7, row.y + row.h + 1, 0xFF1E1C1F.toInt())
+                    }
+                }
+            }
+            bottoms[targetColumn] += cardH + 12
+        }
+        context.disableScissor()
+
+        val contentHeight = bottoms.maxOrNull() ?: 0
+        contentMaxScroll = (contentHeight - viewport.h).coerceAtLeast(0)
+        contentScroll = contentScroll.coerceIn(0, contentMaxScroll)
+
+        if (contentMaxScroll > 0) {
+            val trackX = layout.x + layout.w - 8
+            val trackY = viewport.y + 4
+            val trackH = viewport.h - 8
+            context.fill(trackX, trackY, trackX + 2, trackY + trackH, 0xFF242225.toInt())
+            val thumbH = max(22, trackH * trackH / (contentHeight + 1))
+            val thumbY = trackY + ((trackH - thumbH).toDouble() * contentScroll / contentMaxScroll).roundToInt()
+            drawRounded(context, trackX, thumbY, 2, thumbH, 1, accent)
         }
     }
 
-    private fun drawGame(context: DrawContext, mouseX: Int, mouseY: Int) {
-        categoryHits.clear()
-        moduleHits.clear()
+    private fun drawSettings(
+        context: DrawContext,
+        layout: WindowLayout,
+        module: Module,
+        mouseX: Int,
+        mouseY: Int
+    ) {
+        val content = Rect(layout.contentX + 4, layout.contentY,
+            layout.contentW - 8, layout.contentH - 4)
+        context.fill(content.x, content.y, content.x + content.w, content.y + content.h, 0xAA080809.toInt())
+
+        val popupW = min(430, content.w - 18).coerceAtLeast(150)
+        val popupH = min(500, content.h - 18).coerceAtLeast(125)
+        val popupX = content.x + (content.w - popupW) / 2
+        val popupY = content.y + (content.h - popupH) / 2
+        settingsPanel = Rect(popupX, popupY, popupW, popupH)
+
+        drawRounded(context, popupX, popupY, popupW, popupH, 9, 0xFF111113.toInt())
+        context.drawBorder(popupX, popupY, popupW, popupH, 0xFF343034.toInt())
+        drawText(context, "НАСТРОЙКИ МОДУЛЯ", popupX + 14, popupY + 13, mutedText)
+        drawText(context, textRenderer.trimToWidth(module.name, popupW - 62),
+            popupX + 14, popupY + 29, primaryText)
+
+        settingsClose = Rect(popupX + popupW - 28, popupY + 9, 19, 19)
+        drawRounded(context, settingsClose.x, settingsClose.y,
+            settingsClose.w, settingsClose.h, 5, rowHover)
+        drawText(context, "×", settingsClose.x + 6, settingsClose.y + 5, secondaryText)
+
+        settingsModuleSwitch = Rect(popupX + popupW - 48, popupY + 33, 32, 16)
+        drawSwitch(context, settingsModuleSwitch, module.isEnabled)
+        drawText(context, textRenderer.trimToWidth(module.desc, popupW - 28),
+            popupX + 14, popupY + 48, secondaryText)
+
+        settingsBind = Rect(popupX + 12, popupY + 66, popupW - 24, 24)
+        drawRounded(context, settingsBind.x, settingsBind.y,
+            settingsBind.w, settingsBind.h, 5, 0xFF19181A.toInt())
+        context.drawBorder(settingsBind.x, settingsBind.y, settingsBind.w, settingsBind.h, border)
+        val bindText = if (waitingForBind === module) "НАЖМИ КЛАВИШУ..." else "БИНД: " + formatBind(module.bind)
+        drawText(context, bindText, settingsBind.x + 9, settingsBind.y + 8, secondaryText)
+
+        val settingTop = popupY + 103
+        val settingBottom = popupY + popupH - 10
+        val settingViewport = max(0, settingBottom - settingTop)
+        val totalSettingsHeight = module.settings.sumOf { if (it is NumberSetting) 48 else 34 }
+        settingsMaxScroll = (totalSettingsHeight - settingViewport).coerceAtLeast(0)
+        settingsScroll = settingsScroll.coerceIn(0, settingsMaxScroll)
         booleanHits.clear()
         sliderHits.clear()
-        desktopColumnHits.clear()
 
-        val compact = width < 720
-        val panelWidth = (width - if (compact) 12 else 48).coerceAtMost(980)
-        val panelHeight = (height - if (compact) 16 else 48).coerceAtMost(650)
-        val px = (width - panelWidth) / 2
-        val py = (height - panelHeight) / 2
-        val frame = Rect(px, py, panelWidth, panelHeight)
-        drawPanel(context, frame, 0xF20A0A0B.toInt(), 0x553B3B40)
-
-        val side = if (compact) 104 else 154
-        context.fill(px + 1, py + 1, px + side, py + panelHeight - 1, 0xF20C0C0E.toInt())
-        context.fill(px + side, py + 1, px + side + 1, py + panelHeight - 1, 0xFF242428.toInt())
-        drawText(context, "A", px + 18, py + 14, 0xFFFF8F91.toInt(), useGalahad = true)
-        val search = Rect(px + side + 14, py + 10, panelWidth - side - 28, 25)
-        drawPanel(context, search, 0xFF101013.toInt(), 0xFF29292D.toInt())
-        drawText(context, "⌕  Поиск", search.x + 9, search.y + 8, 0xFF77777D.toInt())
-        context.fill(px + side, py + 43, px + panelWidth - 1, py + 44, 0xFF242428.toInt())
-
-        val categories = listOf(
-            Category.COMBAT to "Бой", Category.MOVEMENT to "Движение",
-            Category.RENDER to "Визуалы", Category.PLAYER to "Игрок", Category.MISC to "Разное"
-        )
-        categories.forEachIndexed { index, item ->
-            val row = Rect(px + 9, py + 62 + index * 31, side - 18, 27)
-            categoryHits.add(item.first to row)
-            val active = category == item.first
-            if (active) drawPanel(context, row, 0xFF211719.toInt(), 0xFF654044.toInt())
-            drawText(context, item.second, row.x + 9, row.y + 9,
-                if (active) 0xFFFFA0A0.toInt() else 0xFFD0D0D4.toInt())
-        }
-        drawText(context, "УПРАВЛЕНИЕ", px + 15, py + 236, 0xFF66666C.toInt())
-        drawText(context, "Пресеты", px + 16, py + 258, 0xFFD0D0D4.toInt())
-        drawText(context, "Аккаунты", px + 16, py + 286, 0xFFD0D0D4.toInt())
-        drawText(context, "ASTRA CLIENT", px + 15, py + panelHeight - 21, 0xFF77777D.toInt())
-
-        val contentX = px + side + 12
-        val contentY = py + 55
-        val contentW = panelWidth - side - 24
-        val gap = 10
-        val cardW = ((contentW - gap) / 2).coerceAtLeast(80)
-        val modules = modulesForCategory(category)
-        val split = (modules.size + 1) / 2
-        val cards = listOf("Основное" to modules.take(split), "Дополнительно" to modules.drop(split))
-        cards.forEachIndexed { column, group ->
-            val card = Rect(contentX + column * (cardW + gap), contentY, cardW, panelHeight - 67)
-            drawPanel(context, card, 0xFF0D0D0F.toInt(), 0xFF29292D.toInt())
-            drawText(context, group.first, card.x + 10, card.y + 12, 0xFFFF9A9D.toInt())
-            drawText(context, "⌃", card.x + card.w - 17, card.y + 11, 0xFFFF9A9D.toInt())
-            context.fill(card.x + 8, card.y + 30, card.x + card.w - 8, card.y + 31, 0xFF242428.toInt())
-            group.second.forEachIndexed { index, module ->
-                val row = Rect(card.x + 7, card.y + 37 + index * 39, card.w - 14, 35)
-                if (row.y + row.h > card.y + card.h - 4) return@forEachIndexed
-                val toggle = Rect(row.x + row.w - 33, row.y + 11, 26, 13)
-                moduleHits.add(ModuleHit(module, row, toggle))
-                drawText(context, textRenderer.trimToWidth(module.name, (row.w - 48).coerceAtLeast(20)),
-                    row.x + 5, row.y + 13, if (module.isEnabled) 0xFFE4E4E8.toInt() else 0xFF929298.toInt())
-                drawText(context, "•••", row.x + row.w - 57, row.y + 12, 0xFF88888E.toInt())
-                drawSwitch(context, toggle, module.isEnabled)
-                if (index < group.second.lastIndex) context.fill(row.x + 4, row.y + 34, row.x + row.w - 4, row.y + 35, 0xFF1B1B1F.toInt())
-            }
-            if (group.second.isEmpty()) drawText(context, "Нет модулей", card.x + 10, card.y + 45, 0xFF66666C.toInt())
-        }
-
-        if ((desktopSettingsOpen || mobileSettingsOpen) && selectedModule != null) {
-            context.fill(px, py, px + panelWidth, py + panelHeight, 0x99000000.toInt())
-            val popupW = 330.coerceAtMost(panelWidth - 20)
-            val popup = Rect(px + (panelWidth - popupW) / 2, py + 48, popupW, (panelHeight - 70).coerceAtLeast(130))
-            drawModuleDetails(context, selectedModule!!, popup, mouseX, mouseY, compact = width < 720)
-        }
-    }
-    private fun drawModuleDetails(
-        context: DrawContext,
-        module: Module,
-        rect: Rect,
-        mouseX: Int,
-        mouseY: Int,
-        compact: Boolean
-    ) {
-        drawPanel(context, rect, panel, border)
-
-        if (!compact) {
-            detailsCloseButton = Rect(rect.x + rect.w - 21, rect.y + 7, 14, 14)
-            drawText(context, "×", detailsCloseButton.x + 4, detailsCloseButton.y + 3, textMuted)
-        }
-
-        if (compact) {
-            accountsBackButton = Rect(rect.x + 8, rect.y + 7, 62, 19)
-            drawButton(context, accountsBackButton, "← МОДУЛИ", false,
-                accountsBackButton.contains(mouseX.toDouble(), mouseY.toDouble()))
-        }
-
-        val titleY = if (compact) rect.y + 5 else rect.y + 12
-        if (compact) {
-            drawText(context, textRenderer.trimToWidth(module.name, rect.w - 124),
-                rect.x + 78, titleY + 5, textMain)
-        } else {
-            drawText(context, "НАСТРОЙКИ МОДУЛЯ", rect.x + 12, titleY, textMuted)
-            drawText(context, textRenderer.trimToWidth(module.name, rect.w - 92), rect.x + 12, titleY + 16, textMain)
-            drawText(
-                context,
-                textRenderer.trimToWidth(module.desc, (rect.w - 24).coerceAtLeast(40)),
-                rect.x + 12,
-                titleY + 31,
-                textMuted
-            )
-        }
-
-        detailsModuleToggle = if (compact) {
-            Rect(rect.x + rect.w - 42, titleY + 5, 30, 15)
-        } else {
-            Rect(rect.x + rect.w - 48, titleY + 12, 34, 16)
-        }
-        drawSwitch(context, detailsModuleToggle, module.isEnabled)
-
-        detailsBindButton = Rect(rect.x + 12, if (compact) titleY + 26 else titleY + 47,
-            rect.w - 24, if (compact) 17 else 20)
-        val bindText = if (waitingForBind === module) "НАЖМИ КЛАВИШУ..." else "БИНД: ${formatBind(module.bind)}"
-        drawButton(
-            context,
-            detailsBindButton,
-            bindText,
-            false,
-            detailsBindButton.contains(mouseX.toDouble(), mouseY.toDouble())
-        )
-
-        val settingsTop = if (compact) titleY + 48 else titleY + 76
-        val visibleHeight = (rect.y + rect.h - settingsTop - 7).coerceAtLeast(0)
-        val settings = module.settings
-        val totalHeight = settings.fold(0) { total, setting -> total + if (setting is NumberSetting) 42 else 28 }
-        val maxScroll = (totalHeight - visibleHeight).coerceAtLeast(0)
-        settingsScroll = settingsScroll.coerceIn(0, maxScroll)
-
-        booleanHits.removeAll { it.setting !in settings }
-        sliderHits.removeAll { it.setting !in settings }
-
-        context.enableScissor(rect.x + 6, settingsTop, rect.x + rect.w - 6, rect.y + rect.h - 5)
+        context.enableScissor(popupX + 8, settingTop, popupX + popupW - 8, settingBottom)
         var offset = 0
-        settings.forEach { setting ->
-            val rowHeight = if (setting is NumberSetting) 42 else 28
-            val rowY = settingsTop + offset - settingsScroll
-            val row = Rect(rect.x + 10, rowY, rect.w - 20, rowHeight)
-            if (row.y + row.h >= settingsTop && row.y <= rect.y + rect.h) {
+        module.settings.forEach { setting ->
+            val rowHeight = if (setting is NumberSetting) 48 else 34
+            val rowY = settingTop + offset - settingsScroll
+            if (rowY + rowHeight >= settingTop && rowY <= settingBottom) {
                 when (setting) {
                     is BooleanSetting -> {
-                        drawText(context, textRenderer.trimToWidth(setting.name, row.w - 52), row.x, row.y + 6, textMain)
-                        val toggle = Rect(row.x + row.w - 31, row.y + 5, 25, 12)
+                        drawText(context, textRenderer.trimToWidth(setting.name, popupW - 78),
+                            popupX + 14, rowY + 11, primaryText)
+                        val toggle = Rect(popupX + popupW - 48, rowY + 7, 32, 16)
                         drawSwitch(context, toggle, setting.isEnabled)
                         booleanHits.add(BooleanHit(setting, toggle))
                     }
                     is NumberSetting -> {
-                        drawText(context, textRenderer.trimToWidth(setting.name, row.w - 54), row.x, row.y + 3, textMain)
-                        val valueText = formatNumber(setting.doubleValue, setting.increment)
-                        val valueWidth = textRenderer.getWidth(valueText)
-                        drawText(context, valueText, row.x + row.w - valueWidth, row.y + 3, accent)
-                        val track = Rect(row.x, row.y + 21, row.w, 13)
+                        drawText(context, textRenderer.trimToWidth(setting.name, popupW - 88),
+                            popupX + 14, rowY + 5, primaryText)
+                        val value = formatNumber(setting.doubleValue, setting.increment)
+                        val valueWidth = textRenderer.getWidth(value)
+                        drawText(context, value, popupX + popupW - valueWidth - 14, rowY + 5, accent)
+                        val track = Rect(popupX + 14, rowY + 25, popupW - 28, 12)
                         drawSlider(context, track, setting.doubleValue, setting.min, setting.max)
-                        sliderHits.add(SliderHit(setting, track, track.x, track.w))
+                        sliderHits.add(SliderHit(setting, track))
                     }
                 }
             }
@@ -559,328 +413,57 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         }
         context.disableScissor()
 
-        if (settings.isEmpty()) {
-            drawText(context, "Для этого модуля нет дополнительных параметров.", rect.x + 12, settingsTop + 8, textMuted)
+        if (module.settings.isEmpty()) {
+            drawText(context, "Нет дополнительных параметров", popupX + 14, settingTop + 12, mutedText)
         }
-        if (maxScroll > 0) {
-            drawText(context, "ПРОКРУТКА НАСТРОЕК", rect.x + 12, rect.y + rect.h - 13, textDim)
-        }
-    }
-
-    private fun drawAccounts(context: DrawContext, mouseX: Int, mouseY: Int) {
-        accountHits.clear()
-        serverHits.clear()
-        val compact = width < 760
-        if (!compact) {
-            drawText(context, "АККАУНТЫ", 16, 43, textMain)
-            drawText(context, "Профили и быстрый выбор сохранённых серверов", 16, 56, textMuted)
-        }
-
-        val tabsY = if (compact) 42 else 70
-        val tabWidth = 92
-        val profileTab = Rect(16, tabsY, tabWidth, 21)
-        val serversTab = Rect(16 + tabWidth + 5, tabsY, tabWidth, 21)
-        accountTabs[AccountTab.PROFILES] = profileTab
-        accountTabs[AccountTab.SERVERS] = serversTab
-
-        drawButton(context, profileTab, "ПРОФИЛИ", accountTab == AccountTab.PROFILES,
-            profileTab.contains(mouseX.toDouble(), mouseY.toDouble()))
-        drawButton(context, serversTab, "СЕРВЕРА", accountTab == AccountTab.SERVERS,
-            serversTab.contains(mouseX.toDouble(), mouseY.toDouble()))
-
-        val contentTop = tabsY + 29
-        val contentBottom = height - 21
-        val panelRect = Rect(16, contentTop, width - 32, (contentBottom - contentTop).coerceAtLeast(20))
-        drawPanel(context, panelRect, panel, border)
-
-        if (accountTab == AccountTab.PROFILES) {
-            drawProfiles(context, panelRect, mouseX, mouseY)
-        } else {
-            drawServers(context, panelRect, mouseX, mouseY)
-        }
-
-        if (accountStatus.isNotEmpty()) {
-            drawText(
-                context,
-                textRenderer.trimToWidth(accountStatus, width - 36),
-                18,
-                height - 29,
-                accent
-            )
-        }
-    }
-
-    private val accountTabs = mutableMapOf<AccountTab, Rect>()
-
-    private fun drawProfiles(context: DrawContext, rect: Rect, mouseX: Int, mouseY: Int) {
-        val currentName = AltManager.currentNickname()
-        drawText(context, "АККАУНТ: " + textRenderer.trimToWidth(currentName, rect.w - 82),
-            rect.x + 11, rect.y + 6, textMuted)
-
-        val inputX = rect.x + 10
-        val inputY = rect.y + 17
-        val inputWidth = (rect.w - 20).coerceIn(90, 280)
-        if (::nicknameInput.isInitialized) {
-            nicknameInput.setPosition(inputX, inputY)
-            nicknameInput.width = inputWidth
-            nicknameInput.height = 19
-            nicknameInput.visible = true
-            nicknameInput.active = true
-        }
-
-        val buttonsY = inputY + 19
-        val buttonGap = 5
-        val buttonWidth = ((rect.w - 25) / 2).coerceAtLeast(60)
-        accountApplyButton = Rect(rect.x + 10, buttonsY, buttonWidth, 19)
-        accountSaveButton = Rect(rect.x + 15 + buttonWidth, buttonsY, buttonWidth, 19)
-        drawButton(context, accountApplyButton, "ПРИМЕНИТЬ", true,
-            accountApplyButton.contains(mouseX.toDouble(), mouseY.toDouble()))
-        drawButton(context, accountSaveButton, "СОХРАНИТЬ", false,
-            accountSaveButton.contains(mouseX.toDouble(), mouseY.toDouble()))
-
-        val listTop = buttonsY + 18
-        drawText(context, "СОХРАНЁННЫЕ ОФЛАЙН-НИКИ", rect.x + 11, listTop, textMuted)
-        val rowsTop = listTop + 10
-        val rowHeight = if (width < 760) 17 else 21
-        val visibleHeight = (rect.y + rect.h - rowsTop - 5).coerceAtLeast(0)
-        val visibleRows = (visibleHeight / rowHeight).coerceAtLeast(0)
-        val names = AltManager.getAll()
-        val maxScroll = (names.size - visibleRows).coerceAtLeast(0)
-        accountScroll = accountScroll.coerceIn(0, maxScroll)
-
-        context.enableScissor(rect.x + 5, rowsTop, rect.x + rect.w - 5, rect.y + rect.h - 5)
-        names.drop(accountScroll).take(visibleRows).forEachIndexed { offset, name ->
-            val index = accountScroll + offset
-            val row = Rect(rect.x + 9, rowsTop + offset * rowHeight, rect.w - 18, rowHeight - 2)
-            val delete = Rect(row.x + row.w - 57, row.y, 57, row.h)
-            accountHits.add(AccountHit(index, row, delete))
-            drawPanel(context, row, if (index == selectedAccount) panelSelected else panelSoft,
-                if (index == selectedAccount) 0x8873D9B7.toInt() else 0x223D9B7B)
-            drawText(context, textRenderer.trimToWidth(name, row.w - 74), row.x + 7, row.y + 5,
-                if (index == selectedAccount) textMain else textMuted)
-            drawButton(context, delete, "УДАЛИТЬ", false,
-                delete.contains(mouseX.toDouble(), mouseY.toDouble()))
-        }
-        context.disableScissor()
-
-        if (names.isEmpty()) {
-            drawText(context, "Пока нет сохранённых ников.", rect.x + 11, rowsTop + 5, textDim)
-        }
-
-        if (height > 280) {
-            drawText(context, "Microsoft-профиль выбирается через авторизованный лаунчер Minecraft.",
-                rect.x + 11, rect.y + rect.h - 14, textDim)
-        }
-    }
-
-    private var selectedAccount = -1
-
-    private fun drawServers(context: DrawContext, rect: Rect, mouseX: Int, mouseY: Int) {
-        val servers = savedServers
-        drawText(context, "СОХРАНЁННЫЕ СЕРВЕРЫ", rect.x + 11, rect.y + 8, textMuted)
-        drawText(context, "Нажми ★, чтобы добавить сервер в быстрое колесо Alt.", rect.x + 11, rect.y + 21, textDim)
-
-        val rowsTop = rect.y + 26
-        val rowHeight = if (width < 760) 20 else 26
-        val footerSpace = 23
-        val visibleHeight = (rect.y + rect.h - rowsTop - footerSpace - 4).coerceAtLeast(0)
-        val visibleRows = (visibleHeight / rowHeight).coerceAtLeast(0)
-        val maxScroll = (servers.size - visibleRows).coerceAtLeast(0)
-        serverScroll = serverScroll.coerceIn(0, maxScroll)
-
-        context.enableScissor(rect.x + 5, rowsTop, rect.x + rect.w - 5, rect.y + rect.h - footerSpace)
-        servers.drop(serverScroll).take(visibleRows).forEachIndexed { offset, server ->
-            val rowIndex = serverScroll + offset
-            val row = Rect(rect.x + 9, rowsTop + offset * rowHeight, rect.w - 18, rowHeight - 2)
-            val star = Rect(row.x + row.w - 27, row.y + 3, 20, 17)
-            serverHits.add(ServerHit(server, row, star))
-            val selected = selectedServerAddress == server.address
-            drawPanel(context, row, if (selected) panelSelected else panelSoft,
-                if (selected) 0x8873D9B7.toInt() else 0x223D9B7B)
-            val labelWidth = (row.w - 56).coerceAtLeast(35)
-            drawText(context, textRenderer.trimToWidth(server.name, labelWidth), row.x + 7, row.y + 4, textMain)
-            drawText(context, textRenderer.trimToWidth(server.address, labelWidth), row.x + 7, row.y + 14, textDim)
-            drawText(context, if (favoriteAddresses.contains(server.address)) "★" else "☆",
-                star.x + 5, star.y + 4, if (favoriteAddresses.contains(server.address)) accentBright else textMuted)
-        }
-        context.disableScissor()
-
-        if (servers.isEmpty()) {
-            drawText(context, "Нет сохранённых серверов. Добавь их через обычный список серверов Minecraft.",
-                rect.x + 11, rowsTop + 8, textMuted)
-        }
-
-        serverJoinButton = Rect(rect.x + 10, rect.y + rect.h - 24, (rect.w - 20).coerceAtMost(180), 18)
-        drawButton(context, serverJoinButton, "ПОДКЛЮЧИТЬ", true,
-            serverJoinButton.contains(mouseX.toDouble(), mouseY.toDouble()))
-    }
-
-    private var selectedServerAddress = ""
-
-    private fun drawFavoriteServerWheel(context: DrawContext) {
-        favoriteServerHits.clear()
-        val favorites = savedServers.filter { favoriteAddresses.contains(it.address) }
-        val boxWidth = (width - 36).coerceIn(160, 230)
-        val rowHeight = 20
-        val visibleCount = favorites.size.coerceAtMost(5)
-        val boxHeight = 34 + (visibleCount.coerceAtLeast(1) * rowHeight)
-        val x = width - boxWidth - 14
-        val y = 40
-        val rect = Rect(x.coerceAtLeast(8), y, boxWidth, boxHeight.coerceAtMost(height - 50))
-        drawPanel(context, rect, 0xF006100D.toInt(), 0xAA73D9B7.toInt())
-        drawText(context, "БЫСТРЫЙ ВХОД  •  ALT + КОЛЕСО", rect.x + 9, rect.y + 8, accentBright)
-
-        if (favorites.isEmpty()) {
-            drawText(context, "Добавь ★ на вкладке «Сервера».", rect.x + 9, rect.y + 23, textMuted)
-            return
-        }
-
-        favoriteServerIndex = favoriteServerIndex.coerceIn(0, minOf(favorites.lastIndex, 4))
-        favorites.take(5).forEachIndexed { index, server ->
-            val row = Rect(rect.x + 7, rect.y + 23 + index * rowHeight, rect.w - 14, rowHeight - 1)
-            favoriteServerHits.add(server to row)
-            drawPanel(context, row,
-                if (index == favoriteServerIndex) panelSelected else panelSoft,
-                if (index == favoriteServerIndex) 0x8873D9B7.toInt() else 0x223D9B7B)
-            drawText(context, textRenderer.trimToWidth(server.name, row.w - 12), row.x + 6, row.y + 5,
-                if (index == favoriteServerIndex) textMain else textMuted)
-        }
-    }
-
-    private fun connectToServer(server: ServerInfo) {
-        if (!ServerAddress.isValid(server.address)) {
-            accountStatus = "Некорректный адрес сервера"
-            return
-        }
-        val client = MinecraftClient.getInstance()
-        ConnectScreen.connect(this, client, ServerAddress.parse(server.address), server, false, null)
-    }
-
-    private fun toggleFavorite(address: String) {
-        loadFavorites()
-        if (!favoriteAddresses.add(address)) favoriteAddresses.remove(address)
-        saveFavorites()
-    }
-
-    private fun drawFooter(context: DrawContext, mouseX: Int, mouseY: Int) {
-        drawText(context, "MINECRAFT 1.21.4  •  ASTRA CLIENT", 14, height - 12, textDim)
-
-        volumeButton = Rect(width - 30, height - 23, 18, 18)
-        val volume = MinecraftClient.getInstance().options.getSoundVolume(SoundCategory.MASTER)
-        drawText(context, if (volume <= 0.001f) "×" else "♫",
-            volumeButton.x + 4, volumeButton.y + 4, textMuted)
-
-        val hoveredButton = volumeButton.contains(mouseX.toDouble(), mouseY.toDouble())
-        val hoveredSlider = volumeSlider.contains(mouseX.toDouble(), mouseY.toDouble())
-        val hoveredPopup = volumePopup.contains(mouseX.toDouble(), mouseY.toDouble())
-        volumeOpen = hoveredButton || hoveredSlider || hoveredPopup || draggingVolume
-
-        if (volumeOpen) {
-            volumePopup = Rect((width - 184).coerceAtLeast(8), height - 53, 148, 27)
-            drawPanel(context, volumePopup, 0xF006100D.toInt(), border)
-            drawText(context, "ЗВУК", volumePopup.x + 8, volumePopup.y + 9, textMuted)
-            volumeSlider = Rect(volumePopup.x + 44, volumePopup.y + 5, 96, 16)
-            drawSliderBar(context, volumeSlider, volume.toDouble(), 0.0, 1.0)
-        }
-    }
-
-    private fun drawPanel(context: DrawContext, rect: Rect, fill: Int, outline: Int) {
-        if (rect.w <= 0 || rect.h <= 0) return
-        if (rect.w > 4 && rect.h > 4) {
-            context.fill(rect.x + 1, rect.y, rect.x + rect.w - 1, rect.y + rect.h, fill)
-            context.fill(rect.x, rect.y + 2, rect.x + rect.w, rect.y + rect.h - 2, fill)
-        } else {
-            context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, fill)
-        }
-        context.drawBorder(rect.x, rect.y, rect.w, rect.h, outline)
-    }
-
-    private fun drawButton(context: DrawContext, rect: Rect, label: String, primary: Boolean, hovered: Boolean) {
-        val fill = when {
-            primary && hovered -> 0xE8429679.toInt()
-            primary -> 0xD52A7059.toInt()
-            hovered -> 0xA5264036.toInt()
-            else -> 0x85101E19.toInt()
-        }
-        drawPanel(context, rect, fill, if (primary) 0xAA73D9B7.toInt() else 0x553D9B7B)
-        val available = (rect.w - 8).coerceAtLeast(10)
-        val clipped = textRenderer.trimToWidth(label, available)
-        val textWidth = textRenderer.getWidth(clipped)
-        drawText(context, clipped, rect.x + (rect.w - textWidth) / 2, rect.y + (rect.h - 8) / 2,
-            if (primary || hovered) textMain else textMuted)
-    }
-
-    private fun drawText(
-        context: DrawContext,
-        value: String,
-        x: Int,
-        y: Int,
-        color: Int = textMain,
-        useGalahad: Boolean = false
-    ) {
-        val message = if (useGalahad) {
-            Text.literal(value).setStyle(Style.EMPTY.withFont(galahad))
-        } else {
-            Text.literal(value)
-        }
-        context.drawText(textRenderer, message, x, y, color, false)
-    }
-
-    private fun drawTextCentered(
-        context: DrawContext,
-        value: String,
-        centerX: Int,
-        y: Int,
-        color: Int,
-        useGalahad: Boolean = false,
-        scaleHint: Boolean = false
-    ) {
-        val message = if (useGalahad) {
-            Text.literal(value).setStyle(Style.EMPTY.withFont(galahad))
-        } else {
-            Text.literal(value)
-        }
-        context.drawCenteredTextWithShadow(textRenderer, message, centerX, y, color)
     }
 
     private fun drawSwitch(context: DrawContext, rect: Rect, enabled: Boolean) {
-        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h,
-            if (enabled) 0xFF347F6B.toInt() else 0xFF26322F.toInt())
-        val knobX = if (enabled) rect.x + rect.w - 10 else rect.x + 2
-        context.fill(knobX, rect.y + 2, knobX + 8, rect.y + rect.h - 2,
-            if (enabled) 0xFFE8FFF6.toInt() else 0xFF8CA099.toInt())
+        drawRounded(context, rect.x, rect.y, rect.w, rect.h, rect.h / 2,
+            if (enabled) switchOn else switchOff)
+        val knob = rect.h - 5
+        val knobX = if (enabled) rect.x + rect.w - knob - 2 else rect.x + 2
+        drawRounded(context, knobX, rect.y + 2, knob, knob, knob / 2, switchKnob)
     }
 
-    private fun drawSlider(context: DrawContext, rect: Rect, value: Double, min: Double, max: Double) {
-        drawSliderBar(context, rect, value, min, max)
-    }
-
-    private fun drawSliderBar(context: DrawContext, rect: Rect, value: Double, min: Double, max: Double) {
-        val trackY = rect.y + rect.h / 2 - 1
-        context.fill(rect.x, trackY, rect.x + rect.w, trackY + 3, 0xFF273632.toInt())
-        val range = (max - min).takeIf { it > 0.0 } ?: 1.0
-        val progress = ((value - min) / range).coerceIn(0.0, 1.0)
+    private fun drawSlider(context: DrawContext, rect: Rect, value: Double, minValue: Double, maxValue: Double) {
+        val h = 4
+        val y = rect.y + rect.h / 2 - h / 2
+        drawRounded(context, rect.x, y, rect.w, h, 2, switchOff)
+        val range = (maxValue - minValue).takeIf { it > 0.0 } ?: 1.0
+        val progress = ((value - minValue) / range).coerceIn(0.0, 1.0)
         val filled = (rect.w * progress).roundToInt()
-        context.fill(rect.x, trackY, rect.x + filled, trackY + 3, accent)
-        val knobX = (rect.x + filled - 3).coerceIn(rect.x, rect.x + (rect.w - 6).coerceAtLeast(0))
-        context.fill(knobX, trackY - 3, knobX + 6, trackY + 6, textMain)
+        drawRounded(context, rect.x, y, max(1, filled), h, 2, accent)
+        val knobX = (rect.x + filled - 4).coerceIn(rect.x, rect.x + max(0, rect.w - 8))
+        drawRounded(context, knobX, y - 3, 8, 10, 4, primaryText)
     }
 
-    private fun updateSlider(hit: SliderHit, mouseX: Double) {
-        if (hit.trackWidth <= 0) return
-        val percent = ((mouseX - hit.trackX).toDouble() / hit.trackWidth.toDouble()).coerceIn(0.0, 1.0)
-        val raw = hit.setting.min + (hit.setting.max - hit.setting.min) * percent
-        val step = hit.setting.increment.takeIf { it > 0.0 } ?: 0.01
-        val stepped = hit.setting.min + ((raw - hit.setting.min) / step).roundToInt() * step
-        hit.setting.setValue(stepped)
+    private fun drawRounded(
+        context: DrawContext,
+        x: Int,
+        y: Int,
+        w: Int,
+        h: Int,
+        radius: Int,
+        color: Int
+    ) {
+        if (w <= 0 || h <= 0) return
+        val r = min(radius, min(w / 2, h / 2)).coerceAtLeast(0)
+        if (r == 0) {
+            context.fill(x, y, x + w, y + h, color)
+            return
+        }
+        context.fill(x + r, y, x + w - r, y + h, color)
+        context.fill(x, y + r, x + w, y + h - r, color)
+        for (row in 0 until r) {
+            val inset = r - 1 - row
+            context.fill(x + inset, y + row, x + w - inset, y + row + 1, color)
+            context.fill(x + inset, y + h - row - 1, x + w - inset, y + h - row, color)
+        }
     }
 
-    private fun updateVolume(mouseX: Double) {
-        val client = MinecraftClient.getInstance()
-        if (volumeSlider.w <= 0) return
-        val percent = ((mouseX - volumeSlider.x).toDouble() / volumeSlider.w.toDouble()).coerceIn(0.0, 1.0)
-        client.options.getSoundVolumeOption(SoundCategory.MASTER).setValue(percent)
-        if (percent > 0.001) previousVolume = percent
+    private fun drawText(context: DrawContext, value: String, x: Int, y: Int, color: Int) {
+        context.drawText(textRenderer, value, x, y, color, false)
     }
 
     private fun formatNumber(value: Double, step: Double): String =
@@ -889,200 +472,87 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     private fun formatBind(bind: Int): String = when {
         bind < 0 -> "НЕТ"
-        bind >= GLFW.GLFW_MOUSE_BUTTON_1 && bind <= GLFW.GLFW_MOUSE_BUTTON_LAST -> "МЫШЬ ${bind + 1}"
-        else -> GLFW.glfwGetKeyName(bind, 0)?.uppercase() ?: "KEY $bind"
+        bind >= GLFW.GLFW_MOUSE_BUTTON_1 && bind <= GLFW.GLFW_MOUSE_BUTTON_LAST ->
+            "МЫШЬ " + (bind - GLFW.GLFW_MOUSE_BUTTON_1 + 1)
+        else -> GLFW.glfwGetKeyName(bind, 0)?.uppercase() ?: ("KEY " + bind)
+    }
+
+    private fun updateSlider(hit: SliderHit, mouseX: Double) {
+        if (hit.track.w <= 0) return
+        val percent = ((mouseX - hit.track.x) / hit.track.w.toDouble()).coerceIn(0.0, 1.0)
+        val raw = hit.setting.min + (hit.setting.max - hit.setting.min) * percent
+        val step = hit.setting.increment.takeIf { it > 0.0 } ?: 0.01
+        val value = hit.setting.min + ((raw - hit.setting.min) / step).roundToInt() * step
+        hit.setting.setValue(value)
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
+        if (waitingForBind != null && button in 0..7) {
+            val module = waitingForBind
+            module?.bind = GLFW.GLFW_MOUSE_BUTTON_1 + button
+            waitingForBind = null
+            ModuleManager.syncBindsToConfig()
+            TriggerBotClient.saveConfig()
+            return true
+        }
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button)
 
-        navHits.entries.firstOrNull { it.value.contains(mouseX, mouseY) }?.let {
-            changePage(it.key)
-            return true
-        }
-
-        if (volumeButton.contains(mouseX, mouseY)) {
-            val client = MinecraftClient.getInstance()
-            val current = client.options.getSoundVolume(SoundCategory.MASTER)
-            if (current > 0.001f) {
-                previousVolume = current.toDouble()
-                client.options.getSoundVolumeOption(SoundCategory.MASTER).setValue(0.0)
-            } else {
-                client.options.getSoundVolumeOption(SoundCategory.MASTER).setValue(previousVolume)
-            }
-            return true
-        }
-        if (volumeOpen && volumeSlider.contains(mouseX, mouseY)) {
-            draggingVolume = true
-            updateVolume(mouseX)
-            return true
-        }
-
-        when (page) {
-            Page.HOME -> {
-                if (homeLoginButton.contains(mouseX, mouseY)) {
-                    changePage(Page.ACCOUNTS)
-                    return true
-                }
-            }
-
-            Page.GAME -> {
-                if (desktopSettingsOpen && detailsCloseButton.contains(mouseX, mouseY)) {
-                    desktopSettingsOpen = false
-                    return true
-                }
-
-                categoryHits.firstOrNull { it.second.contains(mouseX, mouseY) }?.let {
-                    category = it.first
-                    selectedModule = modulesForCategory(category).firstOrNull()
-                    moduleScroll = 0
-                    settingsScroll = 0
-                    mobileSettingsOpen = false
-                    return true
-                }
-
-                if (width < 720 && mobileSettingsOpen && accountsBackButton.contains(mouseX, mouseY)) {
-                    mobileSettingsOpen = false
-                    return true
-                }
-
-                sliderHits.firstOrNull { it.bounds.contains(mouseX, mouseY) }?.let {
-                    draggingSlider = it
-                    updateSlider(it, mouseX)
-                    return true
-                }
-                booleanHits.firstOrNull { it.bounds.contains(mouseX, mouseY) }?.let {
-                    it.setting.toggle()
-                    TriggerBotClient.saveConfig()
-                    return true
-                }
-
-                if (selectedModule != null && detailsModuleToggle.contains(mouseX, mouseY)) {
-                    selectedModule!!.toggled()
-                    TriggerBotClient.saveConfig()
-                    return true
-                }
-                if (selectedModule != null && detailsBindButton.contains(mouseX, mouseY)) {
-                    waitingForBind = selectedModule
-                    return true
-                }
-
-                moduleHits.firstOrNull { it.toggle.contains(mouseX, mouseY) }?.let {
-                    it.module.toggled()
-                    selectedModule = it.module
-                    TriggerBotClient.saveConfig()
-                    if (width < 760) mobileSettingsOpen = true
-                    return true
-                }
-                moduleHits.firstOrNull { it.row.contains(mouseX, mouseY) }?.let {
-                    if (it.module.name == "Alt Manager") {
-                        changePage(Page.ACCOUNTS)
-                        return true
-                    }
-                    selectedModule = it.module
-                    settingsScroll = 0
-                    if (width < 760) mobileSettingsOpen = true
-                    else desktopSettingsOpen = true
-                    return true
-                }
-            }
-
-            Page.ACCOUNTS -> {
-                if (accountTabs.entries.firstOrNull { it.value.contains(mouseX, mouseY) }?.key
-                    ?.let { accountTab = it; true } == true) {
-                    if (::nicknameInput.isInitialized) {
-                        nicknameInput.visible = accountTab == AccountTab.PROFILES
-                        nicknameInput.active = nicknameInput.visible
-                    }
-                    accountScroll = 0
-                    serverScroll = 0
-                    accountStatus = ""
-                    return true
-                }
-
-                if (accountTab == AccountTab.PROFILES) {
-                    if (accountApplyButton.contains(mouseX, mouseY)) {
-                        applyAccount()
-                        return true
-                    }
-                    if (accountSaveButton.contains(mouseX, mouseY)) {
-                        saveAccount()
-                        return true
-                    }
-                    accountHits.firstOrNull { it.delete.contains(mouseX, mouseY) }?.let {
-                        AltManager.remove(it.index)
-                        if (selectedAccount == it.index) selectedAccount = -1
-                        accountStatus = "Ник удалён"
-                        return true
-                    }
-                    accountHits.firstOrNull { it.row.contains(mouseX, mouseY) }?.let {
-                        selectedAccount = it.index
-                        nicknameInput.setText(AltManager.get(it.index))
-                        return true
-                    }
-                } else {
-                    serverHits.firstOrNull { it.favorite.contains(mouseX, mouseY) }?.let {
-                        toggleFavorite(it.server.address)
-                        return true
-                    }
-                    serverHits.firstOrNull { it.row.contains(mouseX, mouseY) }?.let {
-                        selectedServerAddress = it.server.address
-                        return true
-                    }
-                    if (serverJoinButton.contains(mouseX, mouseY)) {
-                        val server = savedServers.firstOrNull { it.address == selectedServerAddress }
-                        if (server != null) connectToServer(server)
-                        else accountStatus = "Сначала выбери сервер"
-                        return true
-                    }
-                }
-            }
-        }
-
-        if (page == Page.ACCOUNTS && altHeld) {
-            favoriteServerHits.firstOrNull { it.second.contains(mouseX, mouseY) }?.let {
-                connectToServer(it.first)
+        if (settingsOpen) {
+            if (settingsClose.contains(mouseX, mouseY)) {
+                settingsOpen = false
+                waitingForBind = null
                 return true
             }
+            val module = selectedModule
+            if (module != null && settingsModuleSwitch.contains(mouseX, mouseY)) {
+                module.toggled()
+                TriggerBotClient.saveConfig()
+                return true
+            }
+            if (module != null && settingsBind.contains(mouseX, mouseY)) {
+                waitingForBind = module
+                return true
+            }
+            booleanHits.firstOrNull { it.toggle.contains(mouseX, mouseY) }?.let {
+                it.setting.toggle()
+                TriggerBotClient.saveConfig()
+                return true
+            }
+            sliderHits.firstOrNull { it.track.contains(mouseX, mouseY) }?.let {
+                draggingSlider = it
+                updateSlider(it, mouseX)
+                return true
+            }
+            if (!settingsPanel.contains(mouseX, mouseY)) {
+                settingsOpen = false
+                waitingForBind = null
+            }
+            return true
         }
 
+        categoryHits.firstOrNull { it.second.contains(mouseX, mouseY) }?.let {
+            selectedCategory = it.first
+            contentScroll = 0
+            return true
+        }
+        moduleHits.firstOrNull { it.settings.contains(mouseX, mouseY) }?.let {
+            selectedModule = it.module
+            settingsScroll = 0
+            settingsOpen = true
+            waitingForBind = null
+            return true
+        }
+        moduleHits.firstOrNull { it.toggle.contains(mouseX, mouseY) }?.let {
+            it.module.toggled()
+            TriggerBotClient.saveConfig()
+            return true
+        }
         return super.mouseClicked(mouseX, mouseY, button)
     }
 
-    private fun saveAccount() {
-        val name = nicknameInput.getText().trim()
-        if (!AltManager.isValidName(name)) {
-            accountStatus = "Ник: 3–16 латинских букв, цифр или _"
-            return
-        }
-        accountStatus = if (AltManager.add(name)) "Ник сохранён" else "Такой ник уже есть"
-        selectedAccount = -1
-    }
-
-    private fun applyAccount() {
-        val name = nicknameInput.getText().trim()
-        if (!AltManager.isValidName(name)) {
-            accountStatus = "Некорректный ник"
-            return
-        }
-        accountStatus = if (AltManager.apply(name)) {
-            "Офлайн-профиль выбран: $name"
-        } else {
-            "Нельзя сменить профиль во время игры"
-        }
-    }
-
     override fun mouseDragged(
-        mouseX: Double,
-        mouseY: Double,
-        button: Int,
-        deltaX: Double,
-        deltaY: Double
+        mouseX: Double, mouseY: Double, button: Int, deltaX: Double, deltaY: Double
     ): Boolean {
-        if (draggingVolume) {
-            updateVolume(mouseX)
-            return true
-        }
         draggingSlider?.let {
             updateSlider(it, mouseX)
             return true
@@ -1091,10 +561,6 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     }
 
     override fun mouseReleased(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (draggingVolume) {
-            draggingVolume = false
-            return true
-        }
         if (draggingSlider != null) {
             draggingSlider = null
             TriggerBotClient.saveConfig()
@@ -1104,81 +570,18 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     }
 
     override fun mouseScrolled(
-        mouseX: Double,
-        mouseY: Double,
-        horizontalAmount: Double,
-        verticalAmount: Double
+        mouseX: Double, mouseY: Double, horizontalAmount: Double, verticalAmount: Double
     ): Boolean {
         val direction = if (verticalAmount < 0) 1 else -1
-        when (page) {
-            Page.HOME -> {
-                val index = pages.indexOf(page)
-                changePage(pages[(index + direction + pages.size) % pages.size])
-                return true
-            }
-
-            Page.GAME -> {
-                if (width >= 760 && desktopSettingsOpen && selectedModule != null) {
-                    val total = selectedModule!!.settings.fold(0) { sum, setting ->
-                        sum + if (setting is NumberSetting) 42 else 28
-                    }
-                    val viewport = (height - 160).coerceAtLeast(30)
-                    settingsScroll = (settingsScroll + direction * 24).coerceIn(0, (total - viewport).coerceAtLeast(0))
-                    return true
-                }
-                if (width >= 760) {
-                    val selectedColumn = desktopColumnHits.firstOrNull { it.second.contains(mouseX, mouseY) }?.first
-                        ?: Category.COMBAT
-                    val modulesInColumn = modulesForCategory(selectedColumn)
-                    val rowHeight = 28
-                    val viewport = (height - 120).coerceAtLeast(30)
-                    val total = modulesInColumn.size * rowHeight
-                    val maxScroll = (total - viewport).coerceAtLeast(0)
-                    columnScrolls[selectedColumn] = ((columnScrolls[selectedColumn] ?: 0) + direction * 24)
-                        .coerceIn(0, maxScroll)
-                    return true
-                }
-                val modules = modulesForCategory(category)
-                if (width < 760 && mobileSettingsOpen) {
-                    val module = selectedModule
-                    if (module != null) {
-                        val total = module.settings.fold(0) { total, setting -> total + if (setting is NumberSetting) 42 else 28 }
-                        val viewport = (height - 142).coerceAtLeast(24)
-                        settingsScroll = (settingsScroll + direction * 24).coerceIn(0, (total - viewport).coerceAtLeast(0))
-                    }
-                } else {
-                    val rowHeight = if (width < 760) 29 else 35
-                    val viewport = (height - 132).coerceAtLeast(24)
-                    val total = modules.size * rowHeight
-                    moduleScroll = (moduleScroll + direction * 24).coerceIn(0, (total - viewport).coerceAtLeast(0))
-                }
-                return true
-            }
-
-            Page.ACCOUNTS -> {
-                if (altHeld) {
-                    val favorites = savedServers.filter { favoriteAddresses.contains(it.address) }
-                    if (favorites.isNotEmpty()) {
-                        favoriteServerIndex = (favoriteServerIndex + direction).coerceIn(0, favorites.lastIndex)
-                    }
-                    return true
-                }
-                if (accountTab == AccountTab.PROFILES) {
-                    accountScroll = (accountScroll + direction).coerceAtLeast(0)
-                } else {
-                    serverScroll = (serverScroll + direction).coerceAtLeast(0)
-                }
-                return true
-            }
+        if (settingsOpen) {
+            settingsScroll = (settingsScroll + direction * 28).coerceIn(0, settingsMaxScroll)
+        } else {
+            contentScroll = (contentScroll + direction * 34).coerceIn(0, contentMaxScroll)
         }
+        return true
     }
 
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        if (keyCode == GLFW.GLFW_KEY_LEFT_ALT || keyCode == GLFW.GLFW_KEY_RIGHT_ALT) {
-            altHeld = true
-            return true
-        }
-
         waitingForBind?.let { module ->
             when (keyCode) {
                 GLFW.GLFW_KEY_ESCAPE -> {
@@ -1193,30 +596,20 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             TriggerBotClient.saveConfig()
             return true
         }
-
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             close()
-            return true
-        }
-        if (page == Page.ACCOUNTS && accountTab == AccountTab.PROFILES && keyCode == GLFW.GLFW_KEY_ENTER) {
-            applyAccount()
             return true
         }
         return super.keyPressed(keyCode, scanCode, modifiers)
     }
 
-    override fun keyReleased(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        if (keyCode == GLFW.GLFW_KEY_LEFT_ALT || keyCode == GLFW.GLFW_KEY_RIGHT_ALT) {
-            altHeld = false
-            return true
-        }
-        return super.keyReleased(keyCode, scanCode, modifiers)
-    }
-
     override fun shouldPause(): Boolean = false
 
     override fun close() {
-        AltManager.save()
+        settingsOpen = false
+        waitingForBind = null
+        draggingSlider = null
+        TriggerBotClient.saveConfig()
         super.close()
     }
 }
