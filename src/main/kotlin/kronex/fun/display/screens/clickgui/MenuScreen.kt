@@ -1,6 +1,7 @@
 package kronex.`fun`.display.screens.clickgui
 
 import com.essde342.triggerbot.TriggerBotClient
+import com.essde342.triggerbot.AltManager
 import com.essde342.triggerbot.ui.imple.BooleanSetting
 import com.essde342.triggerbot.ui.imple.NumberSetting
 import com.essde342.triggerbot.ui.modules.Category
@@ -89,6 +90,12 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     fun openAccounts() {
         openGui()
         selectedCategory = Category.PLAYER
+    }
+
+    @JvmStatic
+    fun openAccounts() {
+        AltManager.load()
+        MinecraftClient.getInstance().setScreen(AccountsScreen())
     }
 
     @JvmStatic
