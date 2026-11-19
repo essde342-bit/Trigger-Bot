@@ -141,7 +141,8 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             Text.literal("Поиск")
         )
         searchField.setMaxLength(48)
-        searchField.setSuggestion(if (accountsPage) "Ник 3–16 символов" else "Поиск модулей")
+        searchField.setSuggestion("")
+        searchField.setEditableColor(0xFF101012.toInt())
         if (accountsPage) searchField.setText(AltManager.currentNickname())
         searchField.setDrawsBackground(false)
         addDrawableChild(searchField)
@@ -181,6 +182,15 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             drawSettings(context, layout, selectedModule!!, mouseX, mouseY)
         }
         super.render(context, mouseX, mouseY, delta)
+        drawSearchOverlay(context)
+    }
+
+    private fun drawSearchOverlay(context: DrawContext) {
+        val value = searchField.getText().ifBlank {
+            if (accountsPage) "Ник 3–16 символов" else "Поиск модулей"
+        }
+        val styled = Text.literal(value).setStyle(Style.EMPTY.withFont(galahadFont))
+        context.drawText(textRenderer, styled, searchField.x + 5, searchField.y + 6, secondaryText, false)
     }
 
     private fun drawWindow(context: DrawContext, layout: WindowLayout) {
