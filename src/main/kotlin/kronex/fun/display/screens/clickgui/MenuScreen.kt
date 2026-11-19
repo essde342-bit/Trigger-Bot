@@ -396,176 +396,75 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         sliderHits.clear()
         desktopColumnHits.clear()
 
-        if (width >= 760) {
-            drawDesktopGame(context, mouseX, mouseY)
-        } else {
-            drawCompactGame(context, mouseX, mouseY)
+        val compact = width < 720
+        val panelWidth = (width - if (compact) 12 else 48).coerceAtMost(980)
+        val panelHeight = (height - if (compact) 16 else 48).coerceAtMost(650)
+        val px = (width - panelWidth) / 2
+        val py = (height - panelHeight) / 2
+        val frame = Rect(px, py, panelWidth, panelHeight)
+        drawPanel(context, frame, 0xF20A0A0B.toInt(), 0x553B3B40)
+
+        val side = if (compact) 104 else 154
+        context.fill(px + 1, py + 1, px + side, py + panelHeight - 1, 0xF20C0C0E.toInt())
+        context.fill(px + side, py + 1, px + side + 1, py + panelHeight - 1, 0xFF242428.toInt())
+        drawText(context, "A", px + 18, py + 14, 0xFFFF8F91.toInt(), useGalahad = true)
+        val search = Rect(px + side + 14, py + 10, panelWidth - side - 28, 25)
+        drawPanel(context, search, 0xFF101013.toInt(), 0xFF29292D.toInt())
+        drawText(context, "⌕  Поиск", search.x + 9, search.y + 8, 0xFF77777D.toInt())
+        context.fill(px + side, py + 43, px + panelWidth - 1, py + 44, 0xFF242428.toInt())
+
+        val categories = listOf(
+            Category.COMBAT to "Бой", Category.MOVEMENT to "Движение",
+            Category.RENDER to "Визуалы", Category.PLAYER to "Игрок", Category.MISC to "Разное"
+        )
+        categories.forEachIndexed { index, item ->
+            val row = Rect(px + 9, py + 62 + index * 31, side - 18, 27)
+            categoryHits.add(item.first to row)
+            val active = category == item.first
+            if (active) drawPanel(context, row, 0xFF211719.toInt(), 0xFF654044.toInt())
+            drawText(context, item.second, row.x + 9, row.y + 9,
+                if (active) 0xFFFFA0A0.toInt() else 0xFFD0D0D4.toInt())
         }
-    }
+        drawText(context, "УПРАВЛЕНИЕ", px + 15, py + 236, 0xFF66666C.toInt())
+        drawText(context, "Пресеты", px + 16, py + 258, 0xFFD0D0D4.toInt())
+        drawText(context, "Аккаунты", px + 16, py + 286, 0xFFD0D0D4.toInt())
+        drawText(context, "ASTRA CLIENT", px + 15, py + panelHeight - 21, 0xFF77777D.toInt())
 
-    /**
-     * Arbuz-style desktop layout: all five module groups are visible at once.
-     * A selected module opens its settings as a centered overlay, leaving the
-     * five-column overview visible behind it.
-     */
-    private fun drawDesktopGame(context: DrawContext, mouseX: Int, mouseY: Int) {
-        drawText(context, "МОДУЛИ", 16, 42, textMain)
-        drawText(context, "Выбери функцию, чтобы открыть её параметры", 16, 55, textMuted)
-
-        val contentTop = 70
-        val contentBottom = height - 23
-        val contentHeight = (contentBottom - contentTop).coerceAtLeast(80)
-        val outerMargin = 16
-        val gap = 7
-        val columnWidth = ((width - outerMargin * 2 - gap * 4) / 5).coerceAtLeast(100)
-        val rowHeight = 28
-        val headerHeight = 25
-
-        categoryTabs.forEachIndexed { columnIndex, entry ->
-            val x = outerMargin + columnIndex * (columnWidth + gap)
-            val column = Rect(x, contentTop, columnWidth, contentHeight)
-            desktopColumnHits.add(entry.first to column)
-
-            drawPanel(context, column, panel, border)
-            context.fill(column.x + 1, column.y + 1, column.x + column.w - 1, column.y + 3,
-                if (entry.first == category) accent else 0x443D9B7B)
-            drawText(
-                context,
-                entry.second,
-                column.x + 9,
-                column.y + 9,
-                if (entry.first == category) accentBright else textMain
-            )
-
-            val modules = modulesForCategory(entry.first)
-            val listTop = column.y + headerHeight
-            val listBottom = column.y + column.h - 5
-            val viewport = (listBottom - listTop).coerceAtLeast(0)
-            val totalHeight = modules.size * rowHeight
-            val maxScroll = (totalHeight - viewport).coerceAtLeast(0)
-            val scroll = (columnScrolls[entry.first] ?: 0).coerceIn(0, maxScroll)
-            columnScrolls[entry.first] = scroll
-
-            context.enableScissor(column.x + 3, listTop, column.x + column.w - 3, listBottom)
-            modules.forEachIndexed { index, module ->
-                val rowY = listTop + index * rowHeight - scroll
-                val row = Rect(column.x + 5, rowY, column.w - 10, rowHeight - 2)
-                if (row.y + row.h < listTop || row.y > listBottom) return@forEachIndexed
-
-                val toggle = Rect(row.x + row.w - 27, row.y + 7, 22, 11)
+        val contentX = px + side + 12
+        val contentY = py + 55
+        val contentW = panelWidth - side - 24
+        val gap = 10
+        val cardW = ((contentW - gap) / 2).coerceAtLeast(80)
+        val modules = modulesForCategory(category)
+        val split = (modules.size + 1) / 2
+        val cards = listOf("Основное" to modules.take(split), "Дополнительно" to modules.drop(split))
+        cards.forEachIndexed { column, group ->
+            val card = Rect(contentX + column * (cardW + gap), contentY, cardW, panelHeight - 67)
+            drawPanel(context, card, 0xFF0D0D0F.toInt(), 0xFF29292D.toInt())
+            drawText(context, group.first, card.x + 10, card.y + 12, 0xFFFF9A9D.toInt())
+            drawText(context, "⌃", card.x + card.w - 17, card.y + 11, 0xFFFF9A9D.toInt())
+            context.fill(card.x + 8, card.y + 30, card.x + card.w - 8, card.y + 31, 0xFF242428.toInt())
+            group.second.forEachIndexed { index, module ->
+                val row = Rect(card.x + 7, card.y + 37 + index * 39, card.w - 14, 35)
+                if (row.y + row.h > card.y + card.h - 4) return@forEachIndexed
+                val toggle = Rect(row.x + row.w - 33, row.y + 11, 26, 13)
                 moduleHits.add(ModuleHit(module, row, toggle))
-                val selected = module === selectedModule
-                drawPanel(
-                    context,
-                    row,
-                    if (selected) panelSelected else panelSoft,
-                    if (selected) 0x8873D9B7.toInt() else 0x223D9B7B
-                )
-
-                val textWidth = (row.w - 42).coerceAtLeast(28)
-                drawText(
-                    context,
-                    textRenderer.trimToWidth(module.name, textWidth),
-                    row.x + 6,
-                    row.y + 8,
-                    if (module.isEnabled) textMain else textMuted
-                )
+                drawText(context, textRenderer.trimToWidth(module.name, (row.w - 48).coerceAtLeast(20)),
+                    row.x + 5, row.y + 13, if (module.isEnabled) 0xFFE4E4E8.toInt() else 0xFF929298.toInt())
+                drawText(context, "•••", row.x + row.w - 57, row.y + 12, 0xFF88888E.toInt())
                 drawSwitch(context, toggle, module.isEnabled)
+                if (index < group.second.lastIndex) context.fill(row.x + 4, row.y + 34, row.x + row.w - 4, row.y + 35, 0xFF1B1B1F.toInt())
             }
-            context.disableScissor()
-
-            if (modules.isEmpty()) {
-                drawText(context, "Пусто", column.x + 9, listTop + 9, textDim)
-            }
-            if (maxScroll > 0) {
-                val trackX = column.x + column.w - 4
-                context.fill(trackX, listTop, trackX + 1, listBottom, 0x554A7063)
-                val thumbHeight = (viewport.toDouble() * viewport / totalHeight).roundToInt().coerceAtLeast(12)
-                val thumbY = listTop + ((viewport - thumbHeight).toDouble() * scroll / maxScroll).roundToInt()
-                context.fill(trackX, thumbY, trackX + 1, thumbY + thumbHeight, accent)
-            }
+            if (group.second.isEmpty()) drawText(context, "Нет модулей", card.x + 10, card.y + 45, 0xFF66666C.toInt())
         }
 
         if (desktopSettingsOpen && selectedModule != null) {
-            context.fill(0, 0, width, height, 0x78010908)
-            val popupWidth = 330.coerceAtMost(width - 36)
-            val popupHeight = (height - 76).coerceAtMost(330).coerceAtLeast(150)
-            val popup = Rect((width - popupWidth) / 2, (height - popupHeight) / 2, popupWidth, popupHeight)
+            context.fill(px, py, px + panelWidth, py + panelHeight, 0x99000000.toInt())
+            val popupW = 330.coerceAtMost(panelWidth - 20)
+            val popup = Rect(px + (panelWidth - popupW) / 2, py + 48, popupW, (panelHeight - 70).coerceAtLeast(130))
             drawModuleDetails(context, selectedModule!!, popup, mouseX, mouseY, compact = false)
         }
     }
-
-    /**
-     * Phone layout: keep the category strip compact, then show either the list
-     * or the selected module's settings as a full-width page.
-     */
-    private fun drawCompactGame(context: DrawContext, mouseX: Int, mouseY: Int) {
-        val tabsY = 42
-        val gap = 3
-        val left = 10
-        val tabsWidth = (width - left * 2 - gap * 4).coerceAtLeast(120)
-        val tabWidth = tabsWidth / 5
-
-        categoryTabs.forEachIndexed { index, entry ->
-            val rect = Rect(left + index * (tabWidth + gap), tabsY, tabWidth, 21)
-            categoryHits.add(entry.first to rect)
-            drawButton(
-                context,
-                rect,
-                entry.second,
-                category == entry.first,
-                rect.contains(mouseX.toDouble(), mouseY.toDouble())
-            )
-        }
-
-        val contentTop = tabsY + 28
-        val footerTop = height - 21
-        val contentHeight = (footerTop - contentTop).coerceAtLeast(36)
-        val modules = modulesForCategory(category)
-
-        if (selectedModule == null || modules.none { it === selectedModule }) {
-            selectedModule = modules.firstOrNull()
-        }
-
-        if (mobileSettingsOpen && selectedModule != null) {
-            val detailRect = Rect(12, contentTop, width - 24, contentHeight)
-            drawModuleDetails(context, selectedModule!!, detailRect, mouseX, mouseY, compact = true)
-            return
-        }
-
-        val modulePanel = Rect(12, contentTop, width - 24, contentHeight)
-        drawPanel(context, modulePanel, panel, border)
-        drawText(context, categoryTabs.first { it.first == category }.second, modulePanel.x + 9, modulePanel.y + 8, textMuted)
-
-        val rowHeight = 30
-        val listTop = modulePanel.y + 25
-        val listBottom = modulePanel.y + modulePanel.h - 4
-        val listHeight = (listBottom - listTop).coerceAtLeast(0)
-        val totalHeight = modules.size * rowHeight
-        val maxScroll = (totalHeight - listHeight).coerceAtLeast(0)
-        moduleScroll = moduleScroll.coerceIn(0, maxScroll)
-
-        context.enableScissor(modulePanel.x + 2, listTop, modulePanel.x + modulePanel.w - 2, listBottom)
-        modules.forEachIndexed { index, module ->
-            val rowY = listTop + index * rowHeight - moduleScroll
-            val row = Rect(modulePanel.x + 6, rowY, modulePanel.w - 12, rowHeight - 2)
-            if (row.y + row.h < listTop || row.y > listBottom) return@forEachIndexed
-
-            val toggle = Rect(row.x + row.w - 31, row.y + 8, 24, 12)
-            moduleHits.add(ModuleHit(module, row, toggle))
-            drawPanel(context, row, if (module === selectedModule) panelSelected else panelSoft,
-                if (module === selectedModule) 0x8873D9B7.toInt() else 0x223D9B7B)
-            drawText(context, textRenderer.trimToWidth(module.name, row.w - 44), row.x + 8, row.y + 8, textMain)
-            drawSwitch(context, toggle, module.isEnabled)
-        }
-        context.disableScissor()
-
-        if (modules.isEmpty()) {
-            drawText(context, "В этой категории пока нет модулей.", modulePanel.x + 10, listTop + 10, textMuted)
-        }
-        drawTextCentered(context, "Нажми на модуль для настроек", width / 2, footerTop - 11, textDim)
-    }
-
     private fun drawModuleDetails(
         context: DrawContext,
         module: Module,
