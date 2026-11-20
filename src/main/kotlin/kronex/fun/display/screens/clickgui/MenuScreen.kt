@@ -456,7 +456,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         accountHits.clear()
         val left = layout.contentX + 18
         val top = layout.contentY + 14
-        val bodyW = layout.contentW - 36
+        val bodyW = (layout.contentW - 36).coerceAtLeast(72)
         drawText(context, "АККАУНТЫ", left, top, primaryText)
         drawText(context, "Локальные офлайн-профили", left, top + 15, mutedText)
 
@@ -464,7 +464,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         drawRounded(context, currentCard.x, currentCard.y, currentCard.w, currentCard.h, 7, cardBackground)
         context.drawBorder(currentCard.x, currentCard.y, currentCard.w, currentCard.h, border)
         drawText(context, "ТЕКУЩИЙ ПРОФИЛЬ", currentCard.x + 12, currentCard.y + 10, mutedText)
-        drawText(context, textRenderer.trimToWidth(AltManager.currentNickname(), currentCard.w - 24),
+        drawText(context, trimMenuText(AltManager.currentNickname(), currentCard.w - 24),
             currentCard.x + 12, currentCard.y + 29, primaryText)
 
         val buttonY = currentCard.y + currentCard.h + 10
@@ -499,7 +499,11 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             }
             drawText(context, name, row.x + 10, row.y + 8, primaryText)
             drawText(context, "×", delete.x + 7, delete.y + 6, secondaryText)
-            accountHits.add(AccountHit(index, name, row, delete))
+            val visibleRow = intersect(row, accountsListViewport)
+            if (visibleRow != null) {
+                val visibleDelete = intersect(delete, accountsListViewport) ?: Rect(0, 0, 0, 0)
+                accountHits.add(AccountHit(index, name, visibleRow, visibleDelete))
+            }
         }
         context.disableScissor()
 
@@ -508,7 +512,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                 left, viewportTop + 7, mutedText)
         }
         if (accountsStatus.isNotEmpty()) {
-            drawText(context, textRenderer.trimToWidth(accountsStatus, bodyW),
+            drawText(context, trimMenuText(accountsStatus, bodyW),
                 left, layout.y + layout.h - 11, accent)
         }
     }
@@ -518,7 +522,8 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             if (hovered) 0xFF44282B.toInt() else 0xFF211719.toInt())
         context.drawBorder(rect.x, rect.y, rect.w, rect.h,
             if (hovered) accent else 0xFF5C3438.toInt())
-        drawText(context, label, rect.x + 10, rect.y + 8, if (hovered) primaryText else accent)
+        drawText(context, trimMenuText(label, rect.w - 12), rect.x + 6, rect.y + 8,
+            if (hovered) primaryText else accent)
     }
 
     private fun saveAccount() {
@@ -546,39 +551,59 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     private fun drawModuleCards(context: DrawContext, layout: WindowLayout, mouseX: Int, mouseY: Int) {
         moduleHits.clear()
         val groups = groupsForView()
-        val x = layout.contentX + 15
-        val y = layout.contentY + 10
-        val availableW = layout.contentW - 30
-        val gap = 12
-        val columns = if (availableW >= 470) 2 else 1
-        val columnW = ((availableW - gap * (columns - 1)) / columns).coerceAtLeast(70)
-        val bottoms = IntArray(columns) { 0 }
-        val rowHeight = if (layout.contentW < 300) 38 else 43
-        val viewport = Rect(layout.contentX + 4, layout.contentY,
-            layout.contentW - 8, layout.contentH - 4)
-
         val cards = if (groups.isEmpty()) {
-            listOf(ModuleGroup(if (searchField.getText().isNotBlank()) "ПОИСК" else categoryLabel(selectedCategory), emptyList()))
+            listOf(ModuleGroup(
+                if (searchField.getText().isNotBlank()) "ПОИСК" else categoryLabel(selectedCategory),
+                emptyList()
+            ))
         } else groups
 
-        context.enableScissor(viewport.x, viewport.y, viewport.x + viewport.w, viewport.y + viewport.h)
+        val x = layout.contentX + 15
+        val y = layout.contentY + 10
+        val availableW = (layout.contentW - 30).coerceAtLeast(60)
+        val gap = 12
+        val columns = if (!layout.compact && availableW >= 470) 2 else 1
+        val columnW = ((availableW - gap * (columns - 1)) / columns).coerceAtLeast(60)
+        val rowHeight = if (layout.compact) 36 else if (layout.contentW < 300) 38 else 43
+        val viewport = Rect(layout.contentX + 4, layout.contentY,
+            (layout.contentW - 8).coerceAtLeast(1), (layout.contentH - 4).coerceAtLeast(1))
+
+        // Calculate all card positions and scroll limits before building hit boxes.
+        val heights = IntArray(columns)
+        val placements = mutableListOf<CardPlacement>()
         cards.forEach { group ->
-            val targetColumn = bottoms.indices.minByOrNull { bottoms[it] } ?: 0
-            val cardX = x + targetColumn * (columnW + gap)
-            val cardY = y + bottoms[targetColumn] - contentScroll
-            val cardH = 42 + max(1, group.modules.size) * rowHeight
-            val card = Rect(cardX, cardY, columnW, cardH)
+            val column = heights.indices.minByOrNull { heights[it] } ?: 0
+            val cardHeight = 42 + max(1, group.modules.size) * rowHeight
+            val top = heights[column]
+            placements.add(CardPlacement(group, column, top, cardHeight))
+            heights[column] += cardHeight + 12
+        }
+        val contentHeight = heights.maxOrNull() ?: 0
+        contentMaxScroll = (contentHeight - viewport.h).coerceAtLeast(0)
+        contentScroll = contentScroll.coerceIn(0, contentMaxScroll)
+
+        context.enableScissor(
+            viewport.x, viewport.y,
+            viewport.x + viewport.w, viewport.y + viewport.h
+        )
+        placements.forEach { placement ->
+            val group = placement.group
+            val cardX = x + placement.column * (columnW + gap)
+            val cardY = y + placement.top - contentScroll
+            val card = Rect(cardX, cardY, columnW, placement.height)
 
             drawRounded(context, card.x, card.y, card.w, card.h, 8, cardBackground)
             context.drawBorder(card.x, card.y, card.w, card.h, border)
-            drawText(context, textRenderer.trimToWidth(group.title, card.w - 30),
+            drawText(context, trimMenuText(group.title, card.w - 30),
                 card.x + 12, card.y + 12, accent)
-            drawText(context, "◆", card.x + card.w - 19, card.y + 12, accent)
-            context.fill(card.x + 1, card.y + 35, card.x + card.w - 1, card.y + 36, 0xFF1D1B1E.toInt())
+            drawGroupMark(context, card.x + card.w - 20, card.y + 11, accent)
+            context.fill(card.x + 1, card.y + 35, card.x + card.w - 1,
+                card.y + 36, 0xFF1D1B1E.toInt())
 
             if (group.modules.isEmpty()) {
                 val empty = if (searchField.getText().isNotBlank()) "Ничего не найдено" else "Пока нет модулей"
-                drawText(context, empty, card.x + 12, card.y + 55, mutedText)
+                drawText(context, trimMenuText(empty, card.w - 20),
+                    card.x + 12, card.y + 55, mutedText)
             } else {
                 group.modules.forEachIndexed { index, module ->
                     val rowY = card.y + 43 + index * rowHeight
@@ -586,14 +611,32 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                     if (row.contains(mouseX.toDouble(), mouseY.toDouble())) {
                         drawRounded(context, row.x, row.y, row.w, row.h, 4, rowHover)
                     }
-                    val toggle = Rect(row.x + row.w - 34, row.y + (row.h - 15) / 2, 30, 15)
-                    val settings = Rect(row.x + row.w - 67, row.y + 3, 25, row.h - 7)
-                    moduleHits.add(ModuleHit(module, row, toggle, settings))
-                    val textW = (row.w - 108).coerceAtLeast(16)
-                    drawText(context, textRenderer.trimToWidth(module.name, textW),
+
+                    val compactRow = row.w < 150
+                    val toggleW = if (compactRow) 26 else 30
+                    val toggle = Rect(row.x + row.w - toggleW - 2,
+                        row.y + (row.h - 15) / 2, toggleW, 15)
+                    val settingsW = if (compactRow) 18 else 25
+                    val settings = Rect(toggle.x - settingsW - 5, row.y + 3,
+                        settingsW, (row.h - 7).coerceAtLeast(12))
+
+                    val visibleRow = intersect(row, viewport)
+                    if (visibleRow != null) {
+                        val visibleToggle = intersect(toggle, viewport) ?: Rect(0, 0, 0, 0)
+                        val visibleSettings = intersect(settings, viewport) ?: Rect(0, 0, 0, 0)
+                        moduleHits.add(ModuleHit(module, visibleRow, visibleToggle, visibleSettings))
+                    }
+
+                    val textWidth = (settings.x - row.x - 14).coerceAtLeast(12)
+                    drawText(context, trimMenuText(module.name, textWidth),
                         row.x + 8, row.y + (row.h - 8) / 2,
                         if (module.isEnabled) primaryText else secondaryText)
-                    drawText(context, "•••", settings.x + 4, settings.y + 7, secondaryText)
+
+                    val dotY = settings.y + settings.h / 2
+                    for (dot in 0..2) {
+                        context.fill(settings.x + 3 + dot * 4, dotY,
+                            settings.x + 5 + dot * 4, dotY + 2, secondaryText)
+                    }
                     drawSwitch(context, toggle, module.isEnabled)
                     if (index < group.modules.lastIndex) {
                         context.fill(row.x + 7, row.y + row.h,
@@ -601,21 +644,17 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                     }
                 }
             }
-            bottoms[targetColumn] += cardH + 12
         }
         context.disableScissor()
-
-        val contentHeight = bottoms.maxOrNull() ?: 0
-        contentMaxScroll = (contentHeight - viewport.h).coerceAtLeast(0)
-        contentScroll = contentScroll.coerceIn(0, contentMaxScroll)
 
         if (contentMaxScroll > 0) {
             val trackX = layout.x + layout.w - 8
             val trackY = viewport.y + 4
-            val trackH = viewport.h - 8
+            val trackH = (viewport.h - 8).coerceAtLeast(1)
             context.fill(trackX, trackY, trackX + 2, trackY + trackH, 0xFF242225.toInt())
-            val thumbH = max(22, trackH * trackH / (contentHeight + 1))
-            val thumbY = trackY + ((trackH - thumbH).toDouble() * contentScroll / contentMaxScroll).roundToInt()
+            val thumbH = max(22, trackH * trackH / (contentHeight + 1)).coerceAtMost(trackH)
+            val thumbY = trackY + ((trackH - thumbH).toDouble() *
+                contentScroll / contentMaxScroll).roundToInt()
             drawRounded(context, trackX, thumbY, 2, thumbH, 1, accent)
         }
     }
@@ -628,70 +667,87 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         mouseY: Int
     ) {
         val content = Rect(layout.contentX + 4, layout.contentY,
-            layout.contentW - 8, layout.contentH - 4)
+            (layout.contentW - 8).coerceAtLeast(1), (layout.contentH - 4).coerceAtLeast(1))
         context.fill(content.x, content.y, content.x + content.w, content.y + content.h, 0xAA080809.toInt())
 
-        val popupW = min(430, content.w - 18).coerceAtLeast(150)
-        val popupH = min(500, content.h - 18).coerceAtLeast(125)
+        val popupW = min(430, (content.w - 12).coerceAtLeast(1))
+        val popupH = min(500, (content.h - 12).coerceAtLeast(1))
         val popupX = content.x + (content.w - popupW) / 2
         val popupY = content.y + (content.h - popupH) / 2
         settingsPanel = Rect(popupX, popupY, popupW, popupH)
 
         drawRounded(context, popupX, popupY, popupW, popupH, 9, 0xFF111113.toInt())
         context.drawBorder(popupX, popupY, popupW, popupH, 0xFF343034.toInt())
-        drawText(context, "НАСТРОЙКИ МОДУЛЯ", popupX + 14, popupY + 13, mutedText)
-        drawText(context, textRenderer.trimToWidth(module.name, popupW - 62),
-            popupX + 14, popupY + 29, primaryText)
+        drawText(context, "НАСТРОЙКИ", popupX + 12, popupY + 9, mutedText)
+        drawText(context, trimMenuText(module.name, popupW - 66),
+            popupX + 12, popupY + 24, primaryText)
 
-        settingsClose = Rect(popupX + popupW - 28, popupY + 9, 19, 19)
+        settingsClose = Rect(popupX + popupW - 25, popupY + 6, 18, 18)
         drawRounded(context, settingsClose.x, settingsClose.y,
             settingsClose.w, settingsClose.h, 5, rowHover)
         drawText(context, "×", settingsClose.x + 6, settingsClose.y + 5, secondaryText)
 
-        settingsModuleSwitch = Rect(popupX + popupW - 48, popupY + 33, 32, 16)
+        settingsModuleSwitch = Rect(popupX + popupW - 46, popupY + 27, 32, 16)
         drawSwitch(context, settingsModuleSwitch, module.isEnabled)
-        drawText(context, textRenderer.trimToWidth(module.desc, popupW - 28),
-            popupX + 14, popupY + 48, secondaryText)
+        drawText(context, trimMenuText(module.desc, popupW - 25),
+            popupX + 12, popupY + 45, secondaryText)
 
-        settingsBind = Rect(popupX + 12, popupY + 66, popupW - 24, 24)
+        val bindY = popupY + if (layout.compact) 58 else 66
+        settingsBind = Rect(popupX + 10, bindY, (popupW - 20).coerceAtLeast(1),
+            if (layout.compact) 20 else 24)
         drawRounded(context, settingsBind.x, settingsBind.y,
             settingsBind.w, settingsBind.h, 5, 0xFF19181A.toInt())
         context.drawBorder(settingsBind.x, settingsBind.y, settingsBind.w, settingsBind.h, border)
         val bindText = if (waitingForBind === module) "НАЖМИ КЛАВИШУ..." else "БИНД: " + formatBind(module.bind)
-        drawText(context, bindText, settingsBind.x + 9, settingsBind.y + 8, secondaryText)
+        drawText(context, trimMenuText(bindText, settingsBind.w - 16),
+            settingsBind.x + 8, settingsBind.y + 6, secondaryText)
 
-        val settingTop = popupY + 103
-        val settingBottom = popupY + popupH - 10
-        val settingViewport = max(0, settingBottom - settingTop)
-        val totalSettingsHeight = module.settings.fold(0) { total, setting -> total + if (setting is NumberSetting) 48 else 34 }
-        settingsMaxScroll = (totalSettingsHeight - settingViewport).coerceAtLeast(0)
+        val settingTop = popupY + if (layout.compact) 84 else 103
+        val settingBottom = popupY + popupH - 8
+        val settingViewportHeight = max(0, settingBottom - settingTop)
+        val booleanRowHeight = if (layout.compact) 29 else 34
+        val numberRowHeight = if (layout.compact) 42 else 48
+        val totalSettingsHeight = module.settings.fold(0) { total, setting ->
+            total + if (setting is NumberSetting) numberRowHeight else booleanRowHeight
+        }
+        settingsMaxScroll = (totalSettingsHeight - settingViewportHeight).coerceAtLeast(0)
         settingsScroll = settingsScroll.coerceIn(0, settingsMaxScroll)
         booleanHits.clear()
         sliderHits.clear()
 
-        context.enableScissor(popupX + 8, settingTop, popupX + popupW - 8, settingBottom)
+        val settingClip = Rect(popupX + 6, settingTop, popupW - 12, settingViewportHeight)
+        context.enableScissor(
+            settingClip.x, settingClip.y,
+            settingClip.x + settingClip.w, settingClip.y + settingClip.h
+        )
         var offset = 0
         module.settings.forEach { setting ->
-            val rowHeight = if (setting is NumberSetting) 48 else 34
+            val rowHeight = if (setting is NumberSetting) numberRowHeight else booleanRowHeight
             val rowY = settingTop + offset - settingsScroll
-            if (rowY + rowHeight >= settingTop && rowY <= settingBottom) {
+            val row = Rect(popupX + 10, rowY, popupW - 20, rowHeight)
+            if (intersect(row, settingClip) != null) {
                 when (setting) {
                     is BooleanSetting -> {
-                        drawText(context, textRenderer.trimToWidth(setting.name, popupW - 78),
-                            popupX + 14, rowY + 11, primaryText)
-                        val toggle = Rect(popupX + popupW - 48, rowY + 7, 32, 16)
+                        drawText(context, trimMenuText(setting.name, popupW - 78),
+                            row.x, row.y + if (layout.compact) 9 else 11, primaryText)
+                        val toggle = Rect(popupX + popupW - 48, row.y + 6, 32, 16)
                         drawSwitch(context, toggle, setting.isEnabled)
-                        booleanHits.add(BooleanHit(setting, toggle))
+                        intersect(toggle, settingClip)?.let {
+                            booleanHits.add(BooleanHit(setting, it))
+                        }
                     }
                     is NumberSetting -> {
-                        drawText(context, textRenderer.trimToWidth(setting.name, popupW - 88),
-                            popupX + 14, rowY + 5, primaryText)
+                        drawText(context, trimMenuText(setting.name, popupW - 88),
+                            row.x, row.y + 4, primaryText)
                         val value = formatNumber(setting.doubleValue, setting.increment)
-                        val valueWidth = textRenderer.getWidth(value)
-                        drawText(context, value, popupX + popupW - valueWidth - 14, rowY + 5, accent)
-                        val track = Rect(popupX + 14, rowY + 25, popupW - 28, 12)
+                        val valueWidth = menuTextWidth(value)
+                        drawText(value, popupX + popupW - valueWidth - 14, row.y + 4, accent)
+                        val track = Rect(popupX + 14, row.y + if (layout.compact) 24 else 25,
+                            popupW - 28, 12)
                         drawSlider(context, track, setting.doubleValue, setting.min, setting.max)
-                        sliderHits.add(SliderHit(setting, track))
+                        intersect(track, settingClip)?.let {
+                            sliderHits.add(SliderHit(setting, it))
+                        }
                     }
                 }
             }
@@ -700,7 +756,8 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         context.disableScissor()
 
         if (module.settings.isEmpty()) {
-            drawText(context, "Нет дополнительных параметров", popupX + 14, settingTop + 12, mutedText)
+            drawText(context, "Нет дополнительных параметров",
+                popupX + 12, settingTop + 8, mutedText)
         }
     }
 
@@ -751,6 +808,30 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     private fun drawText(context: DrawContext, value: String, x: Int, y: Int, color: Int) {
         val styled = Text.literal(value).setStyle(Style.EMPTY.withFont(menuFont))
         context.drawText(textRenderer, styled, x, y, color, false)
+    }
+
+    private fun menuTextWidth(value: String): Int =
+        textRenderer.getWidth(Text.literal(value).setStyle(Style.EMPTY.withFont(menuFont)))
+
+    private fun trimMenuText(value: String, maxWidth: Int): String {
+        if (maxWidth <= 0) return ""
+        if (menuTextWidth(value) <= maxWidth) return value
+        var end = value.length
+        while (end > 0) {
+            end = value.offsetByCodePoints(end, -1)
+            val candidate = value.substring(0, end)
+            if (menuTextWidth(candidate) <= maxWidth) return candidate
+        }
+        return ""
+    }
+
+    private fun intersect(rect: Rect, clip: Rect): Rect? {
+        val left = max(rect.x, clip.x)
+        val top = max(rect.y, clip.y)
+        val right = min(rect.x + rect.w, clip.x + clip.w)
+        val bottom = min(rect.y + rect.h, clip.y + clip.h)
+        if (right <= left || bottom <= top) return null
+        return Rect(left, top, right - left, bottom - top)
     }
 
     private fun formatNumber(value: Double, step: Double): String =
@@ -869,6 +950,17 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             TriggerBotClient.saveConfig()
             return true
         }
+        moduleHits.firstOrNull { it.row.contains(mouseX, mouseY) }?.let {
+            if (it.module.name == "Alt Manager") {
+                openAccounts()
+                return true
+            }
+            selectedModule = it.module
+            settingsScroll = 0
+            settingsOpen = true
+            waitingForBind = null
+            return true
+        }
         return super.mouseClicked(mouseX, mouseY, button)
     }
 
@@ -896,6 +988,9 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     ): Boolean {
         val direction = if (verticalAmount < 0) 1 else -1
         if (accountsPage) {
+            if (!accountsListViewport.contains(mouseX, mouseY)) return super.mouseScrolled(
+                mouseX, mouseY, horizontalAmount, verticalAmount
+            )
             val names = AltManager.getAll()
             val maxOffset = (names.size * 32 - accountsListViewport.h).coerceAtLeast(0)
             accountsScroll = (accountsScroll + direction * 28).coerceIn(0, maxOffset)
@@ -904,6 +999,11 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         if (settingsOpen) {
             settingsScroll = (settingsScroll + direction * 28).coerceIn(0, settingsMaxScroll)
         } else {
+            val layout = calculateLayout()
+            val area = Rect(layout.contentX, layout.contentY, layout.contentW, layout.contentH)
+            if (!area.contains(mouseX, mouseY)) return super.mouseScrolled(
+                mouseX, mouseY, horizontalAmount, verticalAmount
+            )
             contentScroll = (contentScroll + direction * 34).coerceIn(0, contentMaxScroll)
         }
         return true
