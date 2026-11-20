@@ -755,7 +755,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                             row.x, row.y + 4, primaryText)
                         val value = formatNumber(setting.doubleValue, setting.increment)
                         val valueWidth = menuTextWidth(value)
-                        drawText(value, popupX + popupW - valueWidth - 14, row.y + 4, accent)
+                        drawText(context, value, popupX + popupW - valueWidth - 14, row.y + 4, accent)
                         val track = Rect(popupX + 14, row.y + if (layout.compact) 24 else 25,
                             popupW - 28, 12)
                         drawSlider(context, track, setting.doubleValue, setting.min, setting.max)
