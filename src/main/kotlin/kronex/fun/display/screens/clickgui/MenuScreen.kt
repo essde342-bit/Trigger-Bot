@@ -33,13 +33,14 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     private data class WindowLayout(
         val x: Int, val y: Int, val w: Int, val h: Int,
         val sidebar: Int, val contentX: Int, val contentY: Int,
-        val contentW: Int, val contentH: Int
+        val contentW: Int, val contentH: Int, val compact: Boolean
     )
     private data class ModuleGroup(val title: String, val modules: List<Module>)
     private data class ModuleHit(val module: Module, val row: Rect, val toggle: Rect, val settings: Rect)
     private data class BooleanHit(val setting: BooleanSetting, val toggle: Rect)
     private data class SliderHit(val setting: NumberSetting, val track: Rect)
     private data class AccountHit(val index: Int, val name: String, val row: Rect, val delete: Rect)
+    private data class CardPlacement(val group: ModuleGroup, val column: Int, val top: Int, val height: Int)
 
     private val categoryItems = listOf(
         Category.COMBAT to "Бой",
@@ -133,37 +134,58 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     override fun init() {
         super.init()
         val layout = calculateLayout()
+        val fieldX = if (layout.compact) layout.x + 42 else layout.contentX + 54
+        val fieldY = if (layout.compact) layout.y + 40 else layout.y + 15
+        val fieldWidth = if (layout.compact) {
+            (layout.w - 60).coerceAtLeast(48)
+        } else {
+            (layout.contentW - 112).coerceAtLeast(54)
+        }
+
         searchField = TextFieldWidget(
-            textRenderer,
-            layout.contentX + 54,
-            layout.y + 15,
-            (layout.contentW - 112).coerceAtLeast(54),
-            20,
-            Text.literal("Поиск")
+            textRenderer, fieldX, fieldY, fieldWidth,
+            if (layout.compact) 18 else 20, Text.literal("Поиск")
         )
         searchField.setMaxLength(48)
         searchField.setSuggestion("")
-        searchField.setEditableColor(0xFF101012.toInt())
-        if (accountsPage) searchField.setText(AltManager.currentNickname())
+        searchField.setEditableColor(primaryText)
         searchField.setDrawsBackground(false)
+        searchField.setRenderTextProvider { value, firstCharacterIndex ->
+            val start = firstCharacterIndex.coerceIn(0, value.length)
+            Text.literal(value.substring(start))
+                .setStyle(Style.EMPTY.withFont(menuFont))
+                .asOrderedText()
+        }
+        searchField.setChangedListener {
+            contentScroll = 0
+            if (accountsPage) accountsScroll = 0
+        }
+        if (accountsPage) searchField.setText(AltManager.currentNickname())
         addDrawableChild(searchField)
     }
 
     private fun calculateLayout(): WindowLayout {
-        val margin = if (width < 500) 7 else 20
+        // Zalith/Pojav can expose a short scaled GUI height. Switch to top tabs
+        // before a vertical sidebar can overflow the visible panel.
+        val compact = width < 620 || height < 420
+        val margin = if (compact) 6 else 20
         val panelW = min(860, max(220, width - margin * 2))
-        val panelH = min(550, max(180, height - margin * 2))
+        val panelH = min(550, max(if (compact) 150 else 180, height - margin * 2))
         val panelX = (width - panelW) / 2
         val panelY = (height - panelH) / 2
-        val sidebarW = when {
+        val sidebarW = if (compact) 0 else when {
             panelW < 360 -> 86
             panelW < 520 -> 112
             else -> 176
         }
+        val headerHeight = if (compact) 94 else 58
+        val bottomReserve = if (compact) 12 else 72
         return WindowLayout(
             panelX, panelY, panelW, panelH, sidebarW,
-            panelX + sidebarW, panelY + 58,
-            panelW - sidebarW, panelH - 72
+            panelX + sidebarW, panelY + headerHeight,
+            panelW - sidebarW,
+            (panelH - headerHeight - bottomReserve).coerceAtLeast(0),
+            compact
         )
     }
 
@@ -187,20 +209,30 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     }
 
     private fun drawSearchOverlay(context: DrawContext) {
-        val value = searchField.getText().ifBlank {
-            if (accountsPage) "Ник 3–16 символов" else "Поиск модулей"
-        }
-        val styled = Text.literal(value).setStyle(Style.EMPTY.withFont(menuFont))
-        context.drawText(textRenderer, styled, searchField.x + 5, searchField.y + 6, secondaryText, false)
+        // Typed text, cursor and selection are rendered by TextFieldWidget
+        // through its PT Sans render provider. This is only the placeholder.
+        if (searchField.getText().isNotEmpty() || searchField.isFocused) return
+        val placeholder = if (accountsPage) "Ник 3–16 символов" else "Поиск модулей"
+        val styled = Text.literal(placeholder).setStyle(Style.EMPTY.withFont(menuFont))
+        context.enableScissor(
+            searchField.x + 1, searchField.y,
+            searchField.x + searchField.width - 2, searchField.y + searchField.height
+        )
+        context.drawText(textRenderer, styled, searchField.x + 2,
+            searchField.y + (searchField.height - 8) / 2, mutedText, false)
+        context.disableScissor()
     }
 
     private fun drawWindow(context: DrawContext, layout: WindowLayout) {
         drawRounded(context, layout.x, layout.y, layout.w, layout.h, 11, background)
         context.drawBorder(layout.x, layout.y, layout.w, layout.h, border)
-        drawRounded(
-            context, layout.x + 1, layout.y + 1, layout.sidebar - 1,
-            layout.h - 2, 9, sidebarBackground
-        )
+        if (layout.compact) {
+            val dividerY = layout.y + 91
+            context.fill(layout.x + 10, dividerY, layout.x + layout.w - 10, dividerY + 1, border)
+            return
+        }
+        drawRounded(context, layout.x + 1, layout.y + 1,
+            layout.sidebar - 1, layout.h - 2, 9, sidebarBackground)
         context.fill(layout.x + layout.sidebar, layout.y + 1,
             layout.x + layout.sidebar + 1, layout.y + layout.h - 1, border)
         context.fill(layout.contentX, layout.y + 56,
@@ -211,53 +243,71 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     private fun drawSidebar(context: DrawContext, layout: WindowLayout, mouseX: Int, mouseY: Int) {
         categoryHits.clear()
-        val logoX = layout.x + if (layout.sidebar < 120) 13 else 24
+        val logoX = layout.x + if (layout.compact || layout.sidebar < 120) 13 else 24
         val logo = Text.literal("ASTRA").setStyle(Style.EMPTY.withFont(galahadFont))
         context.drawText(textRenderer, logo, logoX, layout.y + 17, primaryText, false)
+
+        if (layout.compact) {
+            accountsNavHit = Rect(layout.x + layout.w - 34, layout.y + 12, 23, 24)
+            drawRounded(context, accountsNavHit.x, accountsNavHit.y,
+                accountsNavHit.w, accountsNavHit.h, 6,
+                if (accountsPage) 0xFF211719.toInt() else rowHover)
+            if (accountsPage) {
+                context.drawBorder(accountsNavHit.x, accountsNavHit.y,
+                    accountsNavHit.w, accountsNavHit.h, 0xFF5C3438.toInt())
+            }
+            drawAccountIcon(context, accountsNavHit.x + 7, accountsNavHit.y + 5, accent)
+            return
+        }
 
         val sectionY = layout.y + 78
         drawText(context, "ФУНКЦИИ", layout.x + 17, sectionY, mutedText)
         val itemStart = sectionY + 19
         val itemHeight = if (layout.sidebar < 120) 31 else 36
+        val sidebarClip = Rect(layout.x + 3, layout.y + 60, layout.sidebar - 6,
+            (layout.h - 111).coerceAtLeast(0))
 
         categoryItems.forEachIndexed { index, item ->
             val rect = Rect(layout.x + 8, itemStart + index * itemHeight,
                 layout.sidebar - 16, itemHeight - 3)
-            categoryHits.add(item.first to rect)
-            val active = !accountsPage && selectedCategory == item.first && searchField.getText().isBlank()
-            if (active) {
-                drawRounded(context, rect.x, rect.y, rect.w, rect.h, 6, 0xFF211719.toInt())
-                context.drawBorder(rect.x, rect.y, rect.w, rect.h, 0xFF5C3438.toInt())
-            } else if (rect.contains(mouseX.toDouble(), mouseY.toDouble())) {
-                drawRounded(context, rect.x, rect.y, rect.w, rect.h, 6, rowHover)
+            val visible = intersect(rect, sidebarClip)
+            if (visible != null) {
+                categoryHits.add(item.first to visible)
+                val active = !accountsPage && selectedCategory == item.first && searchField.getText().isBlank()
+                if (active) {
+                    drawRounded(context, rect.x, rect.y, rect.w, rect.h, 6, 0xFF211719.toInt())
+                    context.drawBorder(rect.x, rect.y, rect.w, rect.h, 0xFF5C3438.toInt())
+                } else if (rect.contains(mouseX.toDouble(), mouseY.toDouble())) {
+                    drawRounded(context, rect.x, rect.y, rect.w, rect.h, 6, rowHover)
+                }
+                drawCategoryIcon(context, index, rect.x + 9, rect.y + 8,
+                    if (active) accent else secondaryText)
+                val labelX = rect.x + if (layout.sidebar < 120) 25 else 32
+                val labelW = (rect.w - (labelX - rect.x) - 4).coerceAtLeast(12)
+                drawText(context, trimMenuText(item.second, labelW),
+                    labelX, rect.y + 8, if (active) accent else primaryText)
             }
-            drawText(context, categoryMarker(index), rect.x + 9, rect.y + 8,
-                if (active) accent else secondaryText)
-            val labelX = rect.x + if (layout.sidebar < 120) 25 else 32
-            val labelW = (rect.w - (labelX - rect.x) - 4).coerceAtLeast(12)
-            drawText(context, textRenderer.trimToWidth(item.second, labelW),
-                labelX, rect.y + 8, if (active) accent else primaryText)
         }
 
         val manageY = itemStart + categoryItems.size * itemHeight + 7
         accountsNavHit = Rect(0, 0, 0, 0)
         if (layout.h >= 350) {
             drawText(context, "УПРАВЛЕНИЕ", layout.x + 17, manageY, mutedText)
-            accountsNavHit = Rect(layout.x + 8, manageY + 17, layout.sidebar - 16, 28)
-            if (accountsPage) {
-                drawRounded(context, accountsNavHit.x, accountsNavHit.y,
-                    accountsNavHit.w, accountsNavHit.h, 6, 0xFF211719.toInt())
-                context.drawBorder(accountsNavHit.x, accountsNavHit.y,
-                    accountsNavHit.w, accountsNavHit.h, 0xFF5C3438.toInt())
-            } else if (accountsNavHit.contains(mouseX.toDouble(), mouseY.toDouble())) {
-                drawRounded(context, accountsNavHit.x, accountsNavHit.y,
-                    accountsNavHit.w, accountsNavHit.h, 6, rowHover)
-            }
-            drawText(context, "♙", accountsNavHit.x + 9, accountsNavHit.y + 8,
-                if (accountsPage) accent else secondaryText)
-            if (layout.sidebar >= 120) {
-                drawText(context, "Аккаунты", accountsNavHit.x + 32,
-                    accountsNavHit.y + 8, if (accountsPage) accent else primaryText)
+            val target = Rect(layout.x + 8, manageY + 17, layout.sidebar - 16, 28)
+            accountsNavHit = intersect(target, sidebarClip) ?: Rect(0, 0, 0, 0)
+            if (accountsNavHit.w > 0) {
+                if (accountsPage) {
+                    drawRounded(context, target.x, target.y, target.w, target.h, 6, 0xFF211719.toInt())
+                    context.drawBorder(target.x, target.y, target.w, target.h, 0xFF5C3438.toInt())
+                } else if (target.contains(mouseX.toDouble(), mouseY.toDouble())) {
+                    drawRounded(context, target.x, target.y, target.w, target.h, 6, rowHover)
+                }
+                drawAccountIcon(context, target.x + 9, target.y + 7,
+                    if (accountsPage) accent else secondaryText)
+                if (layout.sidebar >= 120) {
+                    drawText(context, "Аккаунты", target.x + 32,
+                        target.y + 8, if (accountsPage) accent else primaryText)
+                }
             }
         }
 
@@ -265,30 +315,101 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         drawRounded(context, layout.x + 13, footerY - 2, 25, 25, 12, 0xFF242326.toInt())
         drawText(context, "?", layout.x + 22, footerY + 6, secondaryText)
         if (layout.sidebar >= 120) {
-            drawText(context, textRenderer.trimToWidth(username, layout.sidebar - 62),
+            drawText(context, trimMenuText(username, layout.sidebar - 62),
                 layout.x + 46, footerY + 2, primaryText)
             drawText(context, "Astra Client", layout.x + 46, footerY + 13, mutedText)
         }
     }
 
+    private fun drawCategoryIcon(context: DrawContext, index: Int, x: Int, y: Int, color: Int) {
+        // Primitive icons avoid unsupported Unicode symbols in the bundled font.
+        when (index) {
+            0 -> {
+                context.fill(x + 4, y, x + 6, y + 3, color)
+                context.fill(x + 4, y + 7, x + 6, y + 10, color)
+                context.fill(x, y + 4, x + 3, y + 6, color)
+                context.fill(x + 7, y + 4, x + 10, y + 6, color)
+                context.drawBorder(x + 3, y + 3, 4, 4, color)
+            }
+            1 -> {
+                context.fill(x + 4, y + 1, x + 6, y + 9, color)
+                context.fill(x + 2, y + 1, x + 8, y + 3, color)
+                context.fill(x + 2, y + 8, x + 8, y + 10, color)
+            }
+            2 -> {
+                context.drawBorder(x + 1, y + 2, 9, 6, color)
+                context.fill(x + 4, y + 4, x + 7, y + 7, color)
+            }
+            3 -> drawAccountIcon(context, x + 1, y, color)
+            else -> {
+                context.fill(x + 1, y + 1, x + 4, y + 4, color)
+                context.fill(x + 7, y + 1, x + 10, y + 4, color)
+                context.fill(x + 1, y + 7, x + 4, y + 10, color)
+                context.fill(x + 7, y + 7, x + 10, y + 10, color)
+            }
+        }
+    }
+
+    private fun drawAccountIcon(context: DrawContext, x: Int, y: Int, color: Int) {
+        context.fill(x + 4, y, x + 8, y + 4, color)
+        context.fill(x + 1, y + 6, x + 11, y + 12, color)
+    }
+
+    private fun drawSearchIcon(context: DrawContext, x: Int, y: Int, color: Int) {
+        context.drawBorder(x, y, 8, 8, color)
+        context.fill(x + 7, y + 7, x + 10, y + 9, color)
+    }
+
+    private fun drawGroupMark(context: DrawContext, x: Int, y: Int, color: Int) {
+        context.fill(x + 2, y, x + 4, y + 2, color)
+        context.fill(x, y + 2, x + 2, y + 4, color)
+        context.fill(x + 4, y + 2, x + 6, y + 4, color)
+        context.fill(x + 2, y + 4, x + 4, y + 6, color)
+    }
+
     private fun categoryMarker(index: Int): String = when (index) {
-        0 -> "✣"
-        1 -> "↕"
-        2 -> "◎"
-        3 -> "♙"
-        else -> "⌘"
+        0 -> "Б"
+        1 -> "Д"
+        2 -> "В"
+        3 -> "И"
+        else -> "Р"
     }
 
     private fun drawHeader(context: DrawContext, layout: WindowLayout) {
-        val searchX = layout.contentX + 13
-        val searchW = (layout.contentW - 26).coerceAtLeast(40)
-        drawRounded(context, searchX, layout.y + 13, searchW, 25, 6, 0xFF101012.toInt())
-        context.drawBorder(searchX, layout.y + 13, searchW, 25, border)
-        drawText(context, if (accountsPage) "@" else "⌕", layout.contentX + 23, layout.y + 19, mutedText)
-        val menuX = layout.x + layout.w - 39
-        drawRounded(context, menuX, layout.y + 14, 25, 23, 5, 0xFF151517.toInt())
-        context.drawBorder(menuX, layout.y + 14, 25, 23, border)
-        drawText(context, "≡", menuX + 8, layout.y + 19, secondaryText)
+        val searchX = if (layout.compact) layout.x + 10 else layout.contentX + 13
+        val searchY = if (layout.compact) layout.y + 37 else layout.y + 13
+        val searchW = if (layout.compact) layout.w - 20 else layout.contentW - 26
+        val searchH = if (layout.compact) 23 else 25
+        drawRounded(context, searchX, searchY, searchW, searchH, 6, 0xFF101012.toInt())
+        context.drawBorder(searchX, searchY, searchW, searchH, border)
+        drawSearchIcon(context, searchX + 10, searchY + 7, mutedText)
+
+        if (layout.compact) {
+            categoryHits.clear()
+            val labels = listOf("БОЙ", "ДВИЖ.", "ВИЗ.", "ИГРОК", "РАЗНОЕ")
+            val left = layout.x + 9
+            val gap = 4
+            val totalW = layout.w - 18
+            val tabW = ((totalW - gap * 4) / 5).coerceAtLeast(28)
+            labels.forEachIndexed { index, label ->
+                val rect = Rect(left + index * (tabW + gap), layout.y + 66, tabW, 20)
+                categoryHits.add(categoryItems[index].first to rect)
+                val active = !accountsPage && selectedCategory == categoryItems[index].first &&
+                    searchField.getText().isBlank()
+                if (active) {
+                    drawRounded(context, rect.x, rect.y, rect.w, rect.h, 5, 0xFF44282B.toInt())
+                    context.drawBorder(rect.x, rect.y, rect.w, rect.h, 0xFF875054.toInt())
+                } else {
+                    drawRounded(context, rect.x, rect.y, rect.w, rect.h, 5, 0xFF151416.toInt())
+                }
+                val text = trimMenuText(label, rect.w - 4)
+                drawText(context, text, rect.x + (rect.w - menuTextWidth(text)) / 2,
+                    rect.y + 6, if (active) accent else secondaryText)
+            }
+            return
+        }
+
+        drawText(context, "МОДУЛИ", layout.contentX + 18, layout.y + 20, primaryText)
     }
 
     private fun groupsForView(): List<ModuleGroup> {
