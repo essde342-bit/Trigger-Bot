@@ -89,6 +89,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
     private var accountsApplyHit = Rect(0, 0, 0, 0)
     private var accountsListViewport = Rect(0, 0, 0, 0)
 
+    private var settingsListViewport = Rect(0, 0, 0, 0)
     private var settingsPanel = Rect(0, 0, 0, 0)
     private var settingsClose = Rect(0, 0, 0, 0)
     private var settingsModuleSwitch = Rect(0, 0, 0, 0)
@@ -409,7 +410,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             return
         }
 
-        drawText(context, "МОДУЛИ", layout.contentX + 18, layout.y + 20, primaryText)
+        // Desktop search bar stays visually clean; the sidebar identifies the current section.
     }
 
     private fun groupsForView(): List<ModuleGroup> {
@@ -454,34 +455,43 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
     private fun drawAccountsPage(context: DrawContext, layout: WindowLayout, mouseX: Int, mouseY: Int) {
         accountHits.clear()
-        val left = layout.contentX + 18
-        val top = layout.contentY + 14
-        val bodyW = (layout.contentW - 36).coerceAtLeast(72)
-        drawText(context, "АККАУНТЫ", left, top, primaryText)
-        drawText(context, "Локальные офлайн-профили", left, top + 15, mutedText)
+        val compact = layout.compact
+        val left = layout.contentX + if (compact) 12 else 18
+        val top = layout.contentY + if (compact) 4 else 14
+        val bodyW = (layout.contentW - if (compact) 24 else 36).coerceAtLeast(72)
 
-        val currentCard = Rect(left, top + 34, bodyW, 66)
+        drawText(context, "АККАУНТЫ", left, top, primaryText)
+        if (!compact) drawText(context, "Локальные офлайн-профили", left, top + 15, mutedText)
+
+        val cardY = top + if (compact) 18 else 34
+        val cardHeight = if (compact) 35 else 66
+        val currentCard = Rect(left, cardY, bodyW, cardHeight)
         drawRounded(context, currentCard.x, currentCard.y, currentCard.w, currentCard.h, 7, cardBackground)
         context.drawBorder(currentCard.x, currentCard.y, currentCard.w, currentCard.h, border)
-        drawText(context, "ТЕКУЩИЙ ПРОФИЛЬ", currentCard.x + 12, currentCard.y + 10, mutedText)
-        drawText(context, trimMenuText(AltManager.currentNickname(), currentCard.w - 24),
-            currentCard.x + 12, currentCard.y + 29, primaryText)
+        drawText(context, "ТЕКУЩИЙ ПРОФИЛЬ", currentCard.x + 10,
+            currentCard.y + if (compact) 4 else 10, mutedText)
+        drawText(context, trimMenuText(AltManager.currentNickname(), currentCard.w - 22),
+            currentCard.x + 10, currentCard.y + if (compact) 17 else 29, primaryText)
 
-        val buttonY = currentCard.y + currentCard.h + 10
-        val buttonGap = 8
-        val buttonW = ((bodyW - buttonGap) / 2).coerceAtLeast(40)
-        accountsSaveHit = Rect(left, buttonY, buttonW, 24)
-        accountsApplyHit = Rect(left + buttonW + buttonGap, buttonY, buttonW, 24)
-        drawAccountButton(context, accountsSaveHit, "СОХРАНИТЬ", accountsSaveHit.contains(mouseX.toDouble(), mouseY.toDouble()))
-        drawAccountButton(context, accountsApplyHit, "ПРИМЕНИТЬ", accountsApplyHit.contains(mouseX.toDouble(), mouseY.toDouble()))
+        val buttonY = currentCard.y + currentCard.h + if (compact) 5 else 10
+        val buttonGap = if (compact) 6 else 8
+        val buttonHeight = if (compact) 20 else 24
+        val buttonW = ((bodyW - buttonGap) / 2).coerceAtLeast(32)
+        accountsSaveHit = Rect(left, buttonY, buttonW, buttonHeight)
+        accountsApplyHit = Rect(left + buttonW + buttonGap, buttonY, buttonW, buttonHeight)
+        drawAccountButton(context, accountsSaveHit, "СОХРАНИТЬ",
+            accountsSaveHit.contains(mouseX.toDouble(), mouseY.toDouble()))
+        drawAccountButton(context, accountsApplyHit, "ПРИМЕНИТЬ",
+            accountsApplyHit.contains(mouseX.toDouble(), mouseY.toDouble()))
 
-        val listTop = buttonY + 36
+        val listTop = buttonY + buttonHeight + if (compact) 8 else 12
         drawText(context, "СОХРАНЁННЫЕ НИКИ", left, listTop, secondaryText)
-        val viewportTop = listTop + 17
-        val viewportBottom = layout.y + layout.h - 17
-        accountsListViewport = Rect(left, viewportTop, bodyW, max(0, viewportBottom - viewportTop))
+        val viewportTop = listTop + if (compact) 13 else 17
+        val viewportBottom = layout.y + layout.h - if (compact) 8 else 17
+        accountsListViewport = Rect(left, viewportTop, bodyW,
+            max(0, viewportBottom - viewportTop))
         val names = AltManager.getAll()
-        val rowH = 32
+        val rowH = accountRowHeight()
         val maxOffset = (names.size * rowH - accountsListViewport.h).coerceAtLeast(0)
         accountsScroll = accountsScroll.coerceIn(0, maxOffset)
 
@@ -493,12 +503,12 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         names.forEachIndexed { index, name ->
             val rowY = viewportTop + index * rowH - accountsScroll
             val row = Rect(left, rowY, bodyW, rowH - 2)
-            val delete = Rect(left + bodyW - 28, rowY + 3, 22, 22)
+            val delete = Rect(left + bodyW - 28, rowY + 3, 22, min(22, rowH - 4))
             if (row.contains(mouseX.toDouble(), mouseY.toDouble())) {
                 drawRounded(context, row.x, row.y, row.w, row.h, 4, rowHover)
             }
-            drawText(context, name, row.x + 10, row.y + 8, primaryText)
-            drawText(context, "×", delete.x + 7, delete.y + 6, secondaryText)
+            drawText(context, name, row.x + 10, row.y + (row.h - 8) / 2, primaryText)
+            drawText(context, "×", delete.x + 7, delete.y + 5, secondaryText)
             val visibleRow = intersect(row, accountsListViewport)
             if (visibleRow != null) {
                 val visibleDelete = intersect(delete, accountsListViewport) ?: Rect(0, 0, 0, 0)
@@ -508,7 +518,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         context.disableScissor()
 
         if (names.isEmpty()) {
-            drawText(context, "Список пуст. Введи ник в поле поиска сверху и нажми «СОХРАНИТЬ».",
+            drawText(context, trimMenuText("Список пуст. Введи ник сверху и нажми «СОХРАНИТЬ».", bodyW),
                 left, viewportTop + 7, mutedText)
         }
         if (accountsStatus.isNotEmpty()) {
@@ -517,13 +527,16 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         }
     }
 
+    private fun accountRowHeight(): Int = if (calculateLayout().compact) 26 else 32
+
     private fun drawAccountButton(context: DrawContext, rect: Rect, label: String, hovered: Boolean) {
         drawRounded(context, rect.x, rect.y, rect.w, rect.h, 5,
             if (hovered) 0xFF44282B.toInt() else 0xFF211719.toInt())
         context.drawBorder(rect.x, rect.y, rect.w, rect.h,
             if (hovered) accent else 0xFF5C3438.toInt())
-        drawText(context, trimMenuText(label, rect.w - 12), rect.x + 6, rect.y + 8,
-            if (hovered) primaryText else accent)
+        val text = trimMenuText(label, rect.w - 8)
+        drawText(context, text, rect.x + (rect.w - menuTextWidth(text)) / 2,
+            rect.y + (rect.h - 8) / 2, if (hovered) primaryText else accent)
     }
 
     private fun saveAccount() {
@@ -716,6 +729,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         sliderHits.clear()
 
         val settingClip = Rect(popupX + 6, settingTop, popupW - 12, settingViewportHeight)
+        settingsListViewport = settingClip
         context.enableScissor(
             settingClip.x, settingClip.y,
             settingClip.x + settingClip.w, settingClip.y + settingClip.h
@@ -755,7 +769,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         }
         context.disableScissor()
 
-        if (module.settings.isEmpty()) {
+        if (module.settings.isEmpty() && settingViewportHeight >= 16) {
             drawText(context, "Нет дополнительных параметров",
                 popupX + 12, settingTop + 8, mutedText)
         }
@@ -992,11 +1006,14 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
                 mouseX, mouseY, horizontalAmount, verticalAmount
             )
             val names = AltManager.getAll()
-            val maxOffset = (names.size * 32 - accountsListViewport.h).coerceAtLeast(0)
+            val maxOffset = (names.size * accountRowHeight() - accountsListViewport.h).coerceAtLeast(0)
             accountsScroll = (accountsScroll + direction * 28).coerceIn(0, maxOffset)
             return true
         }
         if (settingsOpen) {
+            if (!settingsListViewport.contains(mouseX, mouseY)) return super.mouseScrolled(
+                mouseX, mouseY, horizontalAmount, verticalAmount
+            )
             settingsScroll = (settingsScroll + direction * 28).coerceIn(0, settingsMaxScroll)
         } else {
             val layout = calculateLayout()
