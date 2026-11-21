@@ -27,29 +27,68 @@ jobs:
         with:
           gradle-version: "8.11.1"
       - run: gradle build --no-daemon
-      - name: Verify Kotlin menu and Galahad font
+      - name: Verify Kotlin menu and both custom fonts
         shell: bash
         run: |
           set -euo pipefail
           JAR="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-dev.jar' | head -n 1)"
           test -n "$JAR"
           echo "Checking $JAR"
+
           jar tf "$JAR" | grep -Fx 'kronex/fun/display/screens/clickgui/MenuScreen.class'
+          jar tf "$JAR" | grep -Fx 'assets/triggerbot/font/pt_sans.json'
+          jar tf "$JAR" | grep -Fx 'assets/triggerbot/font/PTSans-Regular.ttf'
+          jar tf "$JAR" | grep -Fx 'assets/triggerbot/font/galahad.json'
           jar tf "$JAR" | grep -Fx 'assets/triggerbot/font/galahad_regular.ttf'
+
           python - <<'PY'
+          import json
           from pathlib import Path
           from fontTools.ttLib import TTFont
-          p = Path("build/resources/main/assets/triggerbot/font/galahad_regular.ttf")
-          font = TTFont(str(p), recalcBBoxes=False, recalcTimestamp=False)
-          assert font.sfntVersion == "\x00\x01\x00\x00"
-          assert "glyf" in font
-          assert "CFF " not in font and "CFF2" not in font
-          assert font.getBestCmap()
-          print("Galahad TTF validation passed:", p, font.sfntVersion)
+
+          assets = Path("build/resources/main/assets/triggerbot/font")
+          required_fallbacks = {
+              "minecraft:include/space",
+              "minecraft:include/default",
+              "minecraft:include/unifont",
+          }
+
+          for config_name, font_name in (
+              ("pt_sans.json", "PTSans-Regular.ttf"),
+              ("galahad.json", "galahad_regular.ttf"),
+          ):
+              config = json.loads((assets / config_name).read_text(encoding="utf-8"))
+              providers = config.get("providers", [])
+              assert providers and providers[0].get("type") == "ttf", (
+                  f"{config_name}: custom TTF provider must remain first"
+              )
+              references = {
+                  provider.get("id")
+                  for provider in providers
+                  if provider.get("type") == "reference"
+              }
+              assert required_fallbacks <= references, (
+                  f"{config_name}: missing vanilla fallback providers"
+              )
+
+              font_path = assets / font_name
+              font = TTFont(str(font_path), recalcBBoxes=False, recalcTimestamp=False)
+              cmap = font.getBestCmap()
+              assert cmap, f"{font_name}: empty character map"
+              assert font.sfntVersion == "\\x00\\x01\\x00\\x00", (
+                  f"{font_name}: invalid TrueType font"
+              )
+              print(f"{font_name}: {len(cmap)} mapped characters; fallback configured")
+
+          galahad = TTFont(
+              str(assets / "galahad_regular.ttf"),
+              recalcBBoxes=False,
+              recalcTimestamp=False,
+          )
+          assert "glyf" in galahad
+          assert "CFF " not in galahad and "CFF2" not in galahad
+          print("Galahad TrueType outline validation passed")
           PY
-          if jar tf "$JAR" | grep -Fq 'assets/triggerbot/fonts/GalahadStd Regular.otf'; then
-            echo "Original user OTF is also kept in the JAR."
-          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Astra-Client-1.2.1
