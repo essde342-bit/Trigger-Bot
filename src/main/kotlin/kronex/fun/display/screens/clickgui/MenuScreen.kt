@@ -109,7 +109,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         waitingForBind = null
         if (::searchField.isInitialized) {
             searchField.setText(AltManager.currentNickname())
-            searchField.setSuggestion("Ник 3–16 символов")
+            searchField.setSuggestion("")
         }
         MinecraftClient.getInstance().setScreen(this)
     }
@@ -122,7 +122,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         accountsStatus = ""
         if (::searchField.isInitialized) {
             searchField.setText("")
-            searchField.setSuggestion("Поиск модулей")
+            searchField.setSuggestion("")
         }
         selectedModule = null
         settingsOpen = false
@@ -145,7 +145,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
 
         searchField = TextFieldWidget(
             textRenderer, fieldX, fieldY, fieldWidth,
-            if (layout.compact) 18 else 20, Text.literal("Поиск")
+            if (layout.compact) 18 else 20, Text.literal("Поиск").setStyle(Style.EMPTY.withFont(menuFont))
         )
         searchField.setMaxLength(48)
         searchField.setSuggestion("")
@@ -189,6 +189,17 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
             compact
         )
     }
+
+    /**
+     * This screen draws its own background and must not inherit Minecraft's
+     * menu blur or panorama/darkening pass. Keep the live world behind the
+     * panel, but render every GUI primitive directly.
+     */
+    override fun renderBackground(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) = Unit
+
+    override fun renderInGameBackground(context: DrawContext) = Unit
+
+    override fun applyBlur() = Unit
 
     override fun render(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
         // Keep the 3D world visible. Do not call renderBackground(): it blurs the world.
@@ -915,7 +926,7 @@ object MenuScreen : Screen(Text.literal("Astra Client")) {
         categoryHits.firstOrNull { it.second.contains(mouseX, mouseY) }?.let {
             accountsPage = false
             searchField.setText("")
-            searchField.setSuggestion("Поиск модулей")
+            searchField.setSuggestion("")
             selectedCategory = it.first
             contentScroll = 0
             return true
