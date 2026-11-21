@@ -4,26 +4,11 @@
       "type": "ttf",
       "file": "triggerbot:font/PTSans-Regular.ttf",
       "size": 32,
-      "oversample": 3,
+      "oversample": 1,
       "shift": [
         0,
         0
       ]
-    },
-    {
-      "type": "reference",
-      "id": "minecraft:include/space"
-    },
-    {
-      "type": "reference",
-      "id": "minecraft:include/default",
-      "filter": {
-        "uniform": false
-      }
-    },
-    {
-      "type": "reference",
-      "id": "minecraft:include/unifont"
     }
   ]
 }
