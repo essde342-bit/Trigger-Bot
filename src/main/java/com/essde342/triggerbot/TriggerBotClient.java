@@ -59,7 +59,10 @@ public class TriggerBotClient implements ClientModInitializer {
                 if (client.currentScreen == null) {
                     MenuScreen.INSTANCE.openGui();
                 } else if (client.currentScreen instanceof MenuScreen) {
-                    client.currentScreen.keyPressed(GLFW.GLFW_KEY_ESCAPE, 0, 0);
+                    // Close through Minecraft's screen lifecycle instead of
+                    // synthesizing a keyboard event. This lets launchers such
+                    // as Zalith restore their in-game mouse/control state.
+                    client.currentScreen.close();
                 }
             }
 
