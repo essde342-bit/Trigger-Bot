@@ -27,7 +27,7 @@ jobs:
         with:
           gradle-version: "8.11.1"
       - run: gradle build --no-daemon
-      - name: Verify Kotlin menu and both custom fonts
+      - name: Verify custom-only fonts and sharp GUI resources
         shell: bash
         run: |
           set -euo pipefail
@@ -47,38 +47,40 @@ jobs:
           from fontTools.ttLib import TTFont
 
           assets = Path("build/resources/main/assets/triggerbot/font")
-          required_fallbacks = {
-              "minecraft:include/space",
-              "minecraft:include/default",
-              "minecraft:include/unifont",
+          expected = {
+              "pt_sans.json": ("PTSans-Regular.ttf", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя0123456789"),
+              "galahad.json": ("galahad_regular.ttf", "ASTRA"),
           }
 
-          for config_name, font_name in (
-              ("pt_sans.json", "PTSans-Regular.ttf"),
-              ("galahad.json", "galahad_regular.ttf"),
-          ):
+          for config_name, (font_name, required_text) in expected.items():
               config = json.loads((assets / config_name).read_text(encoding="utf-8"))
               providers = config.get("providers", [])
-              assert providers and providers[0].get("type") == "ttf", (
-                  f"{config_name}: custom TTF provider must remain first"
+              assert len(providers) == 1, (
+                  f"{config_name}: expected exactly one provider; Minecraft fallback is forbidden"
               )
-              references = {
-                  provider.get("id")
-                  for provider in providers
-                  if provider.get("type") == "reference"
-              }
-              assert required_fallbacks <= references, (
-                  f"{config_name}: missing vanilla fallback providers"
+              provider = providers[0]
+              assert provider.get("type") == "ttf", (
+                  f"{config_name}: custom TTF provider must be the only provider"
+              )
+              assert provider.get("file", "").endswith(font_name), (
+                  f"{config_name}: incorrect custom font file"
+              )
+              assert provider.get("oversample", 1) == 1, (
+                  f"{config_name}: oversample must stay at 1 for crisp rendering"
               )
 
               font_path = assets / font_name
               font = TTFont(str(font_path), recalcBBoxes=False, recalcTimestamp=False)
               cmap = font.getBestCmap()
               assert cmap, f"{font_name}: empty character map"
-              assert font.sfntVersion == bytes.fromhex("00010000").decode("latin-1"), (
+              missing = sorted({ch for ch in required_text if ord(ch) not in cmap})
+              assert not missing, (
+                  f"{font_name}: required custom-font glyphs missing: {''.join(missing)}"
+              )
+              assert font.sfntVersion == "\\x00\\x01\\x00\\x00", (
                   f"{font_name}: invalid TrueType font"
               )
-              print(f"{font_name}: {len(cmap)} mapped characters; fallback configured")
+              print(f"{font_name}: {len(cmap)} mapped characters; all required glyphs found")
 
           galahad = TTFont(
               str(assets / "galahad_regular.ttf"),
