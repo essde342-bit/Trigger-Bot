@@ -62,15 +62,27 @@ jobs:
               assert provider.get("type") == "ttf", (
                   f"{config_name}: custom TTF provider must be the only provider"
               )
-              assert provider.get("file", "").endswith(font_name), (
-                  f"{config_name}: incorrect custom font file"
+              expected_resource = f"triggerbot:{font_name}"
+              assert provider.get("file") == expected_resource, (
+                  f"{config_name}: expected resource path {expected_resource}; "
+                  "TTF paths are relative to assets/<namespace>/font/"
               )
               assert provider.get("oversample", 1) == 1, (
                   f"{config_name}: oversample must stay at 1 for crisp rendering"
               )
 
               font_path = assets / font_name
-              font = TTFont(str(font_path), recalcBBoxes=False, recalcTimestamp=False)
+              resolved_resource = (
+                  Path("build/resources/main/assets")
+                  / "triggerbot"
+                  / "font"
+                  / provider["file"].split(":", 1)[1]
+              )
+              assert resolved_resource.is_file(), (
+                  f"{config_name}: Minecraft cannot resolve {provider['file']} "
+                  f"to {resolved_resource}"
+              )
+              font = TTFont(str(resolved_resource), recalcBBoxes=False, recalcTimestamp=False)
               cmap = font.getBestCmap()
               assert cmap, f"{font_name}: empty character map"
               missing = sorted({ch for ch in required_text if ord(ch) not in cmap})
