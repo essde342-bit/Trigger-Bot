@@ -2,7 +2,7 @@
   "providers": [
     {
       "type": "ttf",
-      "file": "triggerbot:font/PTSans-Regular.ttf",
+      "file": "triggerbot:PTSans-Regular.ttf",
       "size": 32,
       "oversample": 1,
       "shift": [
