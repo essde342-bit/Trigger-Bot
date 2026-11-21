@@ -75,7 +75,7 @@ jobs:
               font = TTFont(str(font_path), recalcBBoxes=False, recalcTimestamp=False)
               cmap = font.getBestCmap()
               assert cmap, f"{font_name}: empty character map"
-              assert font.sfntVersion == "\\x00\\x01\\x00\\x00", (
+              assert font.sfntVersion == bytes.fromhex("00010000").decode("latin-1"), (
                   f"{font_name}: invalid TrueType font"
               )
               print(f"{font_name}: {len(cmap)} mapped characters; fallback configured")
